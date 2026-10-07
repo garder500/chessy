@@ -75,8 +75,9 @@ fn a_saved_pawn_is_not_a_dead_pawn() {
     mv(&mut g, "e1", "f1");
     mv(&mut g, "d5", "d2");
     assert_eq!(g.pos.captured_pawns, [0, 0]);
-    // Home is taken and a pawn cannot stand on the back rank: c2 is the closest.
-    assert_eq!(kind_at(&g, "c2"), Some((Color::White, PieceKind::Pawn)));
+    // Home is taken: c1 (a pawn may rest on its own back rank) is the first of the
+    // closest free squares in square order.
+    assert_eq!(kind_at(&g, "c1"), Some((Color::White, PieceKind::Pawn)));
 }
 
 #[test]

@@ -43,8 +43,8 @@ fn only_other_types_and_never_a_king() {
         "same type"
     );
     assert!(
-        !targets.contains(&spawn("a8", PieceKind::Pawn)),
-        "pawn on a back rank"
+        targets.contains(&spawn("a8", PieceKind::Pawn)),
+        "a black pawn may rest on its own back rank"
     );
     assert!(targets.contains(&spawn("a8", PieceKind::Queen)));
     assert!(targets

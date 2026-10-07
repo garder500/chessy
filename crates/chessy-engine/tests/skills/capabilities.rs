@@ -313,16 +313,15 @@ fn canceller() {
 #[test]
 fn tornado() {
     // Non-king pieces in counterclockwise order around the centre, from the
-    // east: Rh5, Nd8, Pc7, ba1. Each takes the square of the next one.
+    // east: Rh5, Nd8, Pc7, ba1. Each takes the square of the next one. The
+    // white pawn lands on a1, its own back rank: it is not promoted.
     let mut g = game(
         "3N4/2P4k/8/7R/8/8/8/b3K3 w - - 0 1",
         &[SkillId::Tornado],
         &[],
     );
     let ev = use_skill(&mut g, SkillId::Tornado, none());
-    // h5 -> d8, d8 -> c7, c7 -> a1 (the pawn reaches a back rank: queen),
-    // a1 -> h5; the kings stay.
-    assert_eq!(board(&g), "3R4/2N4k/8/7b/8/8/8/Q3K3");
+    assert_eq!(board(&g), "3R4/2N4k/8/7b/8/8/8/P3K3");
     let Some(Event::Rotated { moves }) = ev.iter().find(|e| matches!(e, Event::Rotated { .. }))
     else {
         panic!("a rotation event");
@@ -330,10 +329,7 @@ fn tornado() {
     let moves: Vec<(String, String)> = moves.iter().map(|m| (name(m.from), name(m.to))).collect();
     let expected = [("h5", "d8"), ("d8", "c7"), ("c7", "a1"), ("a1", "h5")];
     assert_eq!(moves, expected.map(|(a, b)| (a.to_string(), b.to_string())));
-    assert!(ev.iter().any(|e| matches!(
-        e,
-        Event::Promoted { square, to: PieceKind::Queen } if *square == s("a1")
-    )));
+    assert!(!ev.iter().any(|e| matches!(e, Event::Promoted { .. })));
 }
 
 #[test]
@@ -498,9 +494,9 @@ fn temporal() {
     mv(&mut g, "a1", "c3");
     mv(&mut g, "e8", "d8");
     use_skill(&mut g, SkillId::Temporal, piece("c3"));
-    assert_eq!(board(&g), "3k4/8/8/4B3/8/8/8/4K3");
+    assert_eq!(board(&g), "3k4/8/8/8/8/8/8/B3K3");
     assert!(at(&g, "c3").is_none());
-    assert_eq!(kind_at(&g, "e5"), Some((Color::White, PieceKind::Bishop)));
+    assert_eq!(kind_at(&g, "a1"), Some((Color::White, PieceKind::Bishop)));
     assert_eq!(g.side_to_move(), Color::Black, "it replaces the move");
 }
 

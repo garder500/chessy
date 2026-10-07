@@ -90,7 +90,8 @@ export type EffectKind =
   /** Effets de partie entière (compétences forgées) : `piece` vaut alors `NO_PIECE`. */
   | "truce"
   | "fog"
-  | "silenced";
+  | "silenced"
+  | "domain";
 
 /** `ActiveEffect.piece` d'un effet qui ne concerne aucune pièce. */
 export const NO_PIECE = 65_535;
@@ -142,6 +143,8 @@ export type GameEvent =
   | { type: "terrain"; squares: Square[] }
   | { type: "global_effect"; effect: EffectKind; expires_at: number; owner?: Color }
   | { type: "vanished"; square: Square; piece: Piece }
+  /** Domaine : des fous frappent la pièce `piece` qui donnait échec en `square` (un `captured` suit). */
+  | { type: "ambushed"; square: Square; piece: Piece }
   | { type: "loan_ended"; square: Square; piece: Piece };
 
 export type Outcome =

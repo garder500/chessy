@@ -181,6 +181,8 @@ function describeEvent(e: GameEvent, board: (Piece | null)[], inSkill: boolean):
       return [`${EFFECT_FR[e.effect]}`];
     case "vanished":
       return [`${PIECE_FR[e.piece.kind].toLowerCase()} ${sqName(e.square)} disparaît`];
+    case "ambushed":
+      return [`des fous frappent ${PIECE_FR[e.piece.kind].toLowerCase()} ${sqName(e.square)}`];
     case "loan_ended":
       return [`prêt terminé (${PIECE_FR[e.piece.kind].toLowerCase()} ${sqName(e.square)})`];
     default:
@@ -201,6 +203,7 @@ const EFFECT_FR: Record<EffectKind, string> = {
   truce: "armistice",
   fog: "brouillard",
   silenced: "pouvoirs réduits au silence",
+  domain: "expansion de domaine",
 };
 
 function pieceLabel(p: Piece): string {
@@ -240,7 +243,13 @@ export function ambientEffects(view: Pick<StateView, "effects" | "ply" | "you">)
     if (turns === 0) continue;
     if (e.kind === "truce") out.push({ kind: e.kind, label: "Armistice : plus de captures ni d'échecs", turns });
     else if (e.kind === "fog") out.push({ kind: e.kind, label: "Brouillard : vue limitée à deux cases", turns });
-    else if (e.kind === "silenced") {
+    else if (e.kind === "domain") {
+      out.push({
+        kind: e.kind,
+        label: e.owner === view.you ? "Domaine : des fous frapperont la prochaine pièce qui vous met en échec" : "Domaine adverse : une pièce qui met son roi en échec sera frappée",
+        turns,
+      });
+    } else if (e.kind === "silenced") {
       out.push({ kind: e.kind, label: e.owner === view.you ? "Silence : vous ne pouvez plus utiliser de compétence" : "Silence : l'adversaire ne peut plus utiliser de compétence", turns });
     }
   }

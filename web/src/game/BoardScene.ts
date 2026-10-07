@@ -34,6 +34,11 @@ export interface PremoveMark {
 }
 
 const MOVE_MS = 260;
+/** Expansion de domaine : recul de la caméra, vol des fous, retour. Le fou touche à `DOMAIN_HIT_MS`. */
+const DOMAIN_IN = 720;
+const DOMAIN_OUT = 640;
+const BISHOP_FLIGHT = 460;
+const DOMAIN_HIT_MS = DOMAIN_IN - 150 + BISHOP_FLIGHT;
 const PIECE_SCALE = 78 / PIECE_TEX;
 const KINDS: PieceKind[] = ["pawn", "knight", "bishop", "rook", "queen", "king"];
 const MONO = '"Geist Mono Variable", "Geist Mono", ui-monospace, monospace';
@@ -58,6 +63,8 @@ interface EventCtx {
   benched: Set<number>;
   unbenched: Set<number>;
   vanished: Set<number>;
+  /** Pièces frappées par un domaine : id → case où elles donnaient échec. */
+  ambushed: Map<number, Square>;
   switched: Set<number>;
   pushed: Map<number, { from: Square; to: Square }>;
   saved: Map<number, { from: Square; to: Square }>;
@@ -78,6 +85,7 @@ function analyse(events: GameEvent[]): EventCtx {
     benched: new Set(),
     unbenched: new Set(),
     vanished: new Set(),
+    ambushed: new Map(),
     switched: new Set(),
     pushed: new Map(),
     saved: new Map(),
@@ -114,6 +122,9 @@ function analyse(events: GameEvent[]): EventCtx {
         break;
       case "vanished":
         ctx.vanished.add(e.piece.id);
+        break;
+      case "ambushed":
+        ctx.ambushed.set(e.piece.id, e.square);
         break;
       case "switched":
         ctx.switched.add(e.piece.id);
@@ -382,6 +393,7 @@ export class BoardScene extends Phaser.Scene {
   }
 
   private handleDown(pointer: Phaser.Input.Pointer) {
+    if (this.domainShow) return;
     if (pointer.rightButtonDown()) {
       this.onCancelPremove();
       return;
@@ -835,6 +847,20 @@ export class BoardScene extends Phaser.Scene {
         this.glitchOut(sprite);
       } else if (ctx.removed.has(id)) {
         this.dissolve(sprite);
+      } else if (ctx.ambushed.has(id)) {
+        // Domaine : la pièce arrive sur sa case d'échec, attend les fous, puis éclate.
+        const at = this.center(ctx.ambushed.get(id) as Square);
+        sprite.setDepth(10);
+        this.tweens.add({ targets: sprite, x: at.x, y: at.y, duration: MOVE_MS, ease: "Cubic.InOut" });
+        this.tweens.add({
+          targets: sprite,
+          alpha: 0,
+          scale: PIECE_SCALE * 1.5,
+          duration: 300,
+          delay: DOMAIN_HIT_MS,
+          ease: "Quad.In",
+          onComplete: () => sprite.destroy(),
+        });
       } else if (ctx.captured.has(id)) {
         this.tweens.add({
           targets: sprite,
@@ -1274,6 +1300,10 @@ export class BoardScene extends Phaser.Scene {
           this.cameraShake(240, 0.004, 100);
           break;
         case "global_effect": {
+          if (e.effect === "domain") {
+            this.domainCast();
+            break;
+          }
           // Armistice, brouillard, silence : un voile de couleur sur tout l'échiquier.
           const color = e.effect === "truce" ? FX.shield : e.effect === "fog" ? FX.dust : FX.glitch;
           this.flash(color, e.effect === "fog" ? 0.3 : 0.18, 640);
@@ -1281,6 +1311,9 @@ export class BoardScene extends Phaser.Scene {
           this.rings(mid, mid, color, 20, SIZE * 0.55, 720);
           break;
         }
+        case "ambushed":
+          this.domainStrike(e.square, e.piece);
+          break;
         case "vanished": {
           const c = this.center(e.square);
           this.rings(c.x, c.y, FX.glitch, 8, 42, 360);
@@ -1426,6 +1459,118 @@ export class BoardScene extends Phaser.Scene {
       default:
         this.rings(x, y, effectColor(kind), 10, 44, 420);
     }
+  }
+
+  /** Vrai pendant que la caméra a reculé : les coordonnées du pointeur ne correspondent plus aux cases. */
+  private domainShow = false;
+
+  /**
+   * Expansion de domaine : la caméra recule pendant que des cases fantômes envahissent le vide autour de
+   * l'échiquier (purement visuel : le plateau jeu reste 8×8). `onPeak` part quand tout est dévoilé,
+   * puis le décor reste `hold` ms avant de se replier. Renvoie la durée totale.
+   */
+  private expandDomain(hold: number, onPeak: () => void): number {
+    const total = DOMAIN_IN + hold + DOMAIN_OUT;
+    const cam = this.cameras.main;
+    const reduce = this.theme.reduceMotion;
+    const grid = this.add.graphics().setDepth(-5);
+    const ring = 14;
+    const state = { p: 0, fade: 1 };
+    const draw = () => {
+      grid.clear();
+      const reach = state.p * ring;
+      for (let r = -ring; r < 8 + ring; r++) {
+        for (let f = -ring; f < 8 + ring; f++) {
+          const dist = Math.max(-f, f - 7, -r, r - 7);
+          if (dist <= 0 || dist > reach) continue;
+          const a = Math.min(1, reach - dist + 0.25) * state.fade;
+          const light = (((f + r) % 2) + 2) % 2 === 0;
+          grid.fillStyle(light ? 0x5b46a8 : 0x2b2060, 0.62 * a).fillRect(FRAME + f * TILE + 1, FRAME + r * TILE + 1, TILE - 2, TILE - 2);
+        }
+      }
+      grid.lineStyle(6, FX.portal, 0.9 * state.fade).strokeRect(FRAME, FRAME, BOARD_PX, BOARD_PX);
+    };
+    this.domainShow = true;
+    this.flash(FX.portal, 0.28, 520);
+    const mid = this.boardCenter();
+    this.rings(mid.x, mid.y, FX.portal, 30, SIZE * 0.9, DOMAIN_IN);
+    this.rings(mid.x, mid.y, FX.glitchAlt, 20, SIZE * 0.7, DOMAIN_IN, 120);
+    if (!reduce) this.tweens.add({ targets: cam, zoom: 0.4, duration: DOMAIN_IN, ease: "Cubic.InOut" });
+    this.tweens.add({ targets: state, p: 1, duration: DOMAIN_IN, ease: "Cubic.Out", onUpdate: draw });
+    this.time.delayedCall(DOMAIN_IN, () => {
+      if (this.sys.isActive()) onPeak();
+    });
+    this.time.delayedCall(DOMAIN_IN + hold, () => {
+      if (!this.sys.isActive()) return;
+      if (!reduce) this.tweens.add({ targets: cam, zoom: 1, duration: DOMAIN_OUT, ease: "Cubic.InOut" });
+      this.tweens.add({ targets: state, fade: 0, duration: DOMAIN_OUT, onUpdate: draw });
+    });
+    this.time.delayedCall(total, () => {
+      if (!this.sys.isActive()) return;
+      this.tweens.killTweensOf(cam);
+      cam.setZoom(1);
+      grid.destroy();
+      this.domainShow = false;
+    });
+    return total;
+  }
+
+  /** Lancement du domaine : le plateau « grandit » ridiculement, puis un titre claque au centre. */
+  private domainCast() {
+    this.expandDomain(900, () => {
+      const mid = this.boardCenter();
+      const title = this.add
+        .text(mid.x, mid.y, "EXPANSION DE DOMAINE", { fontFamily: MONO, fontSize: "76px", color: "#f3ecff", fontStyle: "800", stroke: "#5b46a8", strokeThickness: 10 })
+        .setOrigin(0.5)
+        .setDepth(20)
+        .setAlpha(0)
+        .setScale(1.6);
+      this.tweens.add({ targets: title, alpha: 1, scale: 1, duration: 260, ease: "Back.Out" });
+      this.tweens.add({ targets: title, alpha: 0, duration: 380, delay: 640, onComplete: () => title.destroy() });
+      this.cameraShake(320, 0.01, 0);
+      this.rings(mid.x, mid.y, FX.gold, 20, SIZE * 0.6, 700);
+    });
+  }
+
+  /** Les fous du domaine surgissent de très loin, en diagonale, et frappent la pièce qui donnait échec. */
+  private domainStrike(square: Square, victim: Piece) {
+    const target = this.center(square);
+    const owner: Color = victim.color === "white" ? "black" : "white";
+    const bishop: Piece = { id: -1, kind: "bishop", color: owner };
+    const tex = this.textureFor(bishop);
+    this.expandDomain(DOMAIN_HIT_MS - DOMAIN_IN + 520, () => {});
+    const launch = DOMAIN_IN - 150;
+    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1]] as const) {
+      const far = TILE * 9;
+      const sx = target.x + dx * far;
+      const sy = target.y + dy * far;
+      const sprite = this.add.image(sx, sy, tex).setScale(PIECE_SCALE * 1.6).setDepth(14).setAlpha(0);
+      const streak = this.add.graphics().setDepth(13).setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({
+        targets: sprite,
+        x: target.x,
+        y: target.y,
+        alpha: { from: 0, to: 1 },
+        duration: BISHOP_FLIGHT,
+        delay: launch,
+        ease: "Cubic.In",
+        onUpdate: () => {
+          streak.clear().lineStyle(8, FX.attack, 0.55).lineBetween(sx, sy, sprite.x, sprite.y);
+          streak.lineStyle(3, 0xffffff, 0.8).lineBetween(sx, sy, sprite.x, sprite.y);
+        },
+        onComplete: () => {
+          streak.destroy();
+          this.rings(target.x, target.y, FX.attack, 10, TILE * 0.9, 420);
+          this.tweens.add({ targets: sprite, alpha: 0, scale: PIECE_SCALE * 2.4, duration: 360, ease: "Cubic.Out", onComplete: () => sprite.destroy() });
+        },
+      });
+    }
+    this.time.delayedCall(DOMAIN_HIT_MS, () => {
+      if (!this.sys.isActive()) return;
+      this.flash(FX.attack, 0.4, 420);
+      this.rings(target.x, target.y, FX.gold, 6, TILE * 1.4, 560);
+    });
+    this.cameraShake(360, 0.014, DOMAIN_HIT_MS);
   }
 
   /** Anneau qui s'élargit (ou se referme) en s'effaçant. */
@@ -1867,6 +2012,7 @@ function touchedSquares(e: GameEvent): Square[] {
     case "removed":
     case "benched":
     case "vanished":
+    case "ambushed":
     case "loan_ended":
       return [e.square];
     case "pushed":

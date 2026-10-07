@@ -75,7 +75,7 @@ const SPAWNABLE: [PieceKind; 4] = [
 /// A random, valid, canonical definition. Every effect has a weight: the
 /// rewriting ones are rarer to draw than the adjusting ones.
 pub fn random_def(rng: &mut Rng) -> SkillDef {
-    const WEIGHTS: [u64; 16] = [8, 8, 5, 8, 5, 6, 4, 6, 4, 6, 7, 5, 3, 2, 3, 3];
+    const WEIGHTS: [u64; 17] = [8, 8, 5, 8, 5, 6, 4, 6, 4, 6, 7, 5, 3, 2, 3, 3, 2];
     let mut n = rng.below(WEIGHTS.iter().sum());
     let mut which = 0;
     for (i, &w) in WEIGHTS.iter().enumerate() {
@@ -115,7 +115,8 @@ pub fn random_def(rng: &mut Rng) -> SkillDef {
         12 => Effect::Truce { plies },
         13 => Effect::Mirror,
         14 => Effect::Fog { plies },
-        _ => Effect::Silence { plies },
+        15 => Effect::Silence { plies },
+        _ => Effect::Ambush { plies },
     };
     let mut def = SkillDef::new(effect);
     // Removing or converting a piece must not be a way to mate.

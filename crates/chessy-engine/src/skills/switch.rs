@@ -22,6 +22,8 @@ impl Skill for Switch {
     fn targets(&self, pos: &Position, color: Color) -> Vec<SkillTarget> {
         pos.pieces(color.opposite())
             .filter(|(_, p)| p.kind != PieceKind::King)
+            // A pawn must not end up on its new promotion rank.
+            .filter(|&(square, p)| Position::can_stand(color, p.kind, square))
             .filter(|&(from, _)| {
                 pos.attacked_squares(from)
                     .into_iter()

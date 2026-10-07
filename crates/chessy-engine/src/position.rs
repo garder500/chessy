@@ -79,10 +79,10 @@ fn signum(x: i8) -> i8 {
     x.signum()
 }
 
-/// The type a morphed piece goes back to; a pawn that would land on a back rank
-/// is promoted instead.
-fn revert_kind(orig: PieceKind, at: Square) -> PieceKind {
-    if orig == PieceKind::Pawn && !Position::can_stand(orig, at) {
+/// The type a morphed piece goes back to; a pawn that would land on its
+/// promotion rank is promoted instead.
+fn revert_kind(color: Color, orig: PieceKind, at: Square) -> PieceKind {
+    if orig == PieceKind::Pawn && !Position::can_stand(color, orig, at) {
         PieceKind::Queen
     } else {
         orig
@@ -300,6 +300,13 @@ impl Position {
             .any(|e| e.kind == EffectKind::Silenced && e.owner == Some(color))
     }
 
+    /// Whether `color` is under a Domain ambush already.
+    pub fn has_domain(&self, color: Color) -> bool {
+        self.effects
+            .iter()
+            .any(|e| e.kind == EffectKind::Domain && e.owner == Some(color))
+    }
+
     /// Starts a game-wide effect of `duration_plies`, aimed at `owner` if any.
     pub fn add_global_effect(
         &mut self,
@@ -353,7 +360,7 @@ impl Position {
     /// can stand on that is neither trapped nor enemy terrain.
     pub fn can_place(&self, color: Color, kind: PieceKind, s: Square) -> bool {
         self.board[s as usize].is_none()
-            && Position::can_stand(kind, s)
+            && Position::can_stand(color, kind, s)
             && !self.trap_at(s)
             && self.blocked_mask(color) & (1u64 << s) == 0
     }
@@ -388,7 +395,7 @@ impl Position {
                 .board
                 .iter()
                 .enumerate()
-                .all(|(i, p)| p.is_none_or(|p| Position::can_stand(p.kind, i as Square)))
+                .all(|(i, p)| p.is_none_or(|p| Position::can_stand(p.color, p.kind, i as Square)))
     }
 
     pub fn find_piece(&self, id: PieceId) -> Option<Square> {
@@ -514,10 +521,10 @@ impl Position {
             .is_some_and(|k| self.is_attacked(k, color.opposite()))
     }
 
-    /// Whether a piece of `color` may stand on `target` (pawns never rest on a
-    /// back rank).
-    pub fn can_stand(kind: PieceKind, target: Square) -> bool {
-        kind != PieceKind::Pawn || !matches!(rank_of(target), 0 | 7)
+    /// Whether a piece of `color` may stand on `target`: a pawn never rests on
+    /// its promotion rank (its own back rank is fine, it just walks away).
+    pub fn can_stand(color: Color, kind: PieceKind, target: Square) -> bool {
+        kind != PieceKind::Pawn || rank_of(target) != color.promotion_rank()
     }
 
     pub fn pseudo_moves(&self, out: &mut Vec<Move>) {
@@ -866,7 +873,7 @@ impl Position {
                     };
                     if self.board[next as usize].is_some()
                         || blocked & (1u64 << next) != 0
-                        || !Position::can_stand(piece.kind, next)
+                        || !Position::can_stand(piece.color, piece.kind, next)
                     {
                         break;
                     }
@@ -1096,9 +1103,49 @@ impl Position {
         self.ply += 1;
         if !self.effects.is_empty() {
             self.expire_effects(ev);
+            self.ambush(ev);
         }
         if !self.benched.is_empty() {
             self.return_benched(ev);
+        }
+    }
+
+    /// Domain: if the side to move holds one and was just put in check,
+    /// bishops (at most two) strike down the checking pieces, kings and
+    /// immune pieces excepted. The domain is spent.
+    fn ambush(&mut self, ev: &mut Vec<Event>) {
+        let owner = self.side;
+        let Some(i) = self
+            .effects
+            .iter()
+            .position(|e| e.kind == EffectKind::Domain && e.owner == Some(owner))
+        else {
+            return;
+        };
+        let Some(king) = self.king_square(owner) else {
+            return;
+        };
+        let strikers: Vec<Square> = self
+            .pieces(owner.opposite())
+            .filter(|(_, p)| p.kind != PieceKind::King && !self.is_immune(p.id))
+            .map(|(s, _)| s)
+            .filter(|&s| self.attacked_squares(s).contains(&king))
+            .take(2)
+            .collect();
+        if strikers.is_empty() {
+            return;
+        }
+        self.effects.remove(i);
+        for square in strikers {
+            let victim = self.board[square as usize].take().expect("checking piece");
+            ev.push(Event::Ambushed {
+                square,
+                piece: victim,
+            });
+            let reaction = self.begin_capture(square, victim, ev);
+            if let Reaction::Saved(..) = reaction {
+                self.finish_capture(reaction, square, square, ev);
+            }
         }
     }
 
@@ -1122,6 +1169,11 @@ impl Position {
                         let piece = self.board[s as usize].as_mut().expect("found piece");
                         piece.color = back;
                         piece.prev = None;
+                        if piece.kind == PieceKind::Pawn
+                            && !Position::can_stand(back, piece.kind, s)
+                        {
+                            piece.kind = PieceKind::Queen;
+                        }
                         ev.push(Event::LoanEnded {
                             square: s,
                             piece: *piece,
@@ -1132,14 +1184,14 @@ impl Position {
                     let Some(orig) = e.orig_kind else { continue };
                     if let Some(s) = self.find_piece(e.piece) {
                         let piece = self.board[s as usize].as_mut().expect("found piece");
-                        piece.kind = revert_kind(orig, s);
+                        piece.kind = revert_kind(piece.color, orig, s);
                         ev.push(Event::Transformed {
                             square: s,
                             kind: piece.kind,
                         });
                     } else if let Some(b) = self.benched.iter_mut().find(|b| b.piece.id == e.piece)
                     {
-                        b.piece.kind = revert_kind(orig, b.square);
+                        b.piece.kind = revert_kind(b.piece.color, orig, b.square);
                     }
                 }
                 EffectKind::Vanish => {

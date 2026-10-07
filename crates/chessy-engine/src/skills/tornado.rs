@@ -5,7 +5,9 @@ use crate::position::Position;
 use crate::types::*;
 
 /// Every piece except the kings jumps to the square of the next piece going
-/// round the board counterclockwise. Pawns that land on a back rank promote.
+/// round the board counterclockwise. A pawn never lands on its promotion rank
+/// (and is never promoted): it takes the destination of a piece that can stand
+/// there instead, and that piece takes the pawn's. Its own back rank is fine.
 pub struct Tornado;
 
 /// A square relative to the centre of the board, doubled so it is integral.
@@ -45,13 +47,36 @@ fn rotating_squares(pos: &Position) -> Vec<Square> {
     squares
 }
 
+/// `(from, to)` for every rotating piece, or `None` when a pawn could not be
+/// kept off the back ranks.
+fn plan(pos: &Position) -> Option<Vec<(Square, Square)>> {
+    let squares = rotating_squares(pos);
+    let n = squares.len();
+    let pieces: Vec<Piece> = squares
+        .iter()
+        .map(|&s| pos.board[s as usize].expect("piece to rotate"))
+        .collect();
+    let stands = |i: usize, to: Square| Position::can_stand(pieces[i].color, pieces[i].kind, to);
+    let mut dest: Vec<Square> = (0..n).map(|i| squares[(i + 1) % n]).collect();
+    for i in 0..n {
+        if stands(i, dest[i]) {
+            continue;
+        }
+        let swap = (1..n).map(|d| (i + d) % n).find(|&j| {
+            stands(i, dest[j]) && stands(j, dest[i])
+        })?;
+        dest.swap(i, swap);
+    }
+    Some(squares.into_iter().zip(dest).collect())
+}
+
 impl Skill for Tornado {
     fn id(&self) -> SkillId {
         SkillId::Tornado
     }
 
     fn targets(&self, pos: &Position, _color: Color) -> Vec<SkillTarget> {
-        if rotating_squares(pos).len() >= 2 {
+        if rotating_squares(pos).len() >= 2 && plan(pos).is_some() {
             vec![SkillTarget::None]
         } else {
             Vec::new()
@@ -59,31 +84,17 @@ impl Skill for Tornado {
     }
 
     fn apply(&self, pos: &mut Position, _color: Color, _target: SkillTarget, ev: &mut Vec<Event>) {
-        let squares = rotating_squares(pos);
-        let n = squares.len();
-        let pieces: Vec<Piece> = squares
+        let plan = plan(pos).expect("tornado plan");
+        let pieces: Vec<Piece> = plan
             .iter()
-            .map(|&s| pos.board[s as usize].take().expect("piece to rotate"))
+            .map(|&(from, _)| pos.board[from as usize].take().expect("piece to rotate"))
             .collect();
-        let mut moves = Vec::with_capacity(n);
-        let mut promotions = Vec::new();
-        for (i, mut piece) in pieces.into_iter().enumerate() {
-            let from = squares[i];
-            let to = squares[(i + 1) % n];
+        let mut moves = Vec::with_capacity(plan.len());
+        for (mut piece, (from, to)) in pieces.into_iter().zip(plan) {
             piece.prev = None;
-            if piece.kind == PieceKind::Pawn && !Position::can_stand(PieceKind::Pawn, to) {
-                piece.kind = PieceKind::Queen;
-                promotions.push(to);
-            }
             pos.board[to as usize] = Some(piece);
             moves.push(Shift { from, to });
         }
         ev.push(Event::Rotated { moves });
-        for square in promotions {
-            ev.push(Event::Promoted {
-                square,
-                to: PieceKind::Queen,
-            });
-        }
     }
 }

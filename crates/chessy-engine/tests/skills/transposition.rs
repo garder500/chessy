@@ -25,9 +25,9 @@ fn works_across_sides_and_pairs_are_unordered() {
 }
 
 #[test]
-fn pawns_never_end_up_on_a_back_rank() {
+fn pawns_never_end_up_on_their_promotion_rank() {
     let g = start(&[SkillId::Transposition], &[]);
-    assert!(!can_skill(&g, SkillId::Transposition, pair("e2", "e1")));
+    assert!(can_skill(&g, SkillId::Transposition, pair("e2", "e1")));
     assert!(!can_skill(&g, SkillId::Transposition, pair("e2", "a8")));
     assert!(can_skill(&g, SkillId::Transposition, pair("a2", "a7")));
 }

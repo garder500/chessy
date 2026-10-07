@@ -472,6 +472,51 @@ fn a_morphed_piece_is_buried_as_what_it_really_was() {
 // ---- tone atoms ------------------------------------------------------------
 
 #[test]
+fn a_domain_strikes_the_piece_that_checks_the_caster() {
+    let id = forge(def(Effect::Ambush { plies: 4 }));
+    // Black's rook is not giving check yet; it will once it reaches e-file.
+    let mut g = game("r3k3/8/8/8/8/8/8/4K2R w - - 0 1", &[id], &[]);
+    use_skill(&mut g, id, none());
+    assert!(g.pos.has_domain(Color::White));
+    let ev = mv(&mut g, "a8", "a1");
+    assert!(ev
+        .iter()
+        .any(|e| matches!(e, Event::Ambushed { square, .. } if *square == s("a1"))));
+    assert!(ev.iter().any(|e| matches!(e, Event::Captured { square, .. } if *square == s("a1"))));
+    assert_eq!(kind_at(&g, "a1"), None, "the checking rook is gone");
+    assert!(!g.pos.in_check(Color::White));
+    assert!(!g.pos.has_domain(Color::White), "the domain is spent");
+    assert_eq!(g.pos.captured_pawns, [0, 0]);
+}
+
+#[test]
+fn a_domain_does_nothing_without_a_check_and_runs_out() {
+    let id = forge(def(Effect::Ambush { plies: 2 }));
+    let mut g = game("r3k3/8/8/8/8/8/8/4K2R w - - 0 1", &[id], &[]);
+    use_skill(&mut g, id, none());
+    mv(&mut g, "a8", "a7");
+    assert_eq!(kind_at(&g, "a7"), Some((Color::Black, PieceKind::Rook)));
+    mv(&mut g, "h1", "h2");
+    mv(&mut g, "a7", "a1");
+    assert_eq!(kind_at(&g, "a1"), Some((Color::Black, PieceKind::Rook)));
+    assert!(g.pos.in_check(Color::White), "too late, the domain ended");
+}
+
+#[test]
+fn a_domain_spares_an_immune_checker_and_cannot_be_stacked() {
+    let id = forge(def(Effect::Ambush { plies: 6 }));
+    let mut g = game("r3k3/8/8/8/8/8/8/4K2R w - - 0 1", &[id, id], &[]);
+    use_skill(&mut g, id, none());
+    assert!(!has_skill(&g, id), "already under a domain");
+    let rook = at(&g, "a8").unwrap().id;
+    g.pos
+        .effects
+        .push(ActiveEffect::new(EffectKind::Immune, rook, 100));
+    mv(&mut g, "a8", "a1");
+    assert_eq!(kind_at(&g, "a1"), Some((Color::Black, PieceKind::Rook)));
+}
+
+#[test]
 fn truce_forbids_captures_and_check_until_it_ends() {
     let id = forge(def(Effect::Truce { plies: 4 }));
     // White's rook could take black's on a8 and black's rook is giving check.
@@ -628,7 +673,7 @@ fn every_effect_has_a_description_a_glyph_and_a_family() {
         assert!(GLYPHS.contains(&id.icon.glyph.as_str()));
         assert!(id.sound.degree < 7 && id.sound.timbre < 4 && id.sound.length < 3);
     }
-    assert_eq!(seen.len(), 16, "the generator draws every effect");
+    assert_eq!(seen.len(), 17, "the generator draws every effect");
 }
 
 #[test]
@@ -844,7 +889,8 @@ fn random_def(rng: &mut Rng) -> SkillDef {
         12 => Effect::Truce { plies },
         13 => Effect::Mirror,
         14 => Effect::Fog { plies },
-        _ => Effect::Silence { plies },
+        15 => Effect::Silence { plies },
+        _ => Effect::Ambush { plies },
     };
     let mut d = SkillDef::new(effect);
     if rng.chance(25) {

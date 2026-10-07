@@ -68,15 +68,28 @@ fn needs_at_least_two_pieces_to_move() {
 }
 
 #[test]
-fn a_pawn_landing_on_a_back_rank_becomes_a_queen() {
-    let mut g = game("3r4/4P3/7k/8/8/8/8/K7 w - - 0 1", &[SkillId::Tornado], &[]);
+fn a_pawn_on_its_own_back_rank_is_not_promoted() {
+    // d8 -> c7 -> a1: the white pawn lands on a1, its own back rank.
+    let mut g = game("3r4/2P4k/8/7R/8/8/8/4K3 w - - 0 1", &[SkillId::Tornado], &[]);
     let ev = use_skill(&mut g, SkillId::Tornado, none());
-    assert_eq!(kind_at(&g, "d8"), Some((Color::White, PieceKind::Queen)));
-    assert_eq!(kind_at(&g, "e7"), Some((Color::Black, PieceKind::Rook)));
-    assert!(ev.iter().any(|e| matches!(
-        e,
-        Event::Promoted { square, to } if *square == s("d8") && *to == PieceKind::Queen
-    )));
+    assert!(!ev.iter().any(|e| matches!(e, Event::Promoted { .. })));
+    assert_eq!(kind_at(&g, "d8"), Some((Color::White, PieceKind::Rook)));
+    assert_eq!(kind_at(&g, "c7"), Some((Color::Black, PieceKind::Rook)));
+    assert_eq!(kind_at(&g, "h5"), Some((Color::White, PieceKind::Pawn)));
+}
+
+#[test]
+fn a_pawn_never_lands_on_its_promotion_rank() {
+    // The white pawn would land on d8, white's promotion rank: it trades its
+    // destination with a piece that can stand there.
+    let mut g = game("3r4/4P3/7k/8/8/1R6/8/K7 w - - 0 1", &[SkillId::Tornado], &[]);
+    let ev = use_skill(&mut g, SkillId::Tornado, none());
+    assert!(!ev.iter().any(|e| matches!(e, Event::Promoted { .. })));
+    assert_ne!(kind_at(&g, "d8"), Some((Color::White, PieceKind::Pawn)));
+    let pawns = (0..64u8)
+        .filter(|&q| g.pos.board[q as usize].is_some_and(|p| p.kind == PieceKind::Pawn))
+        .count();
+    assert_eq!(pawns, 1, "still a pawn");
 }
 
 #[test]

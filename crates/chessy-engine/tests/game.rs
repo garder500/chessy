@@ -387,7 +387,7 @@ fn destiny_swapper_swaps_allies() {
         }
     ));
     assert!(
-        !can_skill(
+        can_skill(
             &g,
             SkillId::DestinySwapper,
             SkillTarget::Pair {
@@ -395,7 +395,7 @@ fn destiny_swapper_swaps_allies() {
                 b: s("a2")
             }
         ),
-        "a pawn cannot land on the back rank"
+        "a pawn may rest on its own back rank"
     );
     use_skill(
         &mut g,

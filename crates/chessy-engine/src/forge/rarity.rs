@@ -175,6 +175,7 @@ impl SkillDef {
             Effect::Mirror => 9.0,
             Effect::Fog { plies: p } => 4.0 + 0.5 * plies(*p),
             Effect::Silence { plies: p } => 4.0 + 0.6 * plies(*p),
+            Effect::Ambush { plies: p } => 5.0 + 0.5 * plies(*p),
         };
         let mut cost = base * (1.0 + 0.5 * f64::from(self.max_uses.saturating_sub(1)));
         if self.free_action {
@@ -216,6 +217,7 @@ impl SkillDef {
             Effect::Mirror => ("mirror", String::new()),
             Effect::Fog { plies } => ("fog", bucket(*plies).to_string()),
             Effect::Silence { plies } => ("silence", bucket(*plies).to_string()),
+            Effect::Ambush { plies } => ("ambush", bucket(*plies).to_string()),
         };
         let mut constraints = self.constraints.clone();
         constraints.sort_by_key(|c| *c as u8);
