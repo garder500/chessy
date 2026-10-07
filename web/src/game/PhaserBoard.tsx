@@ -20,6 +20,18 @@ interface Props {
   onCancelPremove?: () => void;
 }
 
+/** Phaser ne sait rendre en WebGL qu'avec un contexte WebGL2, ou WebGL1 + ANGLE_instanced_arrays ; sinon on bascule en Canvas. */
+function webglUsable(): boolean {
+  try {
+    const c = document.createElement("canvas");
+    if (c.getContext("webgl2")) return true;
+    const gl = c.getContext("webgl");
+    return !!gl && !!gl.getExtension("ANGLE_instanced_arrays");
+  } catch {
+    return false;
+  }
+}
+
 export function PhaserBoard({ view, highlights, onSquare, interactive = true, canDrag, onDragStart, onDrop, premove = null, onCancelPremove }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<BoardScene | null>(null);
@@ -50,7 +62,7 @@ export function PhaserBoard({ view, highlights, onSquare, interactive = true, ca
       boardScene.setHighlights(latest.current.highlights);
       scene.current = boardScene;
       game = new Phaser.Game({
-        type: Phaser.AUTO,
+        type: webglUsable() ? Phaser.AUTO : Phaser.CANVAS,
         parent: host.current!,
         width: BOARD_SIZE,
         height: BOARD_SIZE,
