@@ -1,33 +1,42 @@
-/* Design « HUD » : nuit bleue, plaques inclinées, néons, couleur seulement quand elle dit quelque chose. Jetons partagés. */
-@import "@fontsource/big-shoulders-display/700";
-@import "@fontsource/big-shoulders-display/800";
-@import "@fontsource/big-shoulders-display/900";
-@import "@fontsource/rajdhani/500.css";
-@import "@fontsource/rajdhani/600.css";
-@import "@fontsource/rajdhani/700.css";
+/* Design « Jade » : surfaces graphite ou porcelaine, accent jade, coins coupés, titres condensés. Jetons partagés.
+   Mode sombre par défaut ; `:root[data-mode="light"]` (thème.ts) bascule en clair. */
+@import "@fontsource/barlow-condensed/600.css";
+@import "@fontsource/barlow-condensed/700.css";
+@import "@fontsource/barlow-condensed/800.css";
+@import "@fontsource/barlow/400.css";
+@import "@fontsource/barlow/500.css";
+@import "@fontsource/barlow/600.css";
 
 :root {
-  --bg: #070a12;
-  --surface: #0f1727;
-  --surface-2: #152038;
-  --surface-3: #1c2b4a;
-  --sunken: #05080f;
-  --line: #1f2c47;
-  --line-2: #2b3a5a;
-  --line-3: #4a6296;
-  --text: #eaf1ff;
-  --text-2: #cdd9ef;
-  --muted: #9fb0cc;
-  --faint: #7f90ae;
-  --accent: #3de0ff;
-  --danger: #ff6b78;
-  --warn: #ffc23d;
-  --hot: #ff4d5e;
-  --cyan: #3de0ff;
-  --gold: #ffc23d;
+  --bg: #0f1314;
+  --bg-2: #0b0e0f;
+  --surface: #151a1b;
+  --surface-2: #1a2021;
+  --surface-3: #212929;
+  --sunken: #0a0d0e;
+  --line: #232b2b;
+  --line-2: #2d3737;
+  --line-3: #43504f;
+  --text: #eef3f1;
+  --text-2: #cfd8d5;
+  --muted: #9aa6a3;
+  --faint: #7d8986;
+  /* Jade : remplacé par la couleur d'accent choisie dans les réglages. */
+  --accent: #1fb89a;
+  /* Accent lisible en texte sur le fond courant (4,5:1). */
+  --accent-ink: color-mix(in srgb, var(--accent) 82%, #fff);
+  --accent-deep: color-mix(in srgb, var(--accent) 55%, #00140f);
+  --on-accent: #fff;
+  --online: #45d49a;
+  --danger: #ff6b6b;
+  --warn: #f2bb4a;
+  --hot: #ff5a5f;
+  --gold: #f2bb4a;
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+  --veil: rgba(6, 9, 9, 0.72);
 
   /* Rareté : gris, turquoise, bleu, violet, or ; le nombre de gemmes double la couleur. */
-  --rar-common: #9aa7bd;
+  --rar-common: #9aa7a4;
   --rar-uncommon: #35d6c4;
   --rar-rare: #4c8dff;
   --rar-epic: #b05cff;
@@ -39,13 +48,53 @@
   --fam-control: #d28bff;
   --fam-create: #ffb86b;
 
-  --font-sans: "Rajdhani", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "Rajdhani", system-ui, sans-serif;
-  --font-display: "Big Shoulders Display", "Rajdhani", Impact, sans-serif;
+  --font-sans: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Barlow", system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", "Arial Narrow", sans-serif;
   --font-glyph: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
 
-  --radius-s: 3px;
-  --radius: 4px;
-  --radius-l: 6px;
+  /* Coins coupés : en haut à gauche pour les panneaux, en diagonale pour les boutons. */
+  --cut: 14px;
+  --cut-s: 8px;
+  --radius-s: 2px;
+  --radius: 3px;
+  --radius-l: 4px;
   color-scheme: dark;
+}
+
+:root[data-mode="light"] {
+  --bg: #eef1f0;
+  --bg-2: #e5e9e8;
+  --surface: #f9fbfa;
+  --surface-2: #f3f6f5;
+  --surface-3: #e7ecea;
+  --sunken: #e9edec;
+  --line: #d9dfdd;
+  --line-2: #c6cecc;
+  --line-3: #9aa5a2;
+  --text: #121817;
+  --text-2: #2c3634;
+  --muted: #56615e;
+  --faint: #6b7774;
+  --accent-ink: color-mix(in srgb, var(--accent) 58%, #000);
+  --accent-deep: color-mix(in srgb, var(--accent) 50%, #002a20);
+  --online: #2fbf84;
+  --danger: #d23b3b;
+  --warn: #a86d00;
+  --hot: #d93a40;
+  --gold: #a86d00;
+  --shadow: 0 18px 44px rgba(20, 40, 36, 0.16);
+  --veil: rgba(228, 234, 232, 0.78);
+
+  --rar-common: #6c7774;
+  --rar-uncommon: #11907f;
+  --rar-rare: #2e64d6;
+  --rar-epic: #8a3ad6;
+  --rar-legendary: #c27a00;
+  --fam-attack: #d64545;
+  --fam-defense: #138a9a;
+  --fam-mobility: #3f6fd8;
+  --fam-control: #9a45d0;
+  --fam-create: #c46a12;
+  color-scheme: light;
 }

@@ -10,8 +10,8 @@ const COLORS: { value: SoloColor; label: string }[] = [
   { value: "random", label: "Aléatoire" },
 ];
 
-/** Carte « Jouer contre l'IA » : niveau d'Elo, couleur, lancement. Aucun compte requis. */
-export function SoloCard({ state }: { state: Pick<AppState, "solo" | "soloPending"> }) {
+/** Réglages « Contre l'IA » de l'écran Jouer : niveau d'Elo, couleur, lancement. Aucun compte requis. */
+export function SoloPanel({ state }: { state: Pick<AppState, "solo" | "soloPending"> }) {
   const { solo, soloPending } = state;
   const [elo, setElo] = useState(solo.elo);
   const [draft, setDraft] = useState(String(solo.elo));
@@ -33,22 +33,15 @@ export function SoloCard({ state }: { state: Pick<AppState, "solo" | "soloPendin
   };
 
   return (
-    <section className="card lb-solo" aria-labelledby={`${id}-h`}>
-      <div className="lb-solo-head">
-        <h2 id={`${id}-h`} className="lb-h2">
-          Jouer contre l'IA
-        </h2>
-        <span className="tag">Entraînement</span>
-      </div>
-
+    <div className="pl-solo">
       <div className="lb-solo-level">
         <div className="lb-solo-row">
           <label className="field-label" htmlFor={`${id}-elo`}>
-            Niveau (Elo)
+            Niveau de Sage (Elo)
           </label>
           <input
             id={`${id}-elo`}
-            className="input mono lb-solo-num"
+            className="input lb-solo-num"
             type="number"
             inputMode="numeric"
             min={SOLO_MIN}
@@ -86,32 +79,32 @@ export function SoloCard({ state }: { state: Pick<AppState, "solo" | "soloPendin
         </p>
       </div>
 
-      <div>
-        <span className="field-label" id={`${id}-c`}>
-          Votre couleur
-        </span>
-        <div className="seg" role="group" aria-labelledby={`${id}-c`}>
-          {COLORS.map((c) => (
-            <button
-              key={c.value}
-              type="button"
-              aria-pressed={color === c.value}
-              className={color === c.value ? "on" : ""}
-              onClick={() => setColor(c.value)}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
+      <div className="seg" role="group" aria-label="Votre couleur">
+        {COLORS.map((c) => (
+          <button
+            key={c.value}
+            type="button"
+            aria-pressed={color === c.value}
+            className={color === c.value ? "on" : ""}
+            onClick={() => setColor(c.value)}
+          >
+            {c.label}
+          </button>
+        ))}
       </div>
 
-      <button type="button" className="btn lb-main" disabled={soloPending} onClick={() => {
+      <button
+        type="button"
+        className="btn pri lb-main pl-cta"
+        disabled={soloPending}
+        onClick={() => {
           setDraft(String(elo));
           store.startSolo(elo, color);
-        }}>
+        }}
+      >
         {soloPending ? "Création de la partie…" : "Commencer"}
       </button>
-      <p className="muted lb-note">Sans horloge, sans Elo en jeu, sans récompense. Aucun compte nécessaire.</p>
-    </section>
+      <p className="muted pl-note">Sans horloge, sans Elo en jeu, sans récompense. Aucun compte nécessaire.</p>
+    </div>
   );
 }

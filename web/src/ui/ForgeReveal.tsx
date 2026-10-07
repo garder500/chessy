@@ -113,7 +113,7 @@ export function ForgeReveal({ skill }: { skill: string }) {
               <svg width="110" height="110" viewBox="0 0 120 120" fill="none" stroke="#4a6296" strokeWidth="2" aria-hidden="true" focusable="false">
                 <path d="M60 8L104 34v52L60 112 16 86V34z" />
                 <path d="M60 30l26 15v30L60 90 34 75V45z" />
-                <path d="M52 52a8 8 0 1116 0c0 8-8 8-8 16M60 78v2" stroke="#3de0ff" strokeWidth="4" strokeLinecap="round" />
+                <path d="M52 52a8 8 0 1116 0c0 8-8 8-8 16M60 78v2" stroke="var(--accent)" strokeWidth="4" strokeLinecap="round" />
               </svg>
             </div>
             <div className="fr-face fr-front">

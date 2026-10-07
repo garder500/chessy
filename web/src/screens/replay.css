@@ -55,7 +55,7 @@
 .rp-speed { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
 .rp-speed-btn { height: 30px; min-width: 42px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 12.5px; font-family: var(--font-mono); cursor: pointer; }
 .rp-speed-btn:hover:not(:disabled) { color: var(--text); }
-.rp-speed-btn.on { background: var(--surface-3); color: #fff; }
+.rp-speed-btn.on { background: var(--surface-3); color: var(--text); }
 .rp-speed-btn:disabled { opacity: 0.5; cursor: default; }
 
 /* Courbe d'évaluation */
@@ -89,7 +89,7 @@
 .rp-movelist { position: relative; list-style: none; margin: 0; padding: 0; max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
 .rp-move { display: grid; grid-template-columns: 28px 12px minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%; text-align: left; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); font-size: 13.5px; cursor: pointer; }
 .rp-move:hover { background: var(--surface-2); }
-.rp-move[aria-current="step"] { background: var(--surface-3); color: #fff; box-shadow: inset 2px 0 0 var(--accent); }
+.rp-move[aria-current="step"] { background: var(--surface-3); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
 .rp-move-n { font-size: 11px; color: var(--faint); }
 .rp-move-txt { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .rp-move > .rp-move-txt:nth-child(2) { grid-column: 2 / -1; }

@@ -115,7 +115,7 @@ a { color: inherit; }
   font-weight: 500;
   cursor: pointer;
 }
-.seg > button[aria-selected="true"], .seg > button.on { background: var(--surface-3); color: #fff; }
+.seg > button[aria-selected="true"], .seg > button.on { background: var(--surface-3); color: var(--text); }
 
 .avatar {
   display: grid;

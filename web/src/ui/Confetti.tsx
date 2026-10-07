@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-const COLORS = ["#ffd36b", "#ff4d5e", "#3de0ff", "#ffffff"];
+const COLORS = ["#ffd36b", "#ff4d5e", "#1fb89a", "#ffffff"];
 
 /** Pluie de confettis (décor, décalée à l'ouverture de l'écran). */
 export function Confetti({ count = 32, delay = 0.5 }: { count?: number; delay?: number }) {

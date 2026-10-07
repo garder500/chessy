@@ -61,7 +61,7 @@
   background: var(--surface-2); color: var(--text-2); font-size: 13.5px; cursor: pointer; transition: border-color .12s, background .12s;
 }
 .st-swatch:hover { border-color: var(--line-3); background: var(--surface-3); }
-.st-swatch[aria-checked="true"] { border-color: var(--accent); color: #fff; box-shadow: 0 0 0 1px var(--accent) inset; background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
+.st-swatch[aria-checked="true"] { border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 1px var(--accent) inset; background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
 .st-mini { display: grid; grid-template-columns: 1fr 1fr; width: 26px; height: 26px; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .12); }
 .st-mini i { display: block; }
 .st-dots { display: inline-flex; }

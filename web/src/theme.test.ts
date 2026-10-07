@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCENTS, applyTheme, BOARD_THEMES, luminance, mixHex, PIECE_SETS, premoveColor, sanitizeTheme, THEME_DEFAULTS } from "./theme";
+import { ACCENTS, applyTheme, BOARD_THEMES, luminance, mixHex, PIECE_SETS, premoveColor, resolveMode, sanitizeTheme, THEME_DEFAULTS } from "./theme";
 
 describe("theme", () => {
   it("contient les thèmes de la spec", () => {
@@ -7,9 +7,10 @@ describe("theme", () => {
     expect(BOARD_THEMES[0]).toMatchObject({ light: "#e4eaf6", dark: "#7f96c2" });
     expect(BOARD_THEMES[1]).toMatchObject({ light: "#cdd1d9", dark: "#69727f" });
     expect(PIECE_SETS.map((p) => p.id)).toEqual(["cburnett", "classic", "neon", "gold", "ember"]);
-    expect(ACCENTS.map((a) => a.id)).toEqual(["cyan", "gold", "blue", "violet", "coral", "amber", "mint", "rose"]);
-    expect(ACCENTS[0].color).toBe("#3de0ff");
-    expect(ACCENTS[2].color).toBe("#8fb4ff");
+    expect(ACCENTS.map((a) => a.id)).toEqual(["jade", "cyan", "gold", "blue", "violet", "coral", "amber", "mint", "rose"]);
+    expect(ACCENTS[0].color).toBe("#1fb89a");
+    expect(ACCENTS[1].color).toBe("#3de0ff");
+    expect(ACCENTS[3].color).toBe("#8fb4ff");
   });
 
   it("assainit les valeurs inconnues", () => {
@@ -17,7 +18,8 @@ describe("theme", () => {
     expect(sanitizeTheme({ board: "nope", pieces: "gold", accent: 3, move: "click", premove: false })).toMatchObject({
       board: "glacier",
       pieces: "gold",
-      accent: "cyan",
+      accent: "jade",
+      mode: "system",
       move: "click",
       premove: false,
     });
@@ -44,5 +46,14 @@ describe("theme", () => {
     expect(props.get("--board-dark")).toBe("#b58863");
     expect(props.get("--accent")).toBe("#5fd0a0");
     expect(root.dataset.motion).toBe("reduce");
+    applyTheme({ ...THEME_DEFAULTS, mode: "light" }, root);
+    expect(root.dataset.mode).toBe("light");
+  });
+
+  it("resolveMode suit le système en mode « system »", () => {
+    expect(resolveMode("system", true)).toBe("light");
+    expect(resolveMode("system", false)).toBe("dark");
+    expect(resolveMode("dark", true)).toBe("dark");
+    expect(resolveMode("light", false)).toBe("light");
   });
 });

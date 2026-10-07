@@ -21,7 +21,7 @@
   text-decoration: none; color: var(--muted); font-size: 14px; font-weight: 500; white-space: nowrap;
 }
 .nav-tab:hover { color: var(--text); background: var(--surface); }
-.nav-tab[aria-current="page"] { color: #fff; background: var(--surface-3); }
+.nav-tab[aria-current="page"] { color: var(--text); background: var(--surface-3); }
 .nav-count {
   display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
   background: var(--text); color: var(--bg); font-family: var(--font-mono); font-size: 11px; font-weight: 600;
@@ -45,7 +45,7 @@
 
 @media (max-width: 720px) {
   .nav-in { padding: 0 14px; gap: 12px; }
-  .wordmark span { display: none; }
+  .wordmark > span:not(.wordmark-mark) { display: none; }
   .nav-chip-elo, .nav-guest { display: none; }
   .nav-tab { padding: 0 10px; }
 }

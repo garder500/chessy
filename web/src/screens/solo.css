@@ -1,17 +1,15 @@
-/* Carte « Jouer contre l'IA » du lobby. */
-.lb-solo { padding: 22px; display: flex; flex-direction: column; gap: 18px; }
-.lb-solo-head { display: flex; justify-content: space-between; align-items: center; }
+/* Réglages « Contre l'IA » de l'écran Jouer. */
 .lb-solo-level { display: flex; flex-direction: column; gap: 10px; }
 .lb-solo-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .lb-solo-row .field-label { margin: 0; white-space: nowrap; }
-.lb-solo .lb-solo-num { width: 104px; height: 40px; text-align: right; font-size: 18px; font-weight: 500; padding: 0 12px; }
+.pl-solo .lb-solo-num { width: 96px; height: 38px; text-align: right; font-size: 18px; font-weight: 500; padding: 0 12px; }
 
 .lb-range { -webkit-appearance: none; appearance: none; width: 100%; height: 24px; margin: 0; background: transparent; cursor: pointer; --pct: 50%; }
-.lb-range::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: linear-gradient(to right, var(--text) var(--pct), var(--line-2) var(--pct)); }
+.lb-range::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: linear-gradient(to right, var(--accent) var(--pct), var(--line-2) var(--pct)); }
 .lb-range::-moz-range-track { height: 3px; border-radius: 2px; background: var(--line-2); }
-.lb-range::-moz-range-progress { height: 3px; border-radius: 2px; background: var(--text); }
-.lb-range::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -7.5px; border-radius: 50%; background: var(--text); border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--line-3); }
-.lb-range::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--text); border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--line-3); }
+.lb-range::-moz-range-progress { height: 3px; border-radius: 2px; background: var(--accent); }
+.lb-range::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -7.5px; border-radius: 50%; background: var(--accent); border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--line-3); }
+.lb-range::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--line-3); }
 .lb-range:focus-visible { outline: none; }
 .lb-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--accent); }
 .lb-range:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--accent); }
@@ -19,6 +17,6 @@
 /* Un segment par palier, de largeur proportionnelle à sa plage d'Elo. */
 .lb-ticks { display: flex; gap: 3px; margin-top: -2px; }
 .lb-ticks i { flex-basis: 0; height: 3px; border-radius: 2px; background: var(--line); }
-.lb-ticks i.on { background: var(--line-3); }
-.lb-tier { font-size: 13.5px; line-height: 1.45; min-height: 3em; }
+.lb-ticks i.on { background: color-mix(in srgb, var(--accent) 55%, var(--line-2)); }
+.lb-tier { font-size: 13.5px; line-height: 1.4; min-height: 2.8em; }
 .lb-tier strong { color: var(--text); }

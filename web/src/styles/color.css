@@ -7,41 +7,25 @@
 
 /* Navigation */
 :root .nav { border-bottom-color: color-mix(in srgb, var(--accent) 24%, var(--line)); }
-:root .nav-tab:hover { color: color-mix(in srgb, var(--accent) 55%, var(--text)); }
-:root .nav-tab[aria-current="page"] {
-  color: #fff;
-  background: color-mix(in srgb, var(--accent) 16%, var(--surface-3));
-  box-shadow: inset 0 -2px 0 var(--accent);
-}
-:root .nav-count { background: var(--accent); color: #0e0f12; }
-:root .nav-gear { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; color: var(--muted); }
-:root .nav-gear:hover { color: var(--accent); background: var(--surface); }
 
 /* Contrôles */
-:root .seg > button[aria-selected="true"], :root .seg > button.on {
-  color: #fff;
-  background: color-mix(in srgb, var(--accent) 22%, var(--surface-3));
-  box-shadow: inset 0 -2px 0 var(--accent);
-}
-:root .btn:hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-3)); }
-:root .btn.pri:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 22%, #fff); }
 :root .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
-:root .tag.on, :root .tag.accent { border-color: var(--accent); color: var(--accent); }
+:root .tag.on, :root .tag.accent { border-color: var(--accent); color: var(--accent-ink); }
 
 /* Partie : camp au trait, indices, horloge, journal */
 :root .gm-plate.turn { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-3)); }
 :root .gm-plate.turn::before { background: var(--accent); }
-:root .gm-turn-tag { border-color: var(--accent); color: var(--accent); }
-:root .gm-clock.on { background: var(--accent); border-color: var(--accent); color: #0e0f12; }
-:root .gm-clock.on.low { background: var(--danger); border-color: var(--danger); color: #1a0d0b; }
+
+:root .gm-clock.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+:root .gm-clock.on.low { background: var(--danger); border-color: var(--danger); color: #fff; }
 :root .gm-hint { border-left: 3px solid color-mix(in srgb, var(--accent) 70%, var(--line)); }
 :root .gm-hint.warn { border-left-color: var(--warn); }
 :root .gm-hint.check { border-left-color: var(--danger); }
-:root .gm-log li.me .gm-log-who { color: var(--accent); }
-:root .gm-msg.me { background: color-mix(in srgb, var(--accent) 80%, #fff); color: #0e0f12; }
+:root .gm-log li.me .gm-log-who { color: var(--accent-ink); }
+:root .gm-msg.me { background: var(--accent); color: var(--on-accent); }
 :root .gm-skill.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-:root .gm-skill { background: color-mix(in srgb, var(--fam) 9%, var(--surface-2)); }
-:root .gm-skill:hover:not(:disabled) { background: color-mix(in srgb, var(--fam) 16%, var(--surface-3)); }
+:root .gm-skill { background: color-mix(in srgb, var(--fam) 9%, var(--surface)); }
+:root .gm-skill:hover:not(:disabled) { background: color-mix(in srgb, var(--fam) 16%, var(--surface)); }
 :root .gm-skill .gm-skill-art { border-color: color-mix(in srgb, var(--fam) 35%, var(--line)); }
 :root .gm-premove-x { border-color: color-mix(in srgb, var(--premove) 60%, var(--line-2)); color: var(--premove); }
 
@@ -56,12 +40,12 @@
 
 /* Cartes de compétence : teinte plus nette de la famille */
 :root .skc { background: color-mix(in srgb, var(--fam) 8%, var(--surface)); border-color: color-mix(in srgb, var(--fam) 30%, var(--line-2)); }
-:root button.skc:hover:not(:disabled) { background: color-mix(in srgb, var(--fam) 15%, var(--surface-2)); }
+:root button.skc:hover:not(:disabled) { background: color-mix(in srgb, var(--fam) 15%, var(--surface)); }
 :root .skc.on { background: color-mix(in srgb, var(--fam) 18%, var(--surface-2)); border-color: var(--fam); box-shadow: 0 0 0 1px var(--fam) inset; }
-:root .skc .skc-art { border-color: color-mix(in srgb, var(--fam) 35%, var(--line)); background: color-mix(in srgb, var(--fam) 10%, var(--sunken)); }
-:root .slot { background: color-mix(in srgb, var(--fam) 9%, var(--surface-2)); }
+:root .skc .skc-art { border-color: color-mix(in srgb, var(--fam) 35%, var(--line)); background: color-mix(in srgb, var(--fam) 10%, var(--surface)); }
+:root .slot { background: color-mix(in srgb, var(--fam) 9%, var(--surface)); }
 :root .slot .slot-art { border-color: color-mix(in srgb, var(--fam) 35%, var(--line)); }
-:root .co-card:hover { background: color-mix(in srgb, var(--fam) 10%, var(--surface-2)); }
+:root .co-card:hover { background: color-mix(in srgb, var(--fam) 10%, var(--surface)); }
 :root .co-card.on { border-color: var(--fam); }
 
 /* Animations réduites (réglage de l'application, en plus de prefers-reduced-motion) */

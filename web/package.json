@@ -11,11 +11,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@fontsource/big-shoulders-display": "^5.3.0",
-    "@fontsource/rajdhani": "^5.3.0",
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/barlow-condensed": "^5.3.0",
+    "@types/three": "^0.180.0",
     "phaser": "^4.2.1",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react-dom": "^19.3.0",
+    "three": "^0.180.0"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

@@ -4,8 +4,10 @@ import { useSyncExternalStore } from "react";
 
 export type BoardThemeId = "glacier" | "graphite" | "emerald" | "walnut" | "ocean" | "amethyst" | "coral";
 export type PieceSetId = "cburnett" | "classic" | "neon" | "gold" | "ember";
-export type AccentId = "cyan" | "gold" | "blue" | "violet" | "coral" | "amber" | "mint" | "rose";
+export type AccentId = "jade" | "cyan" | "gold" | "blue" | "violet" | "coral" | "amber" | "mint" | "rose";
 export type MoveMode = "drag" | "click";
+/** Apparence de l'interface : suit le système, ou forcée en clair / sombre. */
+export type ColorMode = "system" | "light" | "dark";
 
 export const BOARD_THEMES: { id: BoardThemeId; label: string; light: string; dark: string; flat?: boolean }[] = [
   { id: "glacier", label: "Glacier", light: "#e4eaf6", dark: "#7f96c2", flat: true },
@@ -27,6 +29,7 @@ export const PIECE_SETS: { id: PieceSetId; label: string; white: string | null; 
 ];
 
 export const ACCENTS: { id: AccentId; label: string; color: string }[] = [
+  { id: "jade", label: "Jade", color: "#1fb89a" },
   { id: "cyan", label: "Cyan", color: "#3de0ff" },
   { id: "gold", label: "Or", color: "#e3c98a" },
   { id: "blue", label: "Bleu", color: "#8fb4ff" },
@@ -41,6 +44,7 @@ export interface ThemeSettings {
   board: BoardThemeId;
   pieces: PieceSetId;
   accent: AccentId;
+  mode: ColorMode;
   move: MoveMode;
   reduceMotion: boolean;
   /** Premoves : un coup posé pendant le tour de l'adversaire. */
@@ -48,14 +52,15 @@ export interface ThemeSettings {
 }
 
 export const THEME_KEY = "chessy.theme";
-/** Réglages enregistrés avant l'interface « HUD » : le décor par défaut change une fois, puis le choix du joueur reprend. */
+/** Réglages enregistrés avant l'interface « Jade » : le décor par défaut change une fois, puis le choix du joueur reprend. */
 const THEME_SKIN_KEY = "chessy.theme.skin";
-const THEME_SKIN = "hud";
+const THEME_SKIN = "jade";
 
 export const THEME_DEFAULTS: ThemeSettings = {
   board: "glacier",
   pieces: "cburnett",
-  accent: "cyan",
+  accent: "jade",
+  mode: "system",
   move: "drag",
   reduceMotion: false,
   premove: true,
@@ -70,6 +75,7 @@ export function sanitizeTheme(raw: unknown, defaults: ThemeSettings = THEME_DEFA
     board: oneOf(BOARD_THEMES, o.board, defaults.board),
     pieces: oneOf(PIECE_SETS, o.pieces, defaults.pieces),
     accent: oneOf(ACCENTS, o.accent, defaults.accent),
+    mode: o.mode === "light" || o.mode === "dark" || o.mode === "system" ? o.mode : defaults.mode,
     move: o.move === "click" || o.move === "drag" ? o.move : defaults.move,
     reduceMotion: typeof o.reduceMotion === "boolean" ? o.reduceMotion : defaults.reduceMotion,
     premove: typeof o.premove === "boolean" ? o.premove : defaults.premove,
@@ -153,6 +159,20 @@ export function applyTheme(theme: ThemeSettings = current, root: HTMLElement | n
   root.dataset.board = theme.board;
   root.dataset.motion = theme.reduceMotion ? "reduce" : "full";
   root.dataset.move = theme.move;
+  root.dataset.mode = resolveMode(theme.mode);
+}
+
+function systemPrefersLight(): boolean {
+  try {
+    return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: light)").matches;
+  } catch {
+    return false;
+  }
+}
+
+/** Mode effectif : `system` suit `prefers-color-scheme`. */
+export function resolveMode(mode: ColorMode, prefersLight: boolean = systemPrefersLight()): "light" | "dark" {
+  return mode === "system" ? (prefersLight ? "light" : "dark") : mode;
 }
 
 export function setTheme(patch: Partial<ThemeSettings>) {
@@ -181,4 +201,12 @@ export function useTheme(): ThemeSettings {
 /** À appeler une fois au démarrage, avant le premier rendu. */
 export function initTheme() {
   applyTheme(current);
+  // En mode « système », l'interface suit le changement clair/sombre du système sans recharger.
+  try {
+    matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+      if (current.mode === "system") applyTheme(current);
+    });
+  } catch {
+    // Pas de matchMedia (tests) : le mode reste celui du démarrage.
+  }
 }

@@ -21,7 +21,7 @@ Les règles des compétences sont décrites dans [docs/skills.md](docs/skills.md
 - **Collection** : l'historique de vos compétences, obtenues, forgées ou perdues (d'où elles viennent, à qui vous les avez prises, qui vous les a prises).
 - **La forge** : en choisissant une compétence aléatoire après une victoire classée, on reçoit une compétence **inventée** (nom, description, icône, son et rareté déduits de sa définition). Toutes sont uniques à la naissance, mais une combinaison qui en répète une autre devient Commune ; seules celles qui bouleversent une partie sont Légendaires. Spécification dans [docs/spec-forge.md](docs/spec-forge.md).
 - **Replays et analyse** : toutes les parties sont enregistrées (« Mes parties ») ; replay pas à pas, analyse du moteur (précision, étiquettes meilleur/erreur/gaffe, meilleur coup en flèche) et exploration de variantes ; spécification dans [docs/spec-v4.md](docs/spec-v4.md).
-- **Design B « Graphite »** : thème plat et sobre, plateau Phaser, carte de lancement des compétences.
+- **Design « Jade »** : coins coupés, accent jade, titres condensés, en clair ou en sombre (suit le système, réglable dans Réglages) ; écran Jouer avec onglets de mode (Classée, Amicale, Salle privée, Contre l’IA), groupe, deck et amis en ligne autour d’une pièce éclairée.
 
 Le contrat serveur/client est décrit dans [docs/spec-v2.md](docs/spec-v2.md).
 

@@ -7,7 +7,7 @@ import "./styles/base.css";
 import "./ui/shell.css";
 import "./ui/skill.css";
 import "./styles/color.css";
-import "./styles/hud.css";
+import "./styles/skin.css";
 
 initTheme();
 

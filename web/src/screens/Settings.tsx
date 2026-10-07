@@ -1,7 +1,7 @@
 import { useSyncExternalStore, type CSSProperties } from "react";
 import { CATALOG, FAMILY_LABEL } from "../catalog";
 import { sfx, skillSfx, type SfxName } from "../sound";
-import { ACCENTS, BOARD_THEMES, PIECE_SETS, setTheme, useTheme, type MoveMode } from "../theme";
+import { ACCENTS, BOARD_THEMES, PIECE_SETS, setTheme, useTheme, type ColorMode, type MoveMode } from "../theme";
 import { BoardPreview } from "../ui/BoardPreview";
 import { SkillArt } from "../ui/SkillArt";
 import "./settings.css";
@@ -42,6 +42,12 @@ function Slider({ value, onChange, label, disabled }: { value: number; onChange:
     </label>
   );
 }
+
+const COLOR_MODES: { id: ColorMode; label: string }[] = [
+  { id: "system", label: "Système" },
+  { id: "light", label: "Clair" },
+  { id: "dark", label: "Sombre" },
+];
 
 /** Aperçu d'un son : ignore les interrupteurs de catégorie, jamais le réglage général. */
 const preview = (name: SfxName) => sfx.play(name, { force: true });
@@ -102,62 +108,28 @@ export function Settings() {
       <p className="eyebrow">Préférences</p>
       <h1 className="st-title">Réglages</h1>
 
-      <section className="card st-card" aria-labelledby="st-sound">
-        <h2 id="st-sound" className="st-h">Sons</h2>
-        <Switch checked={snd.enabled} onChange={(enabled) => sfx.setSettings({ enabled })} label="Sons activés" hint="Interrupteur général : coupe tous les effets." />
-        <Slider value={snd.master} onChange={(master) => sfx.setSettings({ master })} label="Volume général" disabled={off} />
-        <Slider value={snd.effects} onChange={(effects) => sfx.setSettings({ effects })} label="Volume des effets" disabled={off} />
-        <Switch checked={snd.ui} onChange={(ui) => sfx.setSettings({ ui })} label="Sons d'interface" hint="Clics, messages, demandes d'ami, défis, notifications." />
-        <Switch checked={snd.yourTurn} onChange={(yourTurn) => sfx.setSettings({ yourTurn })} label="Notification « à vous de jouer »" hint="Un petit carillon quand le trait vous revient." />
-
-        {off && <p className="st-note muted">Les sons sont désactivés : activez-les pour écouter les aperçus.</p>}
-        <div className="st-groups">
-          {GROUPS.map((g) => (
-            <div key={g.title} className="st-group">
-              <h3 className="eyebrow">{g.title}</h3>
-              <div className="st-chips">
-                {g.items.map(([name, label]) => (
-                  <button key={name} type="button" className="st-play" disabled={off} data-sfx="off" onClick={() => preview(name)}>
-                    <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" focusable="false">
-                      <path d="M3 1.8v8.4L10 6z" fill="currentColor" />
-                    </svg>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <h3 className="eyebrow st-skills-h">Compétences ({CATALOG.length})</h3>
-        <ul className="st-skills">
-          {CATALOG.map((c) => (
-            <li key={c.id}>
-              <button
-                type="button"
-                className="st-skill"
-                disabled={off}
-                data-sfx="off"
-                style={{ "--fam": `var(--fam-${c.family})` } as CSSProperties}
-                onClick={() => preview(skillSfx(c.id))}
-                aria-label={`Écouter ${c.name}`}
-              >
-                <span className="st-skill-art">
-                  <SkillArt id={c.id} size={34} />
-                </span>
-                <span className="st-skill-txt">
-                  <span className="st-skill-name">{c.name}</span>
-                  <span className="st-skill-fam">{FAMILY_LABEL[c.family]}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
       <section className="card st-card st-look" aria-labelledby="st-look">
         <div className="st-look-opts">
           <h2 id="st-look" className="st-h">Apparence</h2>
+
+          <fieldset className="st-field">
+            <legend className="field-label">Mode</legend>
+            <div className="st-swatches" role="radiogroup" aria-label="Mode clair ou sombre">
+              {COLOR_MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={theme.mode === m.id}
+                  className="st-swatch"
+                  data-sfx="off"
+                  onClick={() => setTheme({ mode: m.id })}
+                >
+                  <span>{m.label}</span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
 
           <fieldset className="st-field">
             <legend className="field-label">Thème du plateau</legend>
@@ -236,6 +208,59 @@ export function Settings() {
             Aperçu : dernier coup (accent), cases légales et capture, premove (accent mêlé de rouge).
           </p>
         </div>
+      </section>
+
+      <section className="card st-card" aria-labelledby="st-sound">
+        <h2 id="st-sound" className="st-h">Sons</h2>
+        <Switch checked={snd.enabled} onChange={(enabled) => sfx.setSettings({ enabled })} label="Sons activés" hint="Interrupteur général : coupe tous les effets." />
+        <Slider value={snd.master} onChange={(master) => sfx.setSettings({ master })} label="Volume général" disabled={off} />
+        <Slider value={snd.effects} onChange={(effects) => sfx.setSettings({ effects })} label="Volume des effets" disabled={off} />
+        <Switch checked={snd.ui} onChange={(ui) => sfx.setSettings({ ui })} label="Sons d'interface" hint="Clics, messages, demandes d'ami, défis, notifications." />
+        <Switch checked={snd.yourTurn} onChange={(yourTurn) => sfx.setSettings({ yourTurn })} label="Notification « à vous de jouer »" hint="Un petit carillon quand le trait vous revient." />
+
+        {off && <p className="st-note muted">Les sons sont désactivés : activez-les pour écouter les aperçus.</p>}
+        <div className="st-groups">
+          {GROUPS.map((g) => (
+            <div key={g.title} className="st-group">
+              <h3 className="eyebrow">{g.title}</h3>
+              <div className="st-chips">
+                {g.items.map(([name, label]) => (
+                  <button key={name} type="button" className="st-play" disabled={off} data-sfx="off" onClick={() => preview(name)}>
+                    <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" focusable="false">
+                      <path d="M3 1.8v8.4L10 6z" fill="currentColor" />
+                    </svg>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <h3 className="eyebrow st-skills-h">Compétences ({CATALOG.length})</h3>
+        <ul className="st-skills">
+          {CATALOG.map((c) => (
+            <li key={c.id}>
+              <button
+                type="button"
+                className="st-skill"
+                disabled={off}
+                data-sfx="off"
+                style={{ "--fam": `var(--fam-${c.family})` } as CSSProperties}
+                onClick={() => preview(skillSfx(c.id))}
+                aria-label={`Écouter ${c.name}`}
+              >
+                <span className="st-skill-art">
+                  <SkillArt id={c.id} size={34} />
+                </span>
+                <span className="st-skill-txt">
+                  <span className="st-skill-name">{c.name}</span>
+                  <span className="st-skill-fam">{FAMILY_LABEL[c.family]}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="card st-card" aria-labelledby="st-play">

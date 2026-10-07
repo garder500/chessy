@@ -274,6 +274,8 @@ export class BoardScene extends Phaser.Scene {
       if (prev) this.retextureAll();
     }
     if (prev && prev.board !== theme.board && this.view) this.drawBoard();
+    // Le cadre reprend la surface du mode clair/sombre : redessiné une fois le mode appliqué au document.
+    else if (prev && prev.mode !== theme.mode && this.view) this.time.delayedCall(0, () => this.view && this.drawBoard());
     if (prev && !this.dragEnabled && this.drag) this.cancelDrag();
     this.drawHighlights();
     this.drawPremove();

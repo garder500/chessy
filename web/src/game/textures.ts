@@ -124,13 +124,20 @@ export function drawBoard(canvas: HTMLCanvasElement, orientation: Color, colors:
 }
 
 /** Plateau moderne : cases plates, cadre sombre à filet cyan, repères dans les cases (sombres sur clair, clairs sur sombre). */
+function cssVar(name: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
 function drawFlatBoard(ctx: CanvasRenderingContext2D, orientation: Color, colors: BoardColors) {
-  ctx.fillStyle = "#0b1226";
+  // Cadre Jade : la surface du thème courant, filet neutre (pas de lueur colorée).
+  ctx.fillStyle = cssVar("--surface-2", "#1a2021");
   ctx.fillRect(0, 0, SIZE, SIZE);
-  ctx.strokeStyle = "rgba(61,224,255,0.7)";
+  ctx.strokeStyle = cssVar("--line-3", "#43504f");
   ctx.lineWidth = 2;
   ctx.strokeRect(FRAME - 5, FRAME - 5, BOARD_PX + 10, BOARD_PX + 10);
-  ctx.font = '700 17px "Rajdhani", "Barlow Condensed", system-ui, sans-serif';
+  ctx.font = '700 17px "Barlow Condensed", system-ui, sans-serif';
   ctx.textBaseline = "top";
   for (let row = 0; row < 8; row++) {
     for (let col = 0; col < 8; col++) {
