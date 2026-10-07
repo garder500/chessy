@@ -35,7 +35,9 @@ export function App() {
   }, []);
   useEffect(() => installUiClicks(), []);
   // Un nouvel écran s'ouvre en haut de page (sinon un onglet de la barre du bas garde le défilement du précédent).
-  useEffect(() => window.scrollTo(0, 0), [route.name, route.param]);
+  useEffect(() => {
+    window.scrollTo(0, 0); // renvoie une Promise sur les Chrome récents : ne pas la retourner comme nettoyage
+  }, [route.name, route.param]);
 
   const reward = state.over?.reward ?? state.pendingReward;
   // Une partie en cours (ou son choix de compétences) prend la place de n'importe quelle page.
