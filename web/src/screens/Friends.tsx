@@ -16,15 +16,15 @@ export function Friends() {
 
   if (account && guest) {
     return (
-      <main className="fr-page">
-        <div className="card fr-guest">
+      <main className="frd-page">
+        <div className="card frd-guest">
           <p className="eyebrow">Amis</p>
           <h1>Les amis demandent un compte</h1>
           <p className="muted">
             Avec un compte, vous retrouvez vos amis, voyez qui est en ligne et pouvez les défier en un clic. Votre deck
             d'invité est conservé à l'inscription.
           </p>
-          <a className="btn pri fr-guest-btn" href={hrefFor({ name: "auth" })}>
+          <a className="btn pri frd-guest-btn" href={hrefFor({ name: "auth" })}>
             Créer un compte ou se connecter
           </a>
         </div>
@@ -41,26 +41,31 @@ function FriendsBody({ online, friends }: { online: boolean; friends: ReturnType
   const current = sorted.find((f) => f.username === selected) ?? sorted[0] ?? null;
 
   return (
-    <main className="fr-page">
-      <header className="fr-head">
+    <main className="frd-page">
+      <header className="frd-head">
         <p className="eyebrow">Social</p>
-        <h1 className="fr-title">Amis</h1>
+        <h1 className="frd-title">Amis</h1>
       </header>
-      <div className="fr-grid">
-        <aside className="fr-side card" aria-label="Vos amis">
+      {/* Téléphone : la liste, puis le détail de l'ami choisi à sa place, avec un retour vers la liste. */}
+      <div className={`frd-grid${selected !== null && current ? " has-sel" : ""}`}>
+        <aside className="frd-side card" aria-label="Vos amis">
           <AddFriend online={online} />
           <Requests incoming={friends.incoming} outgoing={friends.outgoing} online={online} />
-          <section className="fr-sec" aria-labelledby="fr-list-h">
-            <h2 id="fr-list-h" className="fr-sec-h">
-              Mes amis <span className="mono fr-count">{sorted.length}</span>
+          <section className="frd-sec" aria-labelledby="frd-list-h">
+            <h2 id="frd-list-h" className="frd-sec-h">
+              Mes amis <span className="mono frd-count">{sorted.length}</span>
             </h2>
             {sorted.length === 0 ? (
-              <p className="fr-empty muted">Pas encore d'amis. Cherchez un pseudo ci-dessus pour envoyer une demande.</p>
+              <p className="frd-empty muted">Pas encore d'amis. Cherchez un pseudo ci-dessus pour envoyer une demande.</p>
             ) : (
-              <ul className="fr-list">
+              <ul className="frd-list">
                 {sorted.map((f) => (
                   <li key={f.username}>
-                    <FriendRow friend={f} active={current?.username === f.username} onSelect={() => setSelected(f.username)} />
+                    <FriendRow friend={f} active={current?.username === f.username} onSelect={() => {
+                        setSelected(f.username);
+                        if (window.matchMedia("(max-width: 960px)").matches) window.scrollTo({ top: 0 });
+                      }}
+                    />
                   </li>
                 ))}
               </ul>
@@ -68,11 +73,19 @@ function FriendsBody({ online, friends }: { online: boolean; friends: ReturnType
           </section>
         </aside>
 
-        <section className="fr-detail" aria-label="Profil de l'ami sélectionné">
+        <section className="frd-detail" aria-label="Profil de l'ami sélectionné">
           {current ? (
-            <Detail key={current.username} friend={current} online={online} />
+            <>
+              <button type="button" className="btn ghost sm frd-back" onClick={() => setSelected(null)}>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" focusable="false">
+                  <path d="M15 5l-7 7 7 7" />
+                </svg>
+                Mes amis
+              </button>
+              <Detail key={current.username} friend={current} online={online} />
+            </>
           ) : (
-            <div className="card fr-placeholder">
+            <div className="card frd-placeholder">
               <p className="muted">Sélectionnez un ami pour voir ses statistiques et le défier.</p>
             </div>
           )}
@@ -109,16 +122,16 @@ function AddFriend({ online }: { online: boolean }) {
   }
 
   return (
-    <section className="fr-sec" aria-labelledby="fr-add-h">
-      <h2 id="fr-add-h" className="fr-sec-h">
+    <section className="frd-sec" aria-labelledby="frd-add-h">
+      <h2 id="frd-add-h" className="frd-sec-h">
         Ajouter par pseudo
       </h2>
-      <label className="fr-sr" htmlFor="fr-search">
+      <label className="frd-sr" htmlFor="frd-search">
         Pseudo à rechercher
       </label>
       <input
-        id="fr-search"
-        className="input fr-search"
+        id="frd-search"
+        className="input frd-search"
         type="search"
         placeholder="Rechercher un pseudo…"
         value={query}
@@ -127,25 +140,25 @@ function AddFriend({ online }: { online: boolean }) {
         autoCapitalize="none"
         spellCheck={false}
         maxLength={32}
-        aria-describedby="fr-search-status"
+        aria-describedby="frd-search-status"
       />
-      <div id="fr-search-status" aria-live="polite" className="fr-search-status">
-        {query && !active && <p className="fr-hint">Saisissez au moins 2 caractères.</p>}
-        {active && !users && <p className="fr-hint">Recherche…</p>}
-        {users && users.length === 0 && <p className="fr-hint">Aucun joueur ne commence par « {q} ».</p>}
+      <div id="frd-search-status" aria-live="polite" className="frd-search-status">
+        {query && !active && <p className="frd-hint">Saisissez au moins 2 caractères.</p>}
+        {active && !users && <p className="frd-hint">Recherche…</p>}
+        {users && users.length === 0 && <p className="frd-hint">Aucun joueur ne commence par « {q} ».</p>}
       </div>
       {users && users.length > 0 && (
-        <ul className="fr-results">
+        <ul className="frd-results">
           {users.map((u) => {
             const relation = u.relation === "none" && sent.has(u.username) ? "outgoing" : u.relation;
             return (
-              <li key={u.username} className="fr-result">
+              <li key={u.username} className="frd-result">
                 <span className="avatar">{initialOf(u.username)}</span>
-                <span className="fr-who">
-                  <a className="fr-name" href={hrefFor({ name: "profile", param: u.username })}>
+                <span className="frd-who">
+                  <a className="frd-name" href={hrefFor({ name: "profile", param: u.username })}>
                     {u.username}
                   </a>
-                  <span className="mono fr-elo">{u.elo}</span>
+                  <span className="mono frd-elo">{u.elo}</span>
                 </span>
                 {relation === "none" ? (
                   <button type="button" className="btn sm" onClick={() => request(u)} disabled={!online}>
@@ -180,21 +193,21 @@ function Requests({
 }) {
   if (incoming.length === 0 && outgoing.length === 0) return null;
   return (
-    <section className="fr-sec" aria-labelledby="fr-req-h">
-      <h2 id="fr-req-h" className="fr-sec-h">
-        Demandes <span className="mono fr-count">{incoming.length + outgoing.length}</span>
+    <section className="frd-sec" aria-labelledby="frd-req-h">
+      <h2 id="frd-req-h" className="frd-sec-h">
+        Demandes <span className="mono frd-count">{incoming.length + outgoing.length}</span>
       </h2>
-      <ul className="fr-list">
+      <ul className="frd-list">
         {incoming.map((r) => (
-          <li key={r.username} className="fr-req">
+          <li key={r.username} className="frd-req">
             <span className="avatar">{initialOf(r.username)}</span>
-            <span className="fr-who">
-              <a className="fr-name" href={hrefFor({ name: "profile", param: r.username })}>
+            <span className="frd-who">
+              <a className="frd-name" href={hrefFor({ name: "profile", param: r.username })}>
                 {r.username}
               </a>
-              <span className="mono fr-elo">{r.elo}</span>
+              <span className="mono frd-elo">{r.elo}</span>
             </span>
-            <span className="fr-req-btns">
+            <span className="frd-req-btns">
               <button
                 type="button"
                 className="btn sm"
@@ -217,10 +230,10 @@ function Requests({
           </li>
         ))}
         {outgoing.map((r) => (
-          <li key={r.username} className="fr-req">
+          <li key={r.username} className="frd-req">
             <span className="avatar">{initialOf(r.username)}</span>
-            <span className="fr-who">
-              <span className="fr-name">{r.username}</span>
+            <span className="frd-who">
+              <span className="frd-name">{r.username}</span>
             </span>
             <span className="tag">En attente</span>
           </li>
@@ -234,16 +247,16 @@ function Requests({
 
 function FriendRow({ friend: f, active, onSelect }: { friend: FriendInfo; active: boolean; onSelect: () => void }) {
   return (
-    <button type="button" className={`fr-row${active ? " on" : ""}`} onClick={onSelect} aria-pressed={active}>
-      <span className="fr-av">
+    <button type="button" className={`frd-row${active ? " on" : ""}`} onClick={onSelect} aria-pressed={active}>
+      <span className="frd-av">
         <span className="avatar">{initialOf(f.username)}</span>
-        <span className={`presence ${f.presence} fr-dot`} aria-hidden="true" />
+        <span className={`presence ${f.presence} frd-dot`} aria-hidden="true" />
       </span>
-      <span className="fr-who">
-        <span className="fr-name">{f.username}</span>
-        <span className="fr-sub">{presenceLabel(f.presence, f.last_seen)}</span>
+      <span className="frd-who">
+        <span className="frd-name">{f.username}</span>
+        <span className="frd-sub">{presenceLabel(f.presence, f.last_seen)}</span>
       </span>
-      <span className="mono fr-elo">{f.elo}</span>
+      <span className="mono frd-elo">{f.elo}</span>
     </button>
   );
 }
@@ -268,19 +281,19 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
           : "";
 
   return (
-    <div className="card fr-card">
-      <div className="fr-card-head">
-        <span className="fr-av">
-          <span className="avatar fr-avatar-lg">{initialOf(friend.username)}</span>
-          <span className={`presence ${friend.presence} fr-dot`} aria-hidden="true" />
+    <div className="card frd-card">
+      <div className="frd-card-head">
+        <span className="frd-av">
+          <span className="avatar frd-avatar-lg">{initialOf(friend.username)}</span>
+          <span className={`presence ${friend.presence} frd-dot`} aria-hidden="true" />
         </span>
-        <div className="fr-card-id">
-          <h2 className="fr-card-name">{friend.username}</h2>
-          <p className="fr-sub">
+        <div className="frd-card-id">
+          <h2 className="frd-card-name">{friend.username}</h2>
+          <p className="frd-sub">
             <span className="tag">{tierOf(friend.elo).name}</span> {presenceLabel(friend.presence, friend.last_seen)}
           </p>
         </div>
-        <div className="fr-actions">
+        <div className="frd-actions">
           {pending ? (
             <>
               <button type="button" className="btn pri" disabled>
@@ -304,11 +317,11 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
           )}
         </div>
       </div>
-      {why && !pending && <p className="fr-why muted">{why}</p>}
+      {why && !pending && <p className="frd-why muted">{why}</p>}
 
-      {state.status === "loading" && <div className="fr-skel" aria-busy="true" aria-label="Chargement du profil" />}
+      {state.status === "loading" && <div className="frd-skel" aria-busy="true" aria-label="Chargement du profil" />}
       {state.status === "error" && (
-        <div className="fr-err" role="alert">
+        <div className="frd-err" role="alert">
           <p>{state.message}</p>
           <button type="button" className="btn sm" onClick={reload}>
             Réessayer
@@ -318,28 +331,29 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
       {state.status === "notfound" && <p className="muted">Ce profil n'est plus disponible.</p>}
       {state.status === "ready" && (
         <>
-          <div className="fr-stats">
+          <div className="frd-stats">
             <StatTile label="Elo" value={state.profile.elo} />
-            <StatTile label="Rang" value={state.profile.rank ? `#${state.profile.rank}` : "—"} />
+            <StatTile label="Parties" value={state.profile.games} />
             <StatTile
-              label="V · N · D"
-              value={`${state.profile.wins} · ${state.profile.draws} · ${state.profile.losses}`}
-              hint={winRate(state.profile.wins, state.profile.games) === null ? "Aucune partie" : `${winRate(state.profile.wins, state.profile.games)} % de victoires`}
+              label="Victoires"
+              value={winRate(state.profile.wins, state.profile.games) === null ? "—" : `${winRate(state.profile.wins, state.profile.games)} %`}
+              hint={`${state.profile.wins} V · ${state.profile.draws} N · ${state.profile.losses} D`}
             />
+            <StatTile label="Rang" value={state.profile.rank ? `#${state.profile.rank}` : "—"} />
           </div>
-          <h3 className="fr-sub-h">Évolution de l'Elo</h3>
+          <h3 className="frd-sub-h">Évolution de l'Elo</h3>
           <EloChart history={state.profile.history} />
-          <h3 className="fr-sub-h">Dernières parties</h3>
+          <h3 className="frd-sub-h">Dernières parties</h3>
           <RecentGames games={state.profile.recent} limit={5} />
-          <a className="fr-full" href={hrefFor({ name: "profile", param: friend.username })}>
+          <a className="frd-full" href={hrefFor({ name: "profile", param: friend.username })}>
             Voir le profil complet
           </a>
         </>
       )}
 
-      <div className="fr-remove">
+      <div className="frd-remove">
         {confirming ? (
-          <div className="fr-confirm" role="alertdialog" aria-label={`Retirer ${friend.username}`}>
+          <div className="frd-confirm" role="alertdialog" aria-label={`Retirer ${friend.username}`}>
             <span>Retirer {friend.username} de vos amis ?</span>
             <button
               type="button"

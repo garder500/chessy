@@ -890,6 +890,13 @@ impl Position {
     /// A slider that runs into an enemy trap stops on it, so the move that
     /// actually happens may end earlier than `mv.to`.
     pub fn make_move(&mut self, mv: Move, ev: &mut Vec<Event>) {
+        self.play_move(mv, ev);
+        self.end_turn_events(ev);
+    }
+
+    /// [`Position::make_move`] without handing the turn over (Temporal
+    /// Distortion replays a move inside a skill, whose caller ends the turn).
+    pub(crate) fn play_move(&mut self, mv: Move, ev: &mut Vec<Event>) {
         let color = self.side;
         let mut mv = mv;
         let mut piece = self.board[mv.from as usize]
@@ -1004,7 +1011,6 @@ impl Position {
             let frozen = self.add_effect(EffectKind::Frozen, piece.id, 5);
             ev.push(frozen);
         }
-        self.end_turn_events(ev);
     }
 
     /// Miroir: every piece goes to the square opposite it (same file, rank

@@ -85,3 +85,7 @@
   .st-seg > button { padding: 0 8px; white-space: normal; height: 44px; line-height: 1.2; }
   .st-card { padding: 18px 16px; }
 }
+/* Téléphone : les options d'abord, l'aperçu en vignette dessous (il prenait tout l'écran). */
+@media (max-width: 720px) {
+  .st-look-prev { order: 0; width: min(260px, 100%); justify-self: center; }
+}

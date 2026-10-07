@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { hrefFor, navigate, type Route } from "../router";
 import { store, type AppState } from "../store";
 
-const TABS: { name: Route["name"]; label: string }[] = [
-  { name: "home", label: "Jouer" },
-  { name: "live", label: "En direct" },
-  { name: "ranking", label: "Classement" },
-  { name: "friends", label: "Amis" },
-  { name: "collection", label: "Collection" },
+/** Icônes des onglets : visibles seulement dans la barre du bas, sur téléphone. */
+const TABS: { name: Route["name"]; label: string; icon: string }[] = [
+  { name: "home", label: "Jouer", icon: "M8 5.5v13l10-6.5z" },
+  { name: "live", label: "En direct", icon: "M12 9.5a2.5 2.5 0 110 5 2.5 2.5 0 010-5zM7.5 7.5a6.4 6.4 0 000 9M16.5 7.5a6.4 6.4 0 010 9M4.6 4.6a10.5 10.5 0 000 14.8M19.4 4.6a10.5 10.5 0 010 14.8" },
+  { name: "ranking", label: "Classement", icon: "M4 20V11M10 20V5M16 20v-7M21 20H3" },
+  { name: "friends", label: "Amis", icon: "M9 4.5a3.5 3.5 0 110 7 3.5 3.5 0 010-7zM2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.8a3.5 3.5 0 010 6.4M18.5 14.8c1.6.8 2.6 2.5 3 5.2" },
+  { name: "collection", label: "Collection", icon: "M5 6h11v15H5zM8 3h11a1 1 0 011 1v14" },
 ];
 
 export function Wordmark() {
@@ -47,6 +48,9 @@ export function NavBar({ state, route }: { state: AppState; route: Route["name"]
               className="nav-tab"
               aria-current={activeTab === tab.name ? "page" : undefined}
             >
+              <svg className="nav-tab-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true" focusable="false">
+                <path d={tab.icon} />
+              </svg>
               {tab.label}
               {tab.name === "friends" && pending > 0 && (
                 <span className="nav-count">

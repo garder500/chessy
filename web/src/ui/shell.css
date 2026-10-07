@@ -45,7 +45,6 @@
 
 @media (max-width: 720px) {
   .nav-in { padding: 0 14px; gap: 12px; }
-  .wordmark > span:not(.wordmark-mark) { display: none; }
   .nav-chip-elo, .nav-guest { display: none; }
   .nav-tab { padding: 0 10px; }
 }

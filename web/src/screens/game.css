@@ -204,6 +204,9 @@ body:has(.gm) { overscroll-behavior-y: contain; }
   .gm-skill-key { display: none; }
   .gm-skill.on .gm-skill-desc { display: block; margin-top: 2px; font-size: 12px; line-height: 1.35; color: var(--text-2); }
   .gm-actions .btn.sm, .gm-banner .btn.sm { height: 44px; flex: 1; }
+  /* Abandon et nulle : une barre fixe en bas, à portée de pouce ; les bandeaux (confirmation, nulle proposée) s'y empilent. */
+  .gm:has(.gm-actions) { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  :root .gm-actions.card { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; margin: 0; clip-path: none; border-radius: 0; border-width: 1px 0 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: var(--surface); box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25); }
   .gm-actions .gm-row { flex-wrap: nowrap; }
   .gm-log { max-height: 220px; }
   .gm-chip { min-height: 36px; padding: 6px 12px; font-size: 13px; }

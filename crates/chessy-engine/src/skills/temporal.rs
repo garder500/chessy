@@ -3,11 +3,14 @@ use crate::position::{offset, Position};
 use crate::types::*;
 
 /// One of your pieces (not the king) repeats its last move: the same step
-/// again from where it stands, if it lands on an empty square or takes an
-/// enemy piece. This replaces the move of the turn.
+/// again from where it stands, played like a real move of that piece. This
+/// replaces the move of the turn.
 pub struct Temporal;
 
-/// Where `piece` on `from` would land by repeating its last move.
+/// Where `piece` on `from` would land by repeating its last move, or `None`
+/// when the piece could not make that move: a slider (or a pawn's double
+/// step) cannot jump over a piece or cross enemy terrain, a pawn only takes
+/// diagonally and only walks straight onto an empty square.
 fn replay(pos: &Position, from: Square, piece: &Piece) -> Option<Square> {
     let prev = piece.prev?;
     let df = file_of(from) as i8 - file_of(prev) as i8;
@@ -16,12 +19,33 @@ fn replay(pos: &Position, from: Square, piece: &Piece) -> Option<Square> {
     if !Position::can_stand(piece.kind, to) {
         return None;
     }
+    let blocked = pos.blocked_mask(piece.color);
+    let crosses = match piece.kind {
+        PieceKind::Bishop | PieceKind::Rook | PieceKind::Queen => true,
+        PieceKind::Pawn => df == 0,
+        _ => false,
+    };
+    if crosses {
+        let (sf, sr) = (df.signum(), dr.signum());
+        let mut cur = offset(from, sf, sr)?;
+        while cur != to {
+            if pos.board[cur as usize].is_some() || blocked & (1u64 << cur) != 0 {
+                return None;
+            }
+            cur = offset(cur, sf, sr)?;
+        }
+    }
+    if blocked & (1u64 << to) != 0 {
+        return None;
+    }
     match pos.board[to as usize] {
-        None => pos.can_place(piece.color, piece.kind, to).then_some(to),
+        // A pawn's diagonal step is a capture: it needs a victim.
+        None => (piece.kind != PieceKind::Pawn || df == 0).then_some(to),
         Some(victim) => {
-            let free = pos.blocked_mask(piece.color) & (1u64 << to) == 0;
+            let truce = !pos.effects.is_empty() && pos.truce();
             (!piece.mirage
-                && free
+                && !truce
+                && !(piece.kind == PieceKind::Pawn && df == 0)
                 && victim.color != piece.color
                 && victim.kind != PieceKind::King
                 && !pos.is_immune(victim.id))
@@ -47,20 +71,17 @@ impl Skill for Temporal {
         let SkillTarget::Piece { square: from } = target else {
             return;
         };
-        let mut piece = pos.board[from as usize].expect("temporal target");
+        let piece = pos.board[from as usize].expect("temporal target");
         let to = replay(pos, from, &piece).expect("temporal destination");
-        pos.board[from as usize] = None;
-        let reaction = match pos.board[to as usize].take() {
-            Some(victim) => pos.begin_capture(to, victim, ev),
-            None => crate::position::Reaction::None,
-        };
-        ev.push(Event::Moved {
-            from,
-            to,
-            piece: piece.id,
-        });
-        piece.prev = Some(from);
-        pos.board[to as usize] = Some(piece);
-        pos.finish_capture(reaction, from, to, ev);
+        // The same path as a move: captures (Force Field, Celestial), enemy
+        // traps on the way, castling rights and `prev`.
+        pos.play_move(
+            Move {
+                from,
+                to,
+                promo: None,
+            },
+            ev,
+        );
     }
 }

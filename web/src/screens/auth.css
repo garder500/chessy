@@ -37,3 +37,9 @@
   .au-args { margin-top: 24px; }
   .au-card { padding: 20px; }
 }
+/* Téléphone : le formulaire monte sous l'accroche ; les arguments restent sur grand écran. */
+@media (max-width: 720px) {
+  .au-page { padding: 24px 16px 40px; }
+  .au-wrap { gap: 20px; }
+  .au-args { display: none; }
+}
