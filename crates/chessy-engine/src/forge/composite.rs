@@ -122,7 +122,7 @@ impl Skill for Composite {
                     .filter(|(square, p)| {
                         p.kind != PieceKind::King
                             && p.kind != *into
-                            && Position::can_stand(*into, *square)
+                            && Position::can_stand(who, *into, *square)
                     })
                     .map(|(square, _)| SkillTarget::Spawn {
                         square,
@@ -191,7 +191,7 @@ impl Skill for Composite {
                 let mut out = Vec::new();
                 for (i, &(a, pa)) in pool.iter().enumerate() {
                     for &(b, pb) in &pool[i + 1..] {
-                        if Position::can_stand(pa.kind, b) && Position::can_stand(pb.kind, a) {
+                        if Position::can_stand(pa.color, pa.kind, b) && Position::can_stand(pb.color, pb.kind, a) {
                             out.push(SkillTarget::Pair { a, b });
                         }
                     }
@@ -214,6 +214,13 @@ impl Skill for Composite {
             }
             Effect::Silence { .. } => {
                 if pos.is_silenced(enemy) {
+                    Vec::new()
+                } else {
+                    vec![SkillTarget::None]
+                }
+            }
+            Effect::Ambush { .. } => {
+                if pos.has_domain(color) {
                     Vec::new()
                 } else {
                     vec![SkillTarget::None]
@@ -360,6 +367,13 @@ impl Skill for Composite {
                 ev.push(pos.add_global_effect(
                     EffectKind::Silenced,
                     Some(color.opposite()),
+                    u32::from(*plies),
+                ));
+            }
+            (Effect::Ambush { plies }, SkillTarget::None) => {
+                ev.push(pos.add_global_effect(
+                    EffectKind::Domain,
+                    Some(color),
                     u32::from(*plies),
                 ));
             }

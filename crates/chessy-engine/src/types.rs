@@ -216,6 +216,10 @@ pub enum EffectKind {
     Fog,
     /// Silence (forged): the player in `owner` cannot use skills. Global.
     Silenced,
+    /// Domain (forged): an ambush armed for `owner`. The next time the other
+    /// side puts the owner in check, bishops strike the checking pieces.
+    /// Global; the board "expanding" is only a show for the clients.
+    Domain,
 }
 
 impl EffectKind {
@@ -224,7 +228,11 @@ impl EffectKind {
     pub fn is_global(self) -> bool {
         matches!(
             self,
-            EffectKind::Terrain | EffectKind::Truce | EffectKind::Fog | EffectKind::Silenced
+            EffectKind::Terrain
+                | EffectKind::Truce
+                | EffectKind::Fog
+                | EffectKind::Silenced
+                | EffectKind::Domain
         )
     }
 }
@@ -439,6 +447,12 @@ pub enum Event {
         expires_at: u32,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         owner: Option<Color>,
+    },
+    /// A Domain ambush: bishops from beyond the board strike the `piece` on
+    /// `square` (a [`Event::Captured`] follows) and the domain collapses.
+    Ambushed {
+        square: Square,
+        piece: Piece,
     },
     /// A piece lent by Mind Control went back to its side.
     LoanEnded {

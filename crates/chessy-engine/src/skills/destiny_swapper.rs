@@ -18,7 +18,7 @@ impl Skill for DestinySwapper {
         let mut out = Vec::new();
         for (i, &(a, pa)) in own.iter().enumerate() {
             for &(b, pb) in &own[i + 1..] {
-                if Position::can_stand(pa.kind, b) && Position::can_stand(pb.kind, a) {
+                if Position::can_stand(pa.color, pa.kind, b) && Position::can_stand(pb.color, pb.kind, a) {
                     out.push(SkillTarget::Pair { a, b });
                 }
             }

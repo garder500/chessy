@@ -22,6 +22,8 @@ impl Skill for Control {
     fn targets(&self, pos: &Position, color: Color) -> Vec<SkillTarget> {
         pos.pieces(color.opposite())
             .filter(|(_, p)| p.kind != PieceKind::King)
+            // A pawn must not end up on its new promotion rank.
+            .filter(|&(square, p)| Position::can_stand(color, p.kind, square))
             .map(|(square, _)| SkillTarget::Piece { square })
             .collect()
     }

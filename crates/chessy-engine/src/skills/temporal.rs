@@ -2,21 +2,21 @@ use super::{Skill, SkillId, SkillTarget};
 use crate::position::{offset, Position};
 use crate::types::*;
 
-/// One of your pieces (not the king) repeats its last move: the same step
-/// again from where it stands, played like a real move of that piece. This
-/// replaces the move of the turn.
+/// One of your pieces (not the king) travels back in time: it returns to the
+/// square it last moved from, played like a real move of that piece (so it can
+/// capture there). This replaces the move of the turn.
 pub struct Temporal;
 
-/// Where `piece` on `from` would land by repeating its last move, or `None`
+/// Where `piece` on `from` would land by undoing its last move, or `None`
 /// when the piece could not make that move: a slider (or a pawn's double
 /// step) cannot jump over a piece or cross enemy terrain, a pawn only takes
 /// diagonally and only walks straight onto an empty square.
 fn replay(pos: &Position, from: Square, piece: &Piece) -> Option<Square> {
     let prev = piece.prev?;
-    let df = file_of(from) as i8 - file_of(prev) as i8;
-    let dr = rank_of(from) as i8 - rank_of(prev) as i8;
+    let df = file_of(prev) as i8 - file_of(from) as i8;
+    let dr = rank_of(prev) as i8 - rank_of(from) as i8;
     let to = offset(from, df, dr)?;
-    if !Position::can_stand(piece.kind, to) {
+    if !Position::can_stand(piece.color, piece.kind, to) {
         return None;
     }
     let blocked = pos.blocked_mask(piece.color);

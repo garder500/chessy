@@ -28,7 +28,7 @@ impl Skill for Morph {
             }
             let square = i as Square;
             for kind in KINDS {
-                if kind != piece.kind && Position::can_stand(kind, square) {
+                if kind != piece.kind && Position::can_stand(piece.color, kind, square) {
                     out.push(SkillTarget::Spawn { square, kind });
                 }
             }

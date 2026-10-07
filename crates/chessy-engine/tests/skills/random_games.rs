@@ -75,8 +75,8 @@ pub(crate) fn check_invariants(g: &Game, context: &str) {
         assert!(ids.insert(p.id), "duplicate id {}: {context}", p.id);
         if p.kind == PieceKind::Pawn {
             assert!(
-                !matches!(rank_of(i as Square), 0 | 7),
-                "pawn on a back rank ({}): {context}\n{}",
+                rank_of(i as Square) != p.color.promotion_rank(),
+                "pawn on its promotion rank ({}): {context}\n{}",
                 square_name(i as Square),
                 pos.to_fen()
             );

@@ -101,6 +101,13 @@ pub enum Effect {
     Silence {
         plies: u8,
     },
+    /// Domain Expansion: for `plies` the caster is under an ambush. The next
+    /// time the opponent puts their king in check, bishops strike the checking
+    /// pieces down. (The board swelling around the fight is a show the
+    /// clients put on.)
+    Ambush {
+        plies: u8,
+    },
 }
 
 impl Effect {
@@ -114,6 +121,7 @@ impl Effect {
                 | Effect::Mirror
                 | Effect::Fog { .. }
                 | Effect::Silence { .. }
+                | Effect::Ambush { .. }
         )
     }
 }
@@ -198,7 +206,8 @@ impl SkillDef {
             | Effect::Cloak { plies }
             | Effect::Truce { plies }
             | Effect::Fog { plies }
-            | Effect::Silence { plies } => check_plies(*plies),
+            | Effect::Silence { plies }
+            | Effect::Ambush { plies } => check_plies(*plies),
             Effect::Morph { into, plies, .. } => {
                 if *into == PieceKind::King {
                     return invalid("cannot morph into a king");

@@ -10,7 +10,7 @@ import { GLYPH_PATHS } from "./ui/forgedGlyphs";
 
 /** Les glyphes que le serveur peut nommer (`GLYPHS` dans crates/chessy-engine/src/forge/identity.rs). */
 const SERVER_GLYPHS = [
-  "snowflake", "shield", "veil", "morph", "crown", "erase", "banner", "portal", "echo", "swap", "summon", "ankh", "dove", "mirror", "fog", "mute",
+  "snowflake", "shield", "veil", "morph", "crown", "erase", "banner", "portal", "echo", "swap", "summon", "ankh", "dove", "mirror", "fog", "mute", "domain",
 ];
 
 const def = (n: number, over: Partial<ForgedDef> = {}): ForgedDef => ({

@@ -57,7 +57,7 @@ pub struct Identity {
 }
 
 /// Every glyph an [`IconSpec`] may name; the client has a drawing for each.
-pub const GLYPHS: [&str; 16] = [
+pub const GLYPHS: [&str; 17] = [
     "snowflake",
     "shield",
     "veil",
@@ -74,6 +74,7 @@ pub const GLYPHS: [&str; 16] = [
     "mirror",
     "fog",
     "mute",
+    "domain",
 ];
 
 pub fn effect_index(effect: &Effect) -> usize {
@@ -94,11 +95,12 @@ pub fn effect_index(effect: &Effect) -> usize {
         Effect::Mirror => 13,
         Effect::Fog { .. } => 14,
         Effect::Silence { .. } => 15,
+        Effect::Ambush { .. } => 16,
     }
 }
 
 /// Nouns a skill of each effect may be called, indexed by [`effect_index`].
-const NOUNS: [&[&str]; 16] = [
+const NOUNS: [&[&str]; 17] = [
     &["Givre", "Gel", "Glace", "Frimas"],
     &["Égide", "Rempart", "Bastion", "Sauvegarde"],
     &["Voile", "Ombre", "Linceul", "Brume"],
@@ -120,6 +122,12 @@ const NOUNS: [&[&str]; 16] = [
         "Purée de pois",
     ],
     &["Silence", "Mutisme", "Bâillon", "Serment du taciturne"],
+    &[
+        "Expansion du domaine",
+        "Domaine",
+        "Guet-apens",
+        "Cathédrale des fous",
+    ],
 ];
 
 const SYLLABLES: [&str; 32] = [
@@ -284,6 +292,10 @@ fn effect_sentence(effect: &Effect) -> String {
             "L'adversaire ne peut utiliser aucun pouvoir pendant {}.",
             duration(*plies)
         ),
+        Effect::Ambush { plies } => format!(
+            "Expansion de domaine : pendant {}, la première fois que l'adversaire met ton roi en échec, des fous surgissent et capturent les pièces qui l'attaquent.",
+            duration(*plies)
+        ),
     }
 }
 
@@ -327,7 +339,8 @@ fn family(effect: &Effect) -> Family {
         | Effect::Truce { .. }
         | Effect::Mirror
         | Effect::Fog { .. }
-        | Effect::Silence { .. } => Family::Control,
+        | Effect::Silence { .. }
+        | Effect::Ambush { .. } => Family::Control,
     }
 }
 
@@ -358,7 +371,8 @@ fn plies_of(effect: &Effect) -> Option<u8> {
         | Effect::Spawn { plies, .. }
         | Effect::Truce { plies }
         | Effect::Fog { plies }
-        | Effect::Silence { plies } => Some(*plies),
+        | Effect::Silence { plies }
+        | Effect::Ambush { plies } => Some(*plies),
         _ => None,
     }
 }
