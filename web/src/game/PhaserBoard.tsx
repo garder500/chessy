@@ -20,12 +20,11 @@ interface Props {
   onCancelPremove?: () => void;
 }
 
-/** Phaser ne sait rendre en WebGL qu'avec un contexte WebGL2, ou WebGL1 + ANGLE_instanced_arrays ; sinon on bascule en Canvas. */
+/** Phaser ouvre un contexte WebGL1 et exige ANGLE_instanced_arrays ; sans cela on bascule en Canvas. */
 function webglUsable(): boolean {
   try {
     const c = document.createElement("canvas");
-    if (c.getContext("webgl2")) return true;
-    const gl = c.getContext("webgl");
+    const gl = c.getContext("webgl") ?? (c.getContext("experimental-webgl") as WebGLRenderingContext | null);
     return !!gl && !!gl.getExtension("ANGLE_instanced_arrays");
   } catch {
     return false;
