@@ -24,3 +24,31 @@
 .rw-hint:empty { display: none; }
 @keyframes rw-in { from { opacity: 0; transform: translateY(12px); } }
 @media (prefers-reduced-motion: reduce) { .rw { animation: none; } }
+
+.rw-h1 { display: none; }
+/* Ordinateur : titre, quatre cartes verticales côte à côte, action à droite (design D2Recompense). */
+@media (min-width: 1100px) {
+  .rw { background: radial-gradient(60% 50% at 50% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%), linear-gradient(var(--bg), var(--bg-2)); }
+  .rw-top { background: transparent; border-bottom: 0; height: 64px; padding-left: 24px; }
+  :root .rw .rw-title { display: none; }
+  .rw-back { border: 1px solid var(--line-3); background: var(--surface); width: 48px; height: 48px; }
+  .rw-body { width: min(1280px, 100%); padding: 0 48px 24px; display: flex; flex-flow: row wrap; justify-content: center; gap: 14px; align-content: center; }
+  :root .rw .rw-h1 { display: block; text-align: center; flex: 0 0 100%; max-width: 1228px; margin-inline: auto; font-family: var(--font-display); font-weight: 800; font-size: 56px; letter-spacing: 0.05em; line-height: 1; text-transform: uppercase; margin-top: 8px; }
+  .rw-sub { text-align: center; flex: 0 0 100%; max-width: 1228px; margin-inline: auto; font-size: 17px; margin-bottom: 12px; }
+  .rw-sec-pick, .rw-sec-pick .rw-opts { display: contents; }
+  .rw-sec-pick .rw-label { display: none; }
+  .rw-body > .rw-sec:not(.rw-sec-pick) { flex: 0 0 100%; max-width: 1228px; margin-inline: auto; }
+  .rw-opts > .skc { flex: 0 0 290px; min-height: 380px; padding: 26px 18px 22px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; border-left-width: 1px; border-top: 4px solid var(--fam, var(--line-3)); position: relative; }
+  :root .rw .skc-art { width: 86px; height: 98px; margin-bottom: 8px; }
+  :root .rw .skc-art > svg { width: 48px; height: 48px; }
+  .rw-opts > .skc .skc-body { align-items: center; gap: 6px; }
+  .rw-opts > .skc .skc-meta { justify-content: center; }
+  .rw-opts > .skc .skc-name { font-size: 22px; }
+  .rw-opts > .skc .skc-desc { font-size: 15px; }
+  .rw-opts > .skc .skc-ring { position: absolute; top: 16px; right: 16px; }
+  .rw-random { border-top-color: var(--rar-legendary); }
+  .rw-foot { flex-direction: row; justify-content: flex-end; padding-right: 48px; align-items: center; gap: 14px; width: min(1280px, 100%); margin: 0 auto; padding: 8px 48px 32px; background: none; border-top: 0; }
+  :root .rw-foot > .btn.block { width: 360px; flex: none; min-height: 58px; order: 2; }
+  .rw-foot > .link { order: 1; }
+  .rw-hint { order: 0; margin-right: auto; }
+}

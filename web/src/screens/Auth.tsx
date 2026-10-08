@@ -1,9 +1,12 @@
-import { useId, useState } from "react";
+import { lazy, Suspense, useId, useState } from "react";
 import type { FormEvent } from "react";
 import { api, ApiError } from "../api";
 import { navigate } from "../router";
 import { Beam } from "../ui/Beam";
 import { HeroPiece } from "../ui/HeroPiece";
+
+// three.js ne se charge qu'à la demande ; la silhouette SVG sert d'attente.
+const HeroPiece3D = lazy(() => import("../ui/HeroPiece3D"));
 import { Sheet } from "../ui/Sheet";
 import { readToken, store, useAppState } from "../store";
 import {
@@ -128,7 +131,9 @@ export function Auth() {
     <main className="wl">
       <Beam width={620} height={540} />
       <div className="wl-mid">
-        <HeroPiece kind="king" className="wl-piece" />
+        <Suspense fallback={<HeroPiece kind="king" className="wl-piece" />}>
+          <HeroPiece3D kind="king" className="wl-piece" />
+        </Suspense>
         <h1 id={id("title")} className="wl-title">
           Chessy
         </h1>
