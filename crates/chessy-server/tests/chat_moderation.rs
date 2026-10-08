@@ -59,7 +59,10 @@ fn names(list: &Value) -> Vec<String> {
         .collect()
 }
 
-fn report_rows(db: &TempDb) -> Vec<(String, String, String, Option<String>, Option<String>)> {
+/// reporter, target, reason, game_id, context
+type ReportRow = (String, String, String, Option<String>, Option<String>);
+
+fn report_rows(db: &TempDb) -> Vec<ReportRow> {
     let conn = db.raw();
     let mut stmt = conn
         .prepare("SELECT reporter, target, reason, game_id, context FROM reports ORDER BY id")

@@ -51,7 +51,9 @@ fn capped(max_connections: usize, per_ip: usize, trust_proxy: bool) -> HubConfig
 }
 
 async fn open(url: &str) -> Result<Socket, Error> {
-    tokio_tungstenite::connect_async(url).await.map(|(ws, _)| ws)
+    tokio_tungstenite::connect_async(url)
+        .await
+        .map(|(ws, _)| ws)
 }
 
 /// Opens a socket as if a proxy had forwarded it for `forwarded_for`.
@@ -86,7 +88,10 @@ async fn settle(app: &Arc<App>, n: usize) {
         }
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    panic!("expected {n} open connections, have {}", app.open_connections());
+    panic!(
+        "expected {n} open connections, have {}",
+        app.open_connections()
+    );
 }
 
 async fn hello(ws: &mut Socket) {
@@ -236,7 +241,9 @@ async fn a_trusted_proxy_header_splits_users_by_their_forwarded_address() {
         refused(open_via_proxy(&url, "192.0.2.77, 198.51.100.1").await),
         StatusCode::SERVICE_UNAVAILABLE
     );
-    let _c = open_via_proxy(&url, "192.0.2.77, 198.51.100.3").await.unwrap();
+    let _c = open_via_proxy(&url, "192.0.2.77, 198.51.100.3")
+        .await
+        .unwrap();
     assert_eq!(app.open_connections(), 3);
     // Without the header, the peer address is used.
     let _d = open(&url).await.unwrap();

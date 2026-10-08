@@ -160,11 +160,7 @@ pub struct ConnSlot {
 
 impl Drop for ConnSlot {
     fn drop(&mut self) {
-        let mut slots = self
-            .limiter
-            .slots
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let mut slots = self.limiter.slots.lock().unwrap_or_else(|e| e.into_inner());
         slots.total = slots.total.saturating_sub(1);
         if let Some(ip) = self.ip {
             if let Some(held) = slots.per_ip.get_mut(&ip) {
@@ -256,13 +252,19 @@ mod tests {
         // The window opened at the first failure.
         assert!(!w.blocked_at(&"dave", t0 + Duration::from_secs(61)));
         w.record_at("dave", t0 + Duration::from_secs(62));
-        assert!(!w.blocked_at(&"dave", t0 + Duration::from_secs(63)), "fresh window");
+        assert!(
+            !w.blocked_at(&"dave", t0 + Duration::from_secs(63)),
+            "fresh window"
+        );
         for _ in 0..2 {
             w.record_at("erin", t0);
         }
         w.clear(&"erin");
         w.record_at("erin", t0);
-        assert!(!w.blocked_at(&"erin", t0), "a success forgets earlier failures");
+        assert!(
+            !w.blocked_at(&"erin", t0),
+            "a success forgets earlier failures"
+        );
     }
 
     #[test]
@@ -336,7 +338,10 @@ mod tests {
         assert!(l.try_acquire(ip("2001:db8::ffff")).is_err(), "same /64");
         assert!(l.try_acquire(ip("2001:db8:0:1::1")).is_ok(), "other /64");
         let _b = l.try_acquire(ip("192.0.2.7")).unwrap();
-        assert!(l.try_acquire(ip("::ffff:192.0.2.7")).is_err(), "mapped IPv4");
+        assert!(
+            l.try_acquire(ip("::ffff:192.0.2.7")).is_err(),
+            "mapped IPv4"
+        );
     }
 
     #[tokio::test]

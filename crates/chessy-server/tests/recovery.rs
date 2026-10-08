@@ -193,7 +193,10 @@ async fn a_code_works_once() {
     let new_code = v["recovery_code"].as_str().unwrap().to_string();
 
     let (status, v) = recover(&api, "dave", &code, "another password").await;
-    assert_eq!((status, v["error"].as_str()), (StatusCode::UNAUTHORIZED, Some("bad_recovery")));
+    assert_eq!(
+        (status, v["error"].as_str()),
+        (StatusCode::UNAUTHORIZED, Some("bad_recovery"))
+    );
     assert_eq!(login(&api, "dave", NEW_PASSWORD).await, StatusCode::OK);
     // The code that came with the reset is the live one.
     let (status, _) = recover(&api, "dave", &new_code, "yet another one").await;
@@ -259,7 +262,10 @@ async fn a_weak_new_password_is_refused_and_the_code_is_kept() {
     }
     // The answer is the same whether or not the account exists.
     let (status, v) = recover(&api, "nobody_here", &code, "short").await;
-    assert_eq!((status, v["error"].as_str()), (StatusCode::BAD_REQUEST, Some("weak_password")));
+    assert_eq!(
+        (status, v["error"].as_str()),
+        (StatusCode::BAD_REQUEST, Some("weak_password"))
+    );
     // Refusals neither used the code up nor counted as failed guesses.
     assert_eq!(login(&api, "heidi", PASSWORD).await, StatusCode::OK);
     let (status, v) = recover(&api, "heidi", &code, NEW_PASSWORD).await;
@@ -288,7 +294,11 @@ async fn guessing_codes_locks_the_username_for_a_while() {
     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
     // Other accounts are unaffected.
     let (status, _) = recover(&api, "judy", &code, NEW_PASSWORD).await;
-    assert_eq!(status, StatusCode::UNAUTHORIZED, "not locked, just a wrong code");
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "not locked, just a wrong code"
+    );
     let (status, _) = recover(&api, "judy", &judy_code, NEW_PASSWORD).await;
     assert_eq!(status, StatusCode::OK);
 }
@@ -320,17 +330,38 @@ async fn an_existing_account_can_get_a_code_with_its_password() {
 
     let url = "/api/me/recovery-code";
     // A session token alone is not enough.
-    let (status, v) = api.call("POST", url, None, Some(json!({"password": PASSWORD}))).await;
-    assert_eq!((status, v["error"].as_str()), (StatusCode::UNAUTHORIZED, Some("unauthorized")));
     let (status, v) = api
-        .call("POST", url, Some(&token), Some(json!({"password": "wrong wrong"})))
+        .call("POST", url, None, Some(json!({"password": PASSWORD})))
         .await;
-    assert_eq!((status, v["error"].as_str()), (StatusCode::UNAUTHORIZED, Some("bad_credentials")));
+    assert_eq!(
+        (status, v["error"].as_str()),
+        (StatusCode::UNAUTHORIZED, Some("unauthorized"))
+    );
+    let (status, v) = api
+        .call(
+            "POST",
+            url,
+            Some(&token),
+            Some(json!({"password": "wrong wrong"})),
+        )
+        .await;
+    assert_eq!(
+        (status, v["error"].as_str()),
+        (StatusCode::UNAUTHORIZED, Some("bad_credentials"))
+    );
     let (status, v) = api.call("POST", url, Some(&token), Some(json!({}))).await;
-    assert_eq!((status, v["error"].as_str()), (StatusCode::BAD_REQUEST, Some("bad_request")));
+    assert_eq!(
+        (status, v["error"].as_str()),
+        (StatusCode::BAD_REQUEST, Some("bad_request"))
+    );
 
     let (status, v) = api
-        .call("POST", url, Some(&token), Some(json!({"password": PASSWORD})))
+        .call(
+            "POST",
+            url,
+            Some(&token),
+            Some(json!({"password": PASSWORD})),
+        )
         .await;
     assert_eq!(status, StatusCode::OK, "{v}");
     let code = v["recovery_code"].as_str().unwrap().to_string();
@@ -338,7 +369,12 @@ async fn an_existing_account_can_get_a_code_with_its_password() {
 
     // Asking again rotates it: the first code stops working.
     let (_, v) = api
-        .call("POST", url, Some(&token), Some(json!({"password": PASSWORD})))
+        .call(
+            "POST",
+            url,
+            Some(&token),
+            Some(json!({"password": PASSWORD})),
+        )
         .await;
     let newer = v["recovery_code"].as_str().unwrap().to_string();
     assert_ne!(newer, code);
@@ -362,7 +398,10 @@ async fn recover_from(api: &Api, ip: &str, name: &str, code: &str) -> (StatusCod
     let res = api.router.clone().oneshot(req).await.unwrap();
     let status = res.status();
     let bytes = res.into_body().collect().await.unwrap().to_bytes();
-    (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
+    (
+        status,
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+    )
 }
 
 #[tokio::test]
@@ -421,12 +460,22 @@ async fn guessing_the_password_through_the_code_route_is_throttled() {
     let url = "/api/me/recovery-code";
     for _ in 0..8 {
         let (status, _) = api
-            .call("POST", url, Some(&token), Some(json!({"password": "guess guess"})))
+            .call(
+                "POST",
+                url,
+                Some(&token),
+                Some(json!({"password": "guess guess"})),
+            )
             .await;
         assert_eq!(status, StatusCode::UNAUTHORIZED);
     }
     let (status, v) = api
-        .call("POST", url, Some(&token), Some(json!({"password": PASSWORD})))
+        .call(
+            "POST",
+            url,
+            Some(&token),
+            Some(json!({"password": PASSWORD})),
+        )
         .await;
     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS, "{v}");
     assert_eq!(v["error"], "too_many_attempts");
@@ -438,7 +487,12 @@ async fn guessing_the_password_through_the_code_route_is_throttled() {
     // A guest has no password to give.
     let guest = guest(&app);
     let (status, _) = api
-        .call("POST", url, Some(&guest.token), Some(json!({"password": PASSWORD})))
+        .call(
+            "POST",
+            url,
+            Some(&guest.token),
+            Some(json!({"password": PASSWORD})),
+        )
         .await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 }

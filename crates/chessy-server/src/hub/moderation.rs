@@ -137,7 +137,9 @@ impl Hub {
         }
         let target = match self.store.account_by_name(username) {
             Ok(Some(t)) if t.id != player => t,
-            Ok(Some(_)) => return self.fail(player, "invalid_target", "you cannot report yourself"),
+            Ok(Some(_)) => {
+                return self.fail(player, "invalid_target", "you cannot report yourself")
+            }
             Ok(None) => return self.notice(player, "user_not_found", Some(username)),
             Err(e) => return self.internal_error(player, e),
         };
@@ -152,7 +154,10 @@ impl Hub {
             context: context.as_deref(),
         };
         let window = self.config.report_window.as_secs();
-        match self.store.file_report(&report, window, self.config.report_max) {
+        match self
+            .store
+            .file_report(&report, window, self.config.report_max)
+        {
             Err(e) => self.internal_error(player, e),
             Ok(ReportOutcome::Limited) => {
                 self.fail(player, "rate_limited", "you filed too many reports")

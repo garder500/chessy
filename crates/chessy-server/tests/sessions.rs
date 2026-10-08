@@ -156,10 +156,7 @@ async fn activity_extends_the_life_of_a_session_but_writes_only_now_and_then() {
         .session_player(&token, 30 * DAY, touch)
         .unwrap()
         .is_some());
-    assert!(store
-        .session_player(&token, DAY, touch)
-        .unwrap()
-        .is_some());
+    assert!(store.session_player(&token, DAY, touch).unwrap().is_some());
 }
 
 #[tokio::test]
