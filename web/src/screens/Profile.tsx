@@ -8,6 +8,7 @@ import { StatTile } from "../ui/StatTile";
 import { initialOf, memberSince, sameUser, winRate } from "../ui/social";
 import { tierOf } from "../ui/tier";
 import { useProfile } from "../ui/useProfile";
+import { RecoveryCodeSettings } from "./RecoveryCode";
 import { SettingsBody } from "./Settings";
 import "./profile.css";
 import "./settings.css";
@@ -133,6 +134,7 @@ function ProfileSettings() {
         Réglages
       </h2>
       <SettingsBody />
+      <RecoveryCodeSettings />
       <div className="card pf-card pf-q-foot">
         <a className="btn block" href={hrefFor({ name: "games" })}>
           Mes parties

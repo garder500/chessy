@@ -17,6 +17,7 @@ import {
   validateForm,
 } from "./authLogic";
 import type { AuthMode, FormErrors, ServerField } from "./authLogic";
+import { ForgotPasswordForm, RecoveryCodeBox } from "./RecoveryCode";
 import "./auth.css";
 
 type Touched = Record<"username" | "password" | "confirm", boolean>;
@@ -62,6 +63,11 @@ export function Auth() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<{ field: ServerField; message: string } | null>(null);
+  // « Mot de passe oublié ? » : le panneau de connexion montre le formulaire de récupération.
+  const [recovering, setRecovering] = useState(false);
+  // Session et code de récupération à montrer une fois, avant d'entrer dans l'application :
+  // la session n'est appliquée (donc l'écran quitté) qu'après « J'ai noté mon code ».
+  const [issued, setIssued] = useState<{ token: string; code: string; why: "register" | "recover" } | null>(null);
 
   const errors: FormErrors = validateForm(mode, { username, password, confirm });
   const strength = passwordStrength(password);
@@ -88,6 +94,14 @@ export function Auth() {
     setSubmitted(false);
     setServerError(null);
     setConfirm("");
+    setRecovering(false);
+  }
+
+  /** Entre dans l'application avec la session émise (inscription ou récupération). */
+  function enter(token: string) {
+    store.applyAuth(token);
+    markWelcomed();
+    navigate({ name: "home" });
   }
 
   async function onSubmit(e: FormEvent) {
@@ -107,9 +121,15 @@ export function Auth() {
       } else {
         res = await api.login({ username, password });
       }
-      store.applyAuth(res.token);
-      markWelcomed();
-      navigate({ name: "home" });
+      if (res.recovery_code) {
+        // Le code n'est montré qu'ici : on attend la confirmation avant d'appliquer la session.
+        setIssued({ token: res.token, code: res.recovery_code, why: "register" });
+        setPassword("");
+        setConfirm("");
+        setLoading(false);
+        return;
+      }
+      enter(res.token);
     } catch (err) {
       setServerError(mapAuthError(err instanceof ApiError ? err.code : "unknown"));
       setLoading(false);
@@ -124,8 +144,9 @@ export function Auth() {
     setTouched(NOT_TOUCHED);
     setSubmitted(false);
     setServerError(null);
+    setRecovering(false);
   };
-  const title = register ? "Créer un compte" : "Se connecter";
+  const title = issued ? "Votre code de récupération" : recovering && !register ? "Mot de passe oublié" : register ? "Créer un compte" : "Se connecter";
 
   return (
     <main className="wl">
@@ -166,8 +187,28 @@ export function Auth() {
         </button>
       </div>
 
-      <Sheet open={sheet !== null} title={title} onClose={closeSheet}>
-        <form className="au-form" onSubmit={onSubmit} noValidate>
+      {/* Pendant l'affichage du code, le panneau ne se ferme pas : le code ne se montre qu'une fois. */}
+      <Sheet open={sheet !== null} title={title} onClose={issued ? () => undefined : closeSheet}>
+        {issued && (
+          <RecoveryCodeBox
+            code={issued.code}
+            intro={
+              issued.why === "register"
+                ? "Votre compte est créé. Voici votre code de récupération : c'est le seul moyen de retrouver le compte si vous oubliez votre mot de passe."
+                : "Votre mot de passe est changé et vos autres sessions sont fermées. Voici votre nouveau code de récupération ; l'ancien ne fonctionne plus."
+            }
+            doneLabel="Continuer"
+            onDone={() => enter(issued.token)}
+          />
+        )}
+        {!issued && recovering && !register && (
+          <ForgotPasswordForm
+            onRecovered={(res) => setIssued({ token: res.token, code: res.recovery_code, why: "recover" })}
+            onBack={() => setRecovering(false)}
+          />
+        )}
+        {/* Masqué (et non démonté) pendant les autres vues : la saisie reste là au retour. */}
+        <form className="au-form" onSubmit={onSubmit} noValidate hidden={!!issued || (recovering && !register)}>
           <div className="au-field">
             <label className="field-label" htmlFor={id("username")}>
               Pseudo
@@ -232,6 +273,11 @@ export function Auth() {
             <div id={id("password-msg")} aria-live="polite">
               {passwordErr && <p className="field-msg">{passwordErr}</p>}
             </div>
+            {!register && (
+              <button type="button" className="link au-forgot" onClick={() => setRecovering(true)} disabled={loading}>
+                Mot de passe oublié ?
+              </button>
+            )}
             {register && (
               <div className="au-meter" data-level={strength}>
                 <div className="au-meter-bars" role="img" aria-label={`Robustesse : ${STRENGTH_LABEL[strength] || "vide"}`}>

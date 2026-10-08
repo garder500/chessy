@@ -1,23 +1,26 @@
 //! The REST API under `/api`: accounts, sessions, leaderboard and profiles.
 //! Errors are `{"error": "<code>"}` with a matching status.
 
+use std::net::SocketAddr;
 use std::sync::{Arc, OnceLock};
 
 use argon2::{Argon2, PasswordHasher, PasswordVerifier};
 use axum::body::Bytes;
 use axum::extract::rejection::{BytesRejection, QueryRejection};
-use axum::extract::{DefaultBodyLimit, Path, Query, State};
+use axum::extract::{ConnectInfo, DefaultBodyLimit, Path, Query, State};
 use axum::http::header::AUTHORIZATION;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::{Extension, Json, Router};
+use rand::seq::IndexedRandom;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::json;
 
 use crate::app::App;
 use crate::store::{RegisterError, StoreError};
+use crate::ws::client_ip;
 
 const MAX_BODY_BYTES: usize = 4 * 1024;
 const MAX_LEADERBOARD_PAGE: u32 = 100;
@@ -29,7 +32,9 @@ pub fn routes() -> Router<Arc<App>> {
         .route("/auth/login", post(login))
         .route("/auth/logout", post(logout))
         .route("/auth/logout-all", post(logout_all))
+        .route("/auth/recover", post(recover))
         .route("/me", get(me))
+        .route("/me/recovery-code", post(rotate_recovery_code))
         .route("/me/skills", get(my_skills))
         .route("/leaderboard", get(leaderboard))
         .route("/players/{username}", get(profile))
@@ -133,6 +138,37 @@ fn verify_password(password: &str, hash: &str) -> bool {
         .is_ok()
 }
 
+/// 32 symbols, so a symbol is exactly 5 bits: no `0 O 1 I`, which get mixed up
+/// when read off a screen or a sheet of paper.
+const RECOVERY_ALPHABET: &[u8; 32] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const RECOVERY_GROUPS: usize = 4;
+const RECOVERY_GROUP_LEN: usize = 5;
+
+/// A recovery code: 20 random symbols (100 bits) in 4 groups of 5,
+/// e.g. `K7QF2-M9XWB-3HNRA-TD8LC`. `rand::rng()` is a CSPRNG.
+fn generate_recovery_code() -> String {
+    let mut rng = rand::rng();
+    let mut code = String::new();
+    for group in 0..RECOVERY_GROUPS {
+        if group > 0 {
+            code.push('-');
+        }
+        for _ in 0..RECOVERY_GROUP_LEN {
+            code.push(char::from(*RECOVERY_ALPHABET.choose(&mut rng).unwrap()));
+        }
+    }
+    code
+}
+
+/// What is hashed and verified: the code without dashes or spaces, in upper
+/// case, so that it can be typed in any way it was written down.
+fn normalize_recovery_code(code: &str) -> String {
+    code.chars()
+        .filter(|c| *c != '-' && !c.is_whitespace())
+        .collect::<String>()
+        .to_ascii_uppercase()
+}
+
 /// Password hashing is CPU-heavy by design; keep it off the async workers.
 async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> ApiResult<T> {
     tokio::task::spawn_blocking(f)
@@ -158,7 +194,12 @@ async fn register(
     if !valid_password(&req.password) {
         return Err(ApiError::bad_request("weak_password"));
     }
-    let hash = blocking(move || hash_password(req.password)).await??;
+    // The recovery code is shown once, in this response; only its hash is kept.
+    let recovery_code = generate_recovery_code();
+    let (password, code) = (req.password, normalize_recovery_code(&recovery_code));
+    let (hash, code_hash) =
+        blocking(move || Ok::<_, ApiError>((hash_password(password)?, hash_password(code)?)))
+            .await??;
     // An expired guest session is not promoted (and a live one is refreshed).
     let config = app.config();
     let guest_token = match req.guest_token.as_deref() {
@@ -168,22 +209,31 @@ async fn register(
             .map(|_| t),
         None => None,
     };
-    let (player, token) =
-        match app.store().register(&req.username, &hash, guest_token) {
-            Ok(found) => found,
-            Err(RegisterError::UsernameTaken) => {
-                return Err(ApiError(StatusCode::CONFLICT, "username_taken"))
-            }
-            Err(RegisterError::Db) => {
-                return Err(ApiError(StatusCode::INTERNAL_SERVER_ERROR, "internal"))
-            }
-        };
+    let (player, token) = match app.store().register_with_recovery(
+        &req.username,
+        &hash,
+        guest_token,
+        Some(&code_hash),
+    ) {
+        Ok(found) => found,
+        Err(RegisterError::UsernameTaken) => {
+            return Err(ApiError(StatusCode::CONFLICT, "username_taken"))
+        }
+        Err(RegisterError::Db) => {
+            return Err(ApiError(StatusCode::INTERNAL_SERVER_ERROR, "internal"))
+        }
+    };
     let me = app
         .store()
         .me(&player)?
         .ok_or_else(ApiError::unauthorized)?;
     app.account_changed(&player);
-    Ok(Json(json!({ "token": token, "player": me })).into_response())
+    Ok(Json(json!({
+        "token": token,
+        "player": me,
+        "recovery_code": recovery_code,
+    }))
+    .into_response())
 }
 
 #[derive(Deserialize)]
@@ -238,6 +288,127 @@ async fn logout_all(State(app): State<Arc<App>>, headers: HeaderMap) -> ApiResul
         app.session_revoked(token);
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+// No `Debug` on the requests that carry a recovery code or a password: they
+// must not end up in a log by accident.
+#[derive(Deserialize)]
+struct RecoverRequest {
+    username: String,
+    recovery_code: String,
+    new_password: String,
+}
+
+/// Sets a new password from the recovery code. Every failure (unknown name,
+/// guest, account without a code, wrong code) gives the same `401
+/// bad_recovery` after one argon2 verification, so neither the body nor the
+/// timing says whether the account exists. On success all sessions of the
+/// account are revoked, the code is replaced, and a fresh session is returned
+/// together with the new code (shown once): `{token, player, recovery_code}`.
+async fn recover(
+    State(app): State<Arc<App>>,
+    peer: Option<Extension<ConnectInfo<SocketAddr>>>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> ApiResult<Response> {
+    let req: RecoverRequest = parse_body(body)?;
+    let peer = peer.map(|Extension(ConnectInfo(addr))| addr.ip());
+    let ip = client_ip(&headers, peer, app.config().trust_proxy);
+    let bad = || ApiError(StatusCode::UNAUTHORIZED, "bad_recovery");
+    // Checked before anything is hashed. Not the login lockout: someone who
+    // forgot their password has probably locked their login already.
+    if app.recovery_blocked(&req.username, ip) {
+        return Err(ApiError(StatusCode::TOO_MANY_REQUESTS, "too_many_attempts"));
+    }
+    // Before the code is looked at, so the answer does not depend on it and a
+    // refused password never costs an attempt (or the code).
+    if !valid_password(&req.new_password) {
+        return Err(ApiError::bad_request("weak_password"));
+    }
+    let (found, stored) = match app.store().recovery_credentials(&req.username)? {
+        Some((player, Some(hash))) => (Some(player), Some(hash)),
+        _ => (None, None),
+    };
+    let verify_against = stored.clone().unwrap_or_else(|| dummy_hash().to_string());
+    let code = normalize_recovery_code(&req.recovery_code);
+    let ok = blocking(move || verify_password(&code, &verify_against)).await?;
+    let (Some(player), Some(old_hash), true) = (found, stored, ok) else {
+        app.recovery_failed(&req.username, ip);
+        return Err(bad());
+    };
+
+    let new_code = generate_recovery_code();
+    let (new_password, normalized) = (req.new_password, normalize_recovery_code(&new_code));
+    let (password_hash, code_hash) = blocking(move || {
+        Ok::<_, ApiError>((hash_password(new_password)?, hash_password(normalized)?))
+    })
+    .await??;
+    // One transaction; `None` when a concurrent request redeemed the code first.
+    let redeemed = app
+        .store()
+        .recover_account(&player, &old_hash, &code_hash, &password_hash)?;
+    let Some(revoked) = redeemed else {
+        app.recovery_failed(&req.username, ip);
+        return Err(bad());
+    };
+    // Open WebSockets that logged in with one of these sessions must not outlive them.
+    for token in &revoked {
+        app.session_revoked(token);
+    }
+    app.recovery_succeeded(&req.username);
+    app.login_succeeded(&req.username);
+    let token = app.store().create_session(&player)?;
+    let me = app.store().me(&player)?.ok_or_else(bad)?;
+    Ok(Json(json!({
+        "token": token,
+        "player": me,
+        "recovery_code": new_code,
+    }))
+    .into_response())
+}
+
+#[derive(Deserialize)]
+struct RotateRecoveryRequest {
+    password: String,
+}
+
+/// Generates (or replaces) the recovery code of the caller's account and
+/// returns it once: `{recovery_code}`. This is how accounts created before
+/// recovery existed get one. It takes the current password, and wrong
+/// passwords count towards the login lockout of the account, so a stolen
+/// session token is not a way to guess the password.
+async fn rotate_recovery_code(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    body: Result<Bytes, BytesRejection>,
+) -> ApiResult<Response> {
+    let player = authenticate(&app, &headers)?;
+    let req: RotateRecoveryRequest = parse_body(body)?;
+    let bad = || ApiError(StatusCode::UNAUTHORIZED, "bad_credentials");
+    // A guest has no password and no username: nothing to recover.
+    let username = app
+        .store()
+        .player_row(&player)?
+        .and_then(|row| row.username)
+        .ok_or_else(bad)?;
+    if app.login_blocked(&username) {
+        return Err(ApiError(StatusCode::TOO_MANY_REQUESTS, "too_many_attempts"));
+    }
+    if req.password.len() > 1024 {
+        return Err(bad());
+    }
+    let hash = app.store().password_hash_of(&player)?.ok_or_else(bad)?;
+    let password = req.password;
+    if !blocking(move || verify_password(&password, &hash)).await? {
+        app.login_failed(&username);
+        return Err(bad());
+    }
+    app.login_succeeded(&username);
+    let code = generate_recovery_code();
+    let normalized = normalize_recovery_code(&code);
+    let code_hash = blocking(move || hash_password(normalized)).await??;
+    app.store().set_recovery_hash(&player, &code_hash)?;
+    Ok(Json(json!({ "recovery_code": code })).into_response())
 }
 
 async fn me(State(app): State<Arc<App>>, headers: HeaderMap) -> ApiResult<Response> {

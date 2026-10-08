@@ -29,6 +29,24 @@
 .au-form-err { font-size: 14px; color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 8%, transparent); border-radius: var(--radius-s); padding: 10px 14px; }
 .au-switch { margin: 0; text-align: center; color: var(--muted); font-size: 14.5px; }
 
+/* Le formulaire reste monté mais caché pendant le code de récupération ou « Mot de passe oublié ? ». */
+.au-form[hidden] { display: none; }
+.au-forgot { margin-top: 8px; font-size: 14px; }
+
+/* Code de récupération : affiché une seule fois, avec copie et confirmation. */
+.rc-box { gap: 16px; }
+.rc-intro { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+.rc-code { margin: 0; padding: 16px; text-align: center; font-size: clamp(17px, 5vw, 22px); font-weight: 600; letter-spacing: 0.08em; word-break: break-all; user-select: all; background: var(--sunken); border: 1px solid var(--line-2); border-radius: var(--radius); }
+.rc-copy { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rc-copy-msg { font-size: 13.5px; color: var(--muted); }
+.rc-saved { display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; }
+.rc-saved input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+
+/* Réglages du profil : carte de génération du code. */
+.rc-settings { display: flex; flex-direction: column; gap: 10px; }
+.rc-settings-h { margin: 0; font-size: 17px; }
+.rc-settings-p { margin: 0; font-size: 14px; line-height: 1.5; }
+
 @media (min-width: 900px) {
   .wl-piece { height: 190px; }
   .wl-piece.pl-piece-3d { width: 280px; height: 280px; }

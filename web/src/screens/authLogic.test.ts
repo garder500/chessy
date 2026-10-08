@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { hasErrors, mapAuthError, passwordStrength, validateConfirm, validateForm, validatePassword, validateUsername } from "./authLogic";
+import {
+  formatRecoveryCode,
+  hasErrors,
+  hasRecoverErrors,
+  mapAuthError,
+  mapRecoveryError,
+  normalizeRecoveryCode,
+  passwordStrength,
+  validateConfirm,
+  validateForm,
+  validatePassword,
+  validateRecovery,
+  validateRecoveryCode,
+  validateUsername,
+} from "./authLogic";
 
 describe("validateUsername", () => {
   it("accepte 3 à 16 caractères alphanumériques ou _", () => {
@@ -67,5 +81,35 @@ describe("mapAuthError", () => {
     expect(mapAuthError("too_many_attempts").message).toMatch(/Trop d'échecs/);
     expect(mapAuthError("network").field).toBe("form");
     expect(mapAuthError("n_importe_quoi").field).toBe("form");
+  });
+});
+
+describe("code de récupération", () => {
+  it("normalise et reformate un code saisi à la main", () => {
+    expect(normalizeRecoveryCode(" k7qf2-m9xwb 3hnra-td8lc ")).toBe("K7QF2M9XWB3HNRATD8LC");
+    expect(formatRecoveryCode("k7qf2m9xwb3hnratd8lc")).toBe("K7QF2-M9XWB-3HNRA-TD8LC");
+    expect(formatRecoveryCode("k7qf2-m9")).toBe("K7QF2-M9");
+    expect(formatRecoveryCode("K7QF2M9XWB3HNRATD8LCZZZ")).toBe("K7QF2-M9XWB-3HNRA-TD8LC");
+    expect(formatRecoveryCode("")).toBe("");
+  });
+  it("valide la longueur", () => {
+    expect(validateRecoveryCode("")).toMatch(/Saisissez/);
+    expect(validateRecoveryCode("K7QF2-M9XWB")).toMatch(/20 caractères/);
+    expect(validateRecoveryCode("k7qf2m9xwb3hnratd8lc")).toBeNull();
+    expect(validateRecoveryCode("K7QF2-M9XWB-3HNRA-TD8LC")).toBeNull();
+  });
+  it("valide le formulaire de récupération", () => {
+    const ok = { username: "alice", code: "K7QF2-M9XWB-3HNRA-TD8LC", password: "battery staple", confirm: "battery staple" };
+    expect(hasRecoverErrors(validateRecovery(ok))).toBe(false);
+    expect(validateRecovery({ ...ok, username: "" }).username).not.toBeNull();
+    expect(validateRecovery({ ...ok, password: "court", confirm: "court" }).password).toMatch(/8 caractères/);
+    expect(validateRecovery({ ...ok, confirm: "autre" }).confirm).toMatch(/ne correspondent pas/);
+  });
+  it("traduit les erreurs des routes de récupération", () => {
+    expect(mapRecoveryError("bad_recovery")).toMatchObject({ field: "form", message: "Pseudo ou code de récupération incorrect." });
+    expect(mapRecoveryError("bad_credentials").field).toBe("password");
+    expect(mapRecoveryError("too_many_attempts").field).toBe("form");
+    expect(mapRecoveryError("weak_password").field).toBe("password");
+    expect(mapRecoveryError("network").field).toBe("form");
   });
 });

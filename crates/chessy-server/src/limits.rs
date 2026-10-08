@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv6Addr};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 /// What to do with the message just presented to a [`RateLimiter`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -138,7 +138,7 @@ impl ConnectionLimiter {
 /// The address a per-IP count is kept for: IPv4-mapped IPv6 addresses count as
 /// the IPv4 address, and an IPv6 address counts as its /64 (one subscriber
 /// usually owns a whole /64, so counting single addresses would be no cap).
-fn bucket(ip: IpAddr) -> IpAddr {
+pub(crate) fn bucket(ip: IpAddr) -> IpAddr {
     match ip.to_canonical() {
         IpAddr::V6(v6) => {
             let mut octets = v6.octets();
@@ -177,11 +177,93 @@ impl Drop for ConnSlot {
     }
 }
 
+/// Failed attempts per key (a username, an address) within a fixed window:
+/// once a key has failed `max` times it is blocked until its window, which
+/// opens at its first failure, is over. Used for the recovery-code route.
+#[derive(Debug)]
+pub struct FailureWindow<K> {
+    max: u32,
+    window: Duration,
+    failures: Mutex<HashMap<K, (u32, Instant)>>,
+}
+
+impl<K: std::hash::Hash + Eq> FailureWindow<K> {
+    /// Entries above which expired ones are swept on the next failure.
+    const SWEEP_ABOVE: usize = 10_000;
+
+    pub fn new(max: u32, window: Duration) -> Self {
+        FailureWindow {
+            max,
+            window,
+            failures: Mutex::new(HashMap::new()),
+        }
+    }
+
+    pub fn blocked(&self, key: &K) -> bool {
+        self.blocked_at(key, Instant::now())
+    }
+
+    pub fn record(&self, key: K) {
+        self.record_at(key, Instant::now());
+    }
+
+    /// Forgets the failures of `key` (after a success).
+    pub fn clear(&self, key: &K) {
+        let mut map = self.failures.lock().unwrap_or_else(|e| e.into_inner());
+        map.remove(key);
+    }
+
+    fn blocked_at(&self, key: &K, now: Instant) -> bool {
+        let mut map = self.failures.lock().unwrap_or_else(|e| e.into_inner());
+        match map.get(key) {
+            Some((n, since)) if now.duration_since(*since) < self.window => *n >= self.max,
+            Some(_) => {
+                map.remove(key);
+                false
+            }
+            None => false,
+        }
+    }
+
+    fn record_at(&self, key: K, now: Instant) {
+        let mut map = self.failures.lock().unwrap_or_else(|e| e.into_inner());
+        if map.len() > Self::SWEEP_ABOVE {
+            map.retain(|_, (_, since)| now.duration_since(*since) < self.window);
+        }
+        let entry = map.entry(key).or_insert((0, now));
+        if now.duration_since(entry.1) >= self.window {
+            *entry = (0, now);
+        }
+        entry.0 += 1;
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use super::*;
+
+    #[test]
+    fn failures_block_a_key_until_its_window_is_over() {
+        let t0 = Instant::now();
+        let w = FailureWindow::new(3, Duration::from_secs(60));
+        for _ in 0..2 {
+            w.record_at("dave", t0);
+        }
+        assert!(!w.blocked_at(&"dave", t0));
+        w.record_at("dave", t0 + Duration::from_secs(10));
+        assert!(w.blocked_at(&"dave", t0 + Duration::from_secs(20)));
+        assert!(!w.blocked_at(&"erin", t0 + Duration::from_secs(20)));
+        // The window opened at the first failure.
+        assert!(!w.blocked_at(&"dave", t0 + Duration::from_secs(61)));
+        w.record_at("dave", t0 + Duration::from_secs(62));
+        assert!(!w.blocked_at(&"dave", t0 + Duration::from_secs(63)), "fresh window");
+        for _ in 0..2 {
+            w.record_at("erin", t0);
+        }
+        w.clear(&"erin");
+        w.record_at("erin", t0);
+        assert!(!w.blocked_at(&"erin", t0), "a success forgets earlier failures");
+    }
 
     #[test]
     fn bursts_then_refills() {

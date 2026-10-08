@@ -10,13 +10,30 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::bot;
 use crate::hub::{ForgeJob, Hub, HubConfig, Timer};
-use crate::limits::{ConnSlot, ConnectionLimiter, Refusal};
+use crate::limits::{bucket, ConnSlot, ConnectionLimiter, FailureWindow, Refusal};
 use crate::protocol::{ClientMsg, PlayerId, RewardChoice, ServerMsg};
 use crate::store::{Store, StoreError};
 
 /// Failed logins allowed per username within [`LOGIN_WINDOW`] before it is locked out.
 const LOGIN_MAX_FAILURES: u32 = 8;
 const LOGIN_WINDOW: Duration = Duration::from_secs(300);
+
+/// Failed recovery attempts allowed per username within [`RECOVERY_WINDOW`], and
+/// per client address (IPv6 by /64) when `HubConfig::recovery_max_failures_per_ip`
+/// is set. Kept apart from the login counter: someone who forgot their password
+/// has probably locked their login.
+const RECOVERY_MAX_FAILURES_PER_USER: u32 = 5;
+const RECOVERY_WINDOW: Duration = Duration::from_secs(900);
+
+/// The key a username is counted under: lower-cased and bounded, since the
+/// name of a failed attempt is whatever the client sent.
+fn recovery_key(username: &str) -> String {
+    username
+        .chars()
+        .take(64)
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
 
 pub struct App {
     hub: Mutex<Hub>,
@@ -26,6 +43,10 @@ pub struct App {
     store: Store,
     /// Recent failed logins per lower-cased username: (count, window start).
     login_failures: Mutex<HashMap<String, (u32, Instant)>>,
+    /// Failed recovery-code attempts per lower-cased username...
+    recovery_by_user: FailureWindow<String>,
+    /// ...and per client address bucket, when the address is known.
+    recovery_by_ip: FailureWindow<IpAddr>,
     /// Open WebSocket connections, against `max_connections[_per_ip]`.
     connections: Arc<ConnectionLimiter>,
 }
@@ -38,6 +59,11 @@ impl App {
             max_hold_ns: AtomicU64::new(0),
             store,
             login_failures: Mutex::new(HashMap::new()),
+            recovery_by_user: FailureWindow::new(RECOVERY_MAX_FAILURES_PER_USER, RECOVERY_WINDOW),
+            recovery_by_ip: FailureWindow::new(
+                config.recovery_max_failures_per_ip,
+                RECOVERY_WINDOW,
+            ),
             connections: ConnectionLimiter::new(
                 config.max_connections,
                 config.max_connections_per_ip,
@@ -95,6 +121,36 @@ impl App {
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         map.remove(&username.to_ascii_lowercase());
+    }
+
+    /// The address to count recovery failures for: none when the per-address
+    /// count is off (`0`) or the address is unknown.
+    fn recovery_ip(&self, ip: Option<IpAddr>) -> Option<IpAddr> {
+        ip.filter(|_| self.config.recovery_max_failures_per_ip > 0)
+            .map(bucket)
+    }
+
+    /// Whether recovery attempts for `username`, or from `ip` when counted, have
+    /// failed too many times recently.
+    pub fn recovery_blocked(&self, username: &str, ip: Option<IpAddr>) -> bool {
+        self.recovery_by_user.blocked(&recovery_key(username))
+            || self
+                .recovery_ip(ip)
+                .is_some_and(|ip| self.recovery_by_ip.blocked(&ip))
+    }
+
+    /// Counts a failed recovery attempt (an unknown name counts like a known one).
+    pub fn recovery_failed(&self, username: &str, ip: Option<IpAddr>) {
+        self.recovery_by_user.record(recovery_key(username));
+        if let Some(ip) = self.recovery_ip(ip) {
+            self.recovery_by_ip.record(ip);
+        }
+    }
+
+    /// A recovery succeeded: forgets the failures of `username` (not of the
+    /// address, so one's own account cannot be used to reset the address count).
+    pub fn recovery_succeeded(&self, username: &str) {
+        self.recovery_by_user.clear(&recovery_key(username));
     }
 
     pub fn config(&self) -> &HubConfig {
