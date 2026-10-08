@@ -311,6 +311,16 @@ impl App {
                 }
                 ClientMsg::FriendRemove { username } => hub.friend_remove(player, &username),
                 ClientMsg::FriendsList => hub.friends_list(player),
+                ClientMsg::BlockUser { username } => hub.block_user(player, &username),
+                ClientMsg::UnblockUser { username } => hub.unblock_user(player, &username),
+                ClientMsg::BlocksList => hub.blocks_list(player),
+                ClientMsg::SetChatMuted { muted } => hub.set_chat_muted(player, muted),
+                ClientMsg::ReportUser {
+                    username,
+                    reason,
+                    game_id,
+                    context,
+                } => hub.report_user(player, &username, reason, game_id, context),
                 ClientMsg::UserSearch { query } => hub.user_search(player, &query),
                 ClientMsg::Challenge { username, time } => hub.challenge(player, &username, time),
                 ClientMsg::ChallengeRespond { username, accept } => {

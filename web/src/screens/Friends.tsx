@@ -6,6 +6,7 @@ import { store, useAppState } from "../store";
 import { EloChart } from "../ui/EloChart";
 import { RecentGames } from "../ui/RecentGames";
 import { StatTile } from "../ui/StatTile";
+import { ModerationActions } from "../ui/Moderation";
 import { initialOf, presenceLabel, RELATION_LABEL, sortFriends, winRate } from "../ui/social";
 import { tierOf } from "../ui/tier";
 import { useProfile } from "../ui/useProfile";
@@ -380,6 +381,7 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
             Retirer
           </button>
         )}
+        {!confirming && <ModerationActions username={friend.username} />}
       </div>
     </div>
   );

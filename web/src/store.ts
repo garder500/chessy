@@ -8,6 +8,7 @@ import type {
   Me,
   NoticeCode,
   Outcome,
+  ReportReason,
   RewardOffer,
   ServerMsg,
   SkillId,
@@ -57,6 +58,8 @@ export interface AppState {
   /** L'écran « Votre récompense » est ouvert (il suit l'écran de victoire). */
   rewardOpen: boolean;
   friends: FriendsSnapshot;
+  /** Pseudos bloqués par le compte (demandés par `loadBlocks`, voir `blocks_list`). */
+  blocked: string[];
   userResults: { query: string; users: UserResult[] } | null;
   incomingChallenge: { username: string; elo: number } | null;
   outgoingChallenge: string | null;
@@ -125,6 +128,7 @@ const initial: AppState = {
   pendingReward: null,
   rewardOpen: false,
   friends: EMPTY_FRIENDS,
+  blocked: [],
   userResults: null,
   incomingChallenge: null,
   outgoingChallenge: null,
@@ -152,6 +156,9 @@ const ERROR_TEXT: Record<string, string> = {
   account_required: "Un compte est nécessaire pour cette action.",
   spectate_full: "Cette partie a atteint son maximum de spectateurs.",
   no_such_game: "Cette partie n'existe pas ou est terminée.",
+  invalid_target: "Action impossible sur votre propre compte.",
+  blocked: "Vous avez bloqué ce joueur : débloquez-le d'abord.",
+  block_list_full: "Votre liste de joueurs bloqués est pleine.",
 };
 
 /** Texte français d'une notice serveur. */
@@ -202,6 +209,7 @@ export class Store {
   private stopped = false;
   private challengeTimer: ReturnType<typeof setTimeout> | null = null;
   private soloTimer: ReturnType<typeof setTimeout> | null = null;
+  private blocksAsked = false;
 
   constructor() {
     onForgedChange(() => this.set({ forged: forgedVersion() }));
@@ -275,6 +283,7 @@ export class Store {
       connection: "connecting",
       account: null,
       friends: EMPTY_FRIENDS,
+      blocked: [],
       userResults: null,
       incomingChallenge: null,
       outgoingChallenge: null,
@@ -319,6 +328,32 @@ export class Store {
       }
     }
     this.reconnect();
+  }
+
+  // ---- modération (voir docs/spec-v2.md §4) -----------------------------------
+
+  /** Demande la liste des joueurs bloqués, une fois par connexion (le serveur ne la pousse pas). */
+  loadBlocks() {
+    if (this.blocksAsked) return;
+    this.blocksAsked = true;
+    this.send({ type: "blocks_list" });
+  }
+
+  blockUser(username: string) {
+    this.send({ type: "block_user", username });
+    this.notify(`${username} est bloqué : ses messages ne vous parviendront plus.`);
+  }
+
+  unblockUser(username: string) {
+    this.send({ type: "unblock_user", username });
+  }
+
+  setChatMuted(muted: boolean) {
+    this.send({ type: "set_chat_muted", muted });
+  }
+
+  reportUser(username: string, reason: ReportReason, gameId?: string, context?: string) {
+    this.send({ type: "report_user", username, reason, game_id: gameId, context: context?.slice(0, 900) });
   }
 
   closeReward() {
@@ -410,6 +445,8 @@ export class Store {
       case "welcome":
         // Un jeton invalide est remplacé par un nouveau : on le garde pour la prochaine visite.
         writeToken(msg.token);
+        // Nouvelle connexion : la liste des joueurs bloqués sera redemandée (voir `loadBlocks`).
+        this.blocksAsked = false;
         this.set({
           connection: "open",
           playerId: msg.player_id,
@@ -427,6 +464,15 @@ export class Store {
       }
       case "user_results":
         this.set({ userResults: { query: msg.query, users: msg.users } });
+        break;
+      case "blocks":
+        this.set({ blocked: msg.blocked.map((b) => b.username) });
+        break;
+      case "chat_settings":
+        if (this.state.account) this.set({ account: { ...this.state.account, chat_muted: msg.chat_muted } });
+        break;
+      case "report_ack":
+        this.notify("Signalement envoyé. Merci.");
         break;
       case "notice":
         if (msg.code === "challenge_declined" || msg.code === "challenge_expired") this.set({ outgoingChallenge: null });

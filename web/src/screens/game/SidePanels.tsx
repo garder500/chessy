@@ -3,7 +3,8 @@ import { PIECE_FR, type LogLine } from "../../game/logic";
 import { drawPiece } from "../../game/textures";
 import type { Piece, SkillSlot, StateView } from "../../protocol";
 import { skillInfo } from "../../skills";
-import { store, type ChatLine } from "../../store";
+import { store, useAppState, type ChatLine } from "../../store";
+import { ModerationActions } from "../../ui/Moderation";
 import { SkillArt } from "../../ui/SkillArt";
 import { UniqueBadge } from "../../ui/UniqueBadge";
 import { useCompact } from "../../ui/useCompact";
@@ -258,6 +259,14 @@ export function Chat({ lines, flat }: { lines: ChatLine[]; flat?: boolean }) {
     if (clean) store.send({ type: "chat", text: clean.slice(0, 140) });
   };
 
+  // Bloquer ou signaler l'adversaire (un invité n'a pas de pseudo : rien à viser).
+  const { game } = useAppState();
+  const opponent = game?.opponent.username ?? null;
+  const excerpt = lines
+    .slice(-10)
+    .map((l) => `${l.mine ? "Vous" : "Adv."} : ${l.text}`)
+    .join("\n");
+
   return (
     <section className={`gm-panel${flat ? "" : " card"} gm-chat${open ? "" : " folded"}`} aria-labelledby="gm-chat-h">
       {compact ? (
@@ -276,6 +285,11 @@ export function Chat({ lines, flat }: { lines: ChatLine[]; flat?: boolean }) {
           </p>
         ))}
       </div>
+      {opponent && open && (
+        <div className="mod-chat-bar">
+          <ModerationActions username={opponent} gameId={game?.game_id} excerpt={lines.some((l) => !l.mine) ? excerpt : undefined} />
+        </div>
+      )}
       <div className="gm-quick" hidden={!open}>
         {QUICK.map((q) => (
           <button key={q} type="button" className="gm-chip" onClick={() => send(q)}>

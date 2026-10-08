@@ -1,9 +1,11 @@
-import { useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useSyncExternalStore, type CSSProperties } from "react";
 import { CATALOG, FAMILY_LABEL } from "../catalog";
 import { sfx, skillSfx, type SfxName } from "../sound";
+import { store, useAppState } from "../store";
 import { ACCENTS, BOARD_THEMES, PIECE_SETS, setTheme, useTheme, type ColorMode, type MoveMode } from "../theme";
 import { BoardPreview } from "../ui/BoardPreview";
 import { SkillArt } from "../ui/SkillArt";
+import "../ui/moderation.css";
 import "./settings.css";
 
 function useSoundSettings() {
@@ -308,6 +310,45 @@ export function SettingsBody() {
           hint="Plateau et interface presque instantanés, sans secousses."
         />
       </section>
+
+      <ChatSettings />
     </>
+  );
+}
+
+/** Chat : couper tous les messages reçus, et la liste des joueurs bloqués (comptes seulement). */
+function ChatSettings() {
+  const { account, blocked, connection } = useAppState();
+  const online = connection === "open";
+  const member = !!account && !account.guest;
+  useEffect(() => {
+    if (member && online) store.loadBlocks();
+  }, [member, online, account?.player_id]);
+  if (!account || account.guest) return null;
+  return (
+    <section className="card st-card" aria-labelledby="st-chat">
+      <h2 id="st-chat" className="st-h">Messages</h2>
+      <Switch
+        checked={!!account.chat_muted}
+        onChange={(muted) => store.setChatMuted(muted)}
+        label="Couper le chat"
+        hint="Vous ne recevez plus aucun message des adversaires ; vous pouvez toujours écrire."
+      />
+      <h3 className="eyebrow st-skills-h">Joueurs bloqués ({blocked.length})</h3>
+      {blocked.length === 0 ? (
+        <p className="st-hint muted">Personne. Bloquez un joueur depuis le chat de la partie, ses amis ou son profil : ses messages, demandes d'ami et défis ne vous parviennent plus.</p>
+      ) : (
+        <ul className="mod-blocked">
+          {blocked.map((name) => (
+            <li key={name}>
+              <span className="st-label">{name}</span>
+              <button type="button" className="btn sm ghost" disabled={!online} onClick={() => store.unblockUser(name)}>
+                Débloquer
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

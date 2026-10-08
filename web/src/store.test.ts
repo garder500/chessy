@@ -83,6 +83,16 @@ describe("store messages", () => {
     expect(store.getState().rematch).toBe("none");
   });
 
+  it("keeps the block list and the chat mute the server reports", () => {
+    store.receive(welcome);
+    store.receive({ type: "blocks", blocked: [{ username: "bob" }, { username: "carol" }] });
+    expect(store.getState().blocked).toEqual(["bob", "carol"]);
+    store.receive({ type: "chat_settings", chat_muted: true });
+    expect(store.getState().account?.chat_muted).toBe(true);
+    store.receive({ type: "blocks", blocked: [] });
+    expect(store.getState().blocked).toEqual([]);
+  });
+
   it("follows draw offers on the current game", () => {
     store.receive(stateMsg());
     store.receive({ type: "draw_offered" });

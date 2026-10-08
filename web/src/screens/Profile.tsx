@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { hrefFor, navigate } from "../router";
 import { store, useAppState } from "../store";
 import { ChallengeSheet } from "../ui/ChallengeSheet";
+import { ModerationActions } from "../ui/Moderation";
 import { EloChart } from "../ui/EloChart";
 import { RecentGames } from "../ui/RecentGames";
 import { StatTile } from "../ui/StatTile";
@@ -89,6 +90,7 @@ export function Profile({ username }: Props) {
           </p>
         </div>
         <Relation username={p.username} />
+        {!mine && <ModerationActions username={p.username} />}
       </header>
 
       <section className="pf-stats" aria-label="Statistiques">

@@ -2,6 +2,7 @@
 
 use rusqlite::{params, Connection, OptionalExtension};
 
+use crate::moderation::is_blocked;
 use crate::protocol::{PlayerId, Relation, SearchResult};
 use crate::store::{Store, StoreResult};
 
@@ -14,6 +15,11 @@ pub enum RequestOutcome {
     Sent {
         target: PlayerId,
     },
+    /// Stored like `Sent`, but `target` blocked the requester: they are told
+    /// nothing and never see it (see `moderation`).
+    SentHidden,
+    /// The requester blocked `target`: they must unblock them first.
+    YouBlocked,
     /// The other user had already asked us, so we are friends now.
     Accepted {
         target: PlayerId,
@@ -76,6 +82,10 @@ fn relation(conn: &Connection, me: &str, other: &str) -> StoreResult<Relation> {
     if me == other {
         return Ok(Relation::SelfUser);
     }
+    // A request from somebody `me` blocked is stored but hidden from them.
+    if is_blocked(conn, me, other)? {
+        return Ok(Relation::None);
+    }
     Ok(match status(conn, me, other)? {
         None => Relation::None,
         Some((s, _)) if s == "accepted" => Relation::Friend,
@@ -93,10 +103,17 @@ impl Store {
         if target == me {
             return Ok(RequestOutcome::UserNotFound);
         }
+        if is_blocked(&conn, me, &target)? {
+            return Ok(RequestOutcome::YouBlocked);
+        }
+        let hidden = is_blocked(&conn, &target, me)?;
         let (ua, ub) = pair(me, &target);
         Ok(match status(&conn, me, &target)? {
             Some((s, _)) if s == "accepted" => RequestOutcome::AlreadyFriends,
             Some((_, requester)) if requester == me => RequestOutcome::AlreadySent,
+            // A blocker's own request cannot be waiting (blocking deletes it),
+            // but never turn a request into a friendship across a block.
+            Some(_) if hidden => RequestOutcome::AlreadySent,
             Some(_) => {
                 conn.execute(
                     "UPDATE friendships SET status = 'accepted' WHERE user_a = ?1 AND user_b = ?2",
@@ -110,7 +127,11 @@ impl Store {
                      VALUES (?1, ?2, ?3, 'pending')",
                     params![ua, ub, me],
                 )?;
-                RequestOutcome::Sent { target }
+                if hidden {
+                    RequestOutcome::SentHidden
+                } else {
+                    RequestOutcome::Sent { target }
+                }
             }
         })
     }
@@ -126,6 +147,9 @@ impl Store {
         let Some(other) = account_id(&conn, username)? else {
             return Ok(RespondOutcome::NoRequest);
         };
+        if is_blocked(&conn, me, &other)? {
+            return Ok(RespondOutcome::NoRequest);
+        }
         match status(&conn, me, &other)? {
             Some((s, requester)) if s == "pending" && requester == other => {}
             _ => return Ok(RespondOutcome::NoRequest),
@@ -186,7 +210,8 @@ impl Store {
             "SELECT p.id, p.username, p.elo, p.last_seen, f.status, f.requester
              FROM friendships f
              JOIN players p ON p.id = CASE WHEN f.user_a = ?1 THEN f.user_b ELSE f.user_a END
-             WHERE f.user_a = ?1 OR f.user_b = ?1
+             WHERE (f.user_a = ?1 OR f.user_b = ?1)
+               AND NOT EXISTS (SELECT 1 FROM blocks b WHERE b.blocker = ?1 AND b.blocked = p.id)
              ORDER BY p.username_lower",
         )?;
         let rows = stmt.query_map(params![me], |r| {

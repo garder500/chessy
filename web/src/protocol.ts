@@ -269,6 +269,8 @@ export interface Me {
   wins: number;
   draws: number;
   losses: number;
+  /** Le compte ne reçoit aucun message de chat (`set_chat_muted`) ; absent = serveur ancien. */
+  chat_muted?: boolean;
 }
 
 export interface LeaderboardEntry {
@@ -329,6 +331,9 @@ export interface FriendsSnapshot {
   outgoing: { username: string }[];
 }
 
+/** Motifs de signalement (docs/spec-v2.md §4, « Modération »). */
+export type ReportReason = "spam" | "harassment" | "cheating" | "inappropriate_name" | "other";
+
 export type Relation = "none" | "friend" | "incoming" | "outgoing" | "self";
 
 export interface UserResult {
@@ -361,6 +366,9 @@ export type ServerMsg =
   | { type: "welcome"; player_id: string; token: string; deck: SkillId[]; pending_reward: RewardOffer | null; account: Me }
   | ({ type: "friends" } & FriendsSnapshot)
   | { type: "user_results"; query: string; users: UserResult[] }
+  | { type: "blocks"; blocked: { username: string }[] }
+  | { type: "chat_settings"; chat_muted: boolean }
+  | { type: "report_ack"; username: string }
   | { type: "notice"; code: NoticeCode; username?: string }
   | { type: "challenge_received"; from: { username: string; elo: number } }
   | { type: "challenge_sent"; username: string }
@@ -405,6 +413,12 @@ export type ClientMsg =
   | { type: "friend_respond"; username: string; accept: boolean }
   | { type: "friend_remove"; username: string }
   | { type: "friends_list" }
+  | { type: "block_user"; username: string }
+  | { type: "unblock_user"; username: string }
+  | { type: "blocks_list" }
+  | { type: "set_chat_muted"; muted: boolean }
+  /** `context` : extrait de chat, 1 Kio au plus (le serveur le tronque). */
+  | { type: "report_user"; username: string; reason: ReportReason; game_id?: string; context?: string }
   | { type: "user_search"; query: string }
   | { type: "challenge"; username: string; time?: TimeControl }
   | { type: "challenge_respond"; username: string; accept: boolean }

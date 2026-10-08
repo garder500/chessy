@@ -5,6 +5,7 @@
 //! [`Timer`] for the caller to schedule. Friends, challenges, chat and
 //! rematches live in the `social` submodule.
 
+mod moderation;
 mod social;
 mod solo;
 mod spectate;
@@ -123,6 +124,10 @@ pub struct HubConfig {
     /// so 20 failures from anybody would lock recovery for everybody unless
     /// `trust_proxy` is set. The per-username count always applies.
     pub recovery_max_failures_per_ip: u32,
+    /// Reports (docs/spec-v2.md §4): one reporter reports one account once per
+    /// window, and files at most `report_max` reports (all targets) per window.
+    pub report_window: Duration,
+    pub report_max: u32,
 }
 
 impl Default for HubConfig {
@@ -164,6 +169,8 @@ impl Default for HubConfig {
             max_connections_per_ip: 0,
             trust_proxy: false,
             recovery_max_failures_per_ip: 0,
+            report_window: Duration::from_secs(24 * 3600),
+            report_max: 20,
         }
     }
 }

@@ -228,6 +228,9 @@ function installFetch() {
 
 type Handler<T> = ((e: T) => void) | null;
 
+/** Joueurs bloqués du compte simulé (modération, voir `blocks`). */
+let blocked: string[] = [];
+
 class FakeSocket {
   static readonly OPEN = 1;
   readonly OPEN = 1;
@@ -263,7 +266,7 @@ class FakeSocket {
           token: "mock-token",
           deck: ["teleportation", "imune", "tornado"],
           pending_reward: null,
-          account: { player_id: "p-mock", username: "jeremy", guest: false, elo: 1284, rank: 3, games: 6, wins: 3, draws: 1, losses: 2 },
+          account: { player_id: "p-mock", username: "jeremy", guest: false, elo: 1284, rank: 3, games: 6, wins: 3, draws: 1, losses: 2, chat_muted: false },
         });
         this.reply({
           type: "friends",
@@ -275,6 +278,16 @@ class FakeSocket {
           outgoing: [],
         });
       }, 80);
+    } else if (msg.type === "blocks_list") {
+      this.later(() => this.reply({ type: "blocks", blocked: blocked.map((username) => ({ username })) }), 50);
+    } else if (msg.type === "block_user" || msg.type === "unblock_user") {
+      const name = msg.username;
+      blocked = msg.type === "block_user" ? [...blocked.filter((b) => b !== name), name].sort() : blocked.filter((b) => b !== name);
+      this.later(() => this.reply({ type: "blocks", blocked: blocked.map((username) => ({ username })) }), 50);
+    } else if (msg.type === "set_chat_muted") {
+      this.later(() => this.reply({ type: "chat_settings", chat_muted: msg.muted }), 50);
+    } else if (msg.type === "report_user") {
+      this.later(() => this.reply({ type: "report_ack", username: msg.username }), 50);
     } else if (msg.type === "spectate") {
       this.stopWatching();
       if (msg.game_id === "g-missing") {

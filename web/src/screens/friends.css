@@ -45,7 +45,7 @@ a.frd-name:hover { text-decoration: underline; text-underline-offset: 3px; }
 .frd-card .elo-empty { border: 1px dashed var(--line-3); padding: 24px 16px; }
 .frd-sub-h { font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: -6px; }
 .frd-full { font-size: 13.5px; color: var(--text-2); justify-self: start; }
-.frd-remove { border-top: 1px solid var(--line); padding-top: 18px; display: flex; }
+.frd-remove { border-top: 1px solid var(--line); padding-top: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .frd-confirm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 14px; }
 .frd-skel { height: 260px; border-radius: var(--radius); background: linear-gradient(90deg, var(--surface) 0%, var(--surface-2) 50%, var(--surface) 100%); background-size: 200% 100%; animation: frd-shimmer 1.4s linear infinite; }
 @keyframes frd-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
