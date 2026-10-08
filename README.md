@@ -51,7 +51,9 @@ Pour jouer seul, ouvrez deux navigateurs (ou profils) : le jeton de session est 
 Les routes de l'API REST (`/api/...`) et la WebSocket (`/ws`) sont proxifiées par Vite vers le serveur.
 
 Variables d'environnement du serveur : `CHESSY_ADDR` (défaut `127.0.0.1:3000`),
-`CHESSY_DB` (défaut `chessy.sqlite`), `CHESSY_WEB_DIR` (défaut `web/dist`, servi s'il existe).
+`CHESSY_DB` (défaut `chessy.sqlite`), `CHESSY_WEB_DIR` (défaut `web/dist`, servi s'il existe),
+`CHESSY_MAX_CONNECTIONS` (défaut `5000`, `0` = illimité), `CHESSY_MAX_CONNECTIONS_PER_IP` (défaut `0` = illimité)
+et `CHESSY_TRUST_PROXY` (`1` : lire l'adresse client dans le `X-Forwarded-For` d'un reverse proxy, voir `docs/spec-v4.md`).
 
 ## Lancer avec Docker
 
@@ -79,7 +81,9 @@ docker compose pull && docker compose up -d   # mise à jour
 Construire l'image soi-même : `docker build -t chessy .`
 
 Variables d'environnement de l'image : `CHESSY_ADDR` (défaut `0.0.0.0:3000`), `CHESSY_DB`
-(défaut `/data/chessy.sqlite`), `CHESSY_WEB_DIR` (défaut `/app/web`), `RUST_LOG` (défaut `chessy_server=info`).
+(défaut `/data/chessy.sqlite`), `CHESSY_WEB_DIR` (défaut `/app/web`), `RUST_LOG` (défaut `chessy_server=info`),
+et les mêmes `CHESSY_MAX_CONNECTIONS`, `CHESSY_MAX_CONNECTIONS_PER_IP` et `CHESSY_TRUST_PROXY` que ci-dessus
+(derrière un reverse proxy, le plafond par IP ne sert qu'avec `CHESSY_TRUST_PROXY=1`).
 Pour exposer le jeu sur Internet, placez-le derrière un reverse proxy HTTPS qui laisse passer les WebSocket
 (`/ws`), ou utilisez un tunnel (`make tunnel`).
 
