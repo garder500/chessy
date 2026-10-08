@@ -11,6 +11,7 @@ pub mod games_store;
 pub mod history_store;
 pub mod hub;
 pub mod limits;
+pub mod moderation;
 pub mod protocol;
 pub mod replay;
 pub mod social;

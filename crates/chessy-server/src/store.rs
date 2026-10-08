@@ -14,6 +14,7 @@ use thiserror::Error;
 use crate::elo::{self, START_ELO};
 use crate::games_store::GameKind;
 use crate::history_store::{self as history, Change, Source};
+use crate::moderation::chat_muted;
 use crate::protocol::{Me, PlayerId};
 
 pub const STARTER_DECK_SIZE: usize = 3;
@@ -374,6 +375,32 @@ const MIGRATIONS: &[&str] = &[
      ALTER TABLE sessions_v2 RENAME TO sessions;
      CREATE INDEX sessions_player ON sessions(player_id);
      CREATE INDEX sessions_last_used ON sessions(last_used);",
+    // Chat moderation (docs/spec-v2.md §4, "Modération"): block lists, the
+    // per-account "mute all chat" setting and the reports players file. New
+    // tables only, and every statement is idempotent, so the step is safe to
+    // run again over a schema a test rewound.
+    "CREATE TABLE IF NOT EXISTS blocks (
+         blocker TEXT NOT NULL REFERENCES players(id),
+         blocked TEXT NOT NULL REFERENCES players(id),
+         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+         PRIMARY KEY (blocker, blocked)
+     );
+     CREATE INDEX IF NOT EXISTS blocks_blocked ON blocks(blocked);
+     CREATE TABLE IF NOT EXISTS chat_settings (
+         player_id TEXT PRIMARY KEY REFERENCES players(id),
+         chat_muted INTEGER NOT NULL DEFAULT 0
+     );
+     CREATE TABLE IF NOT EXISTS reports (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         reporter TEXT NOT NULL REFERENCES players(id),
+         target TEXT NOT NULL REFERENCES players(id),
+         reason TEXT NOT NULL,
+         game_id TEXT,
+         context TEXT,
+         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+     );
+     CREATE INDEX IF NOT EXISTS reports_pair ON reports(reporter, target, created_at);
+     CREATE INDEX IF NOT EXISTS reports_reporter ON reports(reporter, created_at);",
 ];
 
 fn migrate(conn: &mut Connection) -> StoreResult<()> {
@@ -588,6 +615,7 @@ impl Store {
             return Ok(None);
         };
         let rank = rank_of(&conn, &row)?;
+        let chat_muted = chat_muted(&conn, &row.id)?;
         Ok(Some(Me {
             player_id: row.id,
             guest: row.username.is_none(),
@@ -598,6 +626,7 @@ impl Store {
             wins: row.wins,
             draws: row.draws,
             losses: row.losses,
+            chat_muted,
         }))
     }
 

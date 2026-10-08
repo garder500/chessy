@@ -94,6 +94,27 @@ pub enum ClientMsg {
         username: String,
     },
     FriendsList,
+    // Moderation (accounts only): see docs/spec-v2.md §4, "Modération".
+    BlockUser {
+        username: String,
+    },
+    UnblockUser {
+        username: String,
+    },
+    BlocksList,
+    /// Drops (or again accepts) every incoming chat message of the account.
+    SetChatMuted {
+        muted: bool,
+    },
+    /// `game_id` and `context` (a chat excerpt, at most 1 KiB) are optional.
+    ReportUser {
+        username: String,
+        reason: ReportReason,
+        #[serde(default)]
+        game_id: Option<String>,
+        #[serde(default)]
+        context: Option<String>,
+    },
     UserSearch {
         query: String,
     },
@@ -118,6 +139,30 @@ pub enum ClientMsg {
         game_id: String,
     },
     Unspectate,
+}
+
+/// Why a player is reported: a closed set, so a report holds no free text
+/// other than the optional chat excerpt.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ReportReason {
+    Spam,
+    Harassment,
+    Cheating,
+    InappropriateName,
+    Other,
+}
+
+impl ReportReason {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ReportReason::Spam => "spam",
+            ReportReason::Harassment => "harassment",
+            ReportReason::Cheating => "cheating",
+            ReportReason::InappropriateName => "inappropriate_name",
+            ReportReason::Other => "other",
+        }
+    }
 }
 
 /// Which side the human takes in a solo game.
@@ -167,6 +212,8 @@ pub struct Me {
     pub wins: u32,
     pub draws: u32,
     pub losses: u32,
+    /// The account drops every incoming chat message (`set_chat_muted`).
+    pub chat_muted: bool,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -405,6 +452,18 @@ pub enum ServerMsg {
         query: String,
         users: Vec<SearchResult>,
     },
+    /// The accounts the player blocked, after `blocks_list`, `block_user` and `unblock_user`.
+    Blocks {
+        blocked: Vec<NameRef>,
+    },
+    /// The chat mute setting, after `set_chat_muted`.
+    ChatSettings {
+        chat_muted: bool,
+    },
+    /// A report was received (also when it duplicated a recent one).
+    ReportAck {
+        username: String,
+    },
     /// A short event for a toast; `username` names the other party when relevant.
     Notice {
         code: String,
@@ -452,6 +511,11 @@ impl ClientMsg {
             | ClientMsg::FriendRespond { .. }
             | ClientMsg::FriendRemove { .. }
             | ClientMsg::FriendsList
+            | ClientMsg::BlockUser { .. }
+            | ClientMsg::UnblockUser { .. }
+            | ClientMsg::BlocksList
+            | ClientMsg::SetChatMuted { .. }
+            | ClientMsg::ReportUser { .. }
             | ClientMsg::Challenge { .. }
             | ClientMsg::ChallengeRespond { .. }
             | ClientMsg::SoloStart { .. } => expensive,

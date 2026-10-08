@@ -5,6 +5,7 @@
 //! [`Timer`] for the caller to schedule. Friends, challenges, chat and
 //! rematches live in the `social` submodule.
 
+mod moderation;
 mod social;
 mod solo;
 mod spectate;
@@ -116,6 +117,10 @@ pub struct HubConfig {
     /// instead of the TCP peer. Only turn this on behind a proxy that sets the
     /// header itself; otherwise any client can pick its own address.
     pub trust_proxy: bool,
+    /// Reports (docs/spec-v2.md §4): one reporter reports one account once per
+    /// window, and files at most `report_max` reports (all targets) per window.
+    pub report_window: Duration,
+    pub report_max: u32,
 }
 
 impl Default for HubConfig {
@@ -156,6 +161,8 @@ impl Default for HubConfig {
             max_connections: 5000,
             max_connections_per_ip: 0,
             trust_proxy: false,
+            report_window: Duration::from_secs(24 * 3600),
+            report_max: 20,
         }
     }
 }

@@ -61,7 +61,7 @@ pub fn clean_chat(text: &str) -> String {
 
 impl Hub {
     /// The caller's account row; guests get `account_required`.
-    fn account(&self, player: &str) -> Option<PlayerRow> {
+    pub(super) fn account(&self, player: &str) -> Option<PlayerRow> {
         match self.store.player_row(player) {
             Ok(Some(row)) if row.username.is_some() => Some(row),
             Ok(_) => {
@@ -79,11 +79,11 @@ impl Hub {
         }
     }
 
-    fn name_of(&self, player: &str) -> Option<String> {
+    pub(super) fn name_of(&self, player: &str) -> Option<String> {
         self.store.player_row(player).ok().flatten()?.username
     }
 
-    fn notice(&self, player: &str, code: &str, username: Option<&str>) {
+    pub(super) fn notice(&self, player: &str, code: &str, username: Option<&str>) {
         self.send(player, ServerMsg::notice(code, username));
     }
 
@@ -174,6 +174,13 @@ impl Hub {
                 self.notice(player, "already_friends", Some(username))
             }
             Ok(RequestOutcome::AlreadySent) => self.push_friends(player),
+            // Looks like any sent request to the requester; the blocker hears nothing.
+            Ok(RequestOutcome::SentHidden) => self.push_friends(player),
+            Ok(RequestOutcome::YouBlocked) => self.fail(
+                player,
+                "blocked",
+                "you blocked this player: unblock them first",
+            ),
             Ok(RequestOutcome::Sent { target }) => {
                 self.push_friends(player);
                 self.push_friends(&target);
@@ -387,6 +394,28 @@ impl Hub {
         }
     }
 
+    /// Ends every open challenge between `player` (who just blocked `other`)
+    /// and `other`. The blocked side is told what a plain refusal or
+    /// withdrawal would tell them, never that a block happened.
+    pub(super) fn drop_challenges_between(&mut self, player: &str, other: &str) {
+        if self
+            .challenges
+            .get(other)
+            .is_some_and(|c| c.target == player)
+        {
+            self.challenges.remove(other);
+            let name = self.name_of(player).unwrap_or_default();
+            self.notice(other, "challenge_declined", Some(&name));
+        }
+        if self
+            .challenges
+            .get(player)
+            .is_some_and(|c| c.target == other)
+        {
+            self.cancel_challenge(player);
+        }
+    }
+
     pub(super) fn expire_challenge(&mut self, challenger: &str, target: &str, seq: u64) {
         match self.challenges.get(challenger) {
             Some(c) if c.seq == seq && c.target == target => {}
@@ -429,13 +458,24 @@ impl Hub {
         }
         self.last_chat.insert(player.to_string(), now);
         let opponent = session.players[color.opposite().index()].clone();
-        self.send(
-            &opponent,
-            ServerMsg::Chat {
-                text: text.clone(),
-                mine: false,
-            },
-        );
+        // A muted or blocking recipient gets nothing; the sender sees their
+        // own line as usual and cannot tell. Fails closed on a store error.
+        let dropped = match self.store.drops_chat(&opponent, player) {
+            Ok(dropped) => dropped,
+            Err(e) => {
+                tracing::error!("store error: {e}");
+                true
+            }
+        };
+        if !dropped {
+            self.send(
+                &opponent,
+                ServerMsg::Chat {
+                    text: text.clone(),
+                    mine: false,
+                },
+            );
+        }
         self.send(player, ServerMsg::Chat { text, mine: true });
     }
 

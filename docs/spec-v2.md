@@ -71,6 +71,32 @@ Serveur → client :
 - Une acceptation de défi crée la partie par le flux normal (`deck_select`), amicale.
 - La présence est poussée aux amis (`friends` mis à jour) à la connexion, déconnexion, début et fin de partie.
 
+### Modération du chat : blocage, sourdine, signalement
+
+Migration `blocks(blocker, blocked, created_at)`, `chat_settings(player_id, chat_muted)` et `reports(id, reporter, target, reason, game_id, context, created_at)` ; écrites de façon synchrone par le `Store`, comme les amitiés. Réservé aux **comptes** : un invité reçoit `error account_required` pour chacun de ces messages. On ne vise un joueur que par son pseudo : un invité (sans pseudo) ne peut être ni bloqué ni signalé, mais la sourdine couvre son chat.
+
+Client → serveur :
+- `block_user {username}` · `unblock_user {username}` · `blocks_list {}` — pseudo insensible à la casse ; inconnu : `notice user_not_found` ; soi-même : `error invalid_target` ; au plus 200 blocages (`error block_list_full`). Bloquer deux fois, ou débloquer quelqu'un qui ne l'est pas, ne change rien.
+- `set_chat_muted {muted: bool}` — réglage du compte, conservé en base.
+- `report_user {username, reason, game_id?, context?}` — `reason ∈ {spam, harassment, cheating, inappropriate_name, other}` (une autre valeur est une trame illisible) ; `game_id` : au plus 64 caractères `[A-Za-z0-9_-]`, sinon ignoré ; `context` : extrait de chat nettoyé comme un message, tronqué à 1 024 octets. Soi-même : `error invalid_target`.
+
+Serveur → client :
+- `blocks {blocked: [{username}]}` en réponse à `blocks_list`, `block_user` et `unblock_user` (ordre alphabétique) ; il n'est **pas** poussé à la connexion (le client le demande après `welcome`).
+- `chat_settings {chat_muted}` en réponse à `set_chat_muted` ; `welcome.account.chat_muted` (et `GET /api/me`) donne la valeur courante.
+- `report_ack {username}` pour le signalant, **aussi** quand le signalement double un précédent (rien n'est alors écrit : on ne peut pas sonder le dédoublonnage). La cible n'est jamais prévenue.
+- Codes d'`error` : `invalid_target`, `block_list_full`, `blocked` (voir ci-dessous), `rate_limited` (quota de signalements).
+
+**Ce que couvre un blocage** (A bloque B) :
+- Le chat de B n'est plus remis à A, en partie. B voit son propre message en écho (`mine: true`) comme d'habitude et ne peut pas le deviner. Le chat de A vers B n'est pas filtré (A choisit d'écrire). Il n'existe pas de chat de spectateur : les spectateurs ne reçoivent ni n'envoient de chat (`not_in_game`), rien à filtrer de ce côté.
+- Une amitié (ou demande en attente, dans un sens ou l'autre) entre A et B est supprimée. B reçoit exactement ce que reçoit quelqu'un qu'on retire de ses amis (`friends` mis à jour et, si c'était une amitié, `notice friend_removed`) : un blocage et un `friend_remove` sont indiscernables pour B. Bloquer quelqu'un sans lien avec soi ne lui envoie rien.
+- Les demandes d'ami de B vers A sont acceptées en apparence : B reçoit le même `friends` (avec la demande en `outgoing`) que pour toute demande, mais elle est stockée sans prévenir A, n'apparaît pas dans `incoming` de A et `friend_respond` de A dessus répond `no_such_request`. Si A débloque B, la demande en attente devient visible. Une demande de A vers un joueur qu'il a bloqué est refusée par `error blocked` (cela ne renseigne que A sur son propre état).
+- Les défis de B vers A échouent comme ceux d'un inconnu (`error not_friends`, l'amitié n'existant plus). Les défis ouverts entre eux à l'instant du blocage sont retirés : B reçoit `challenge_declined` pour le sien, ou `challenge_cancelled` si c'était A le défieur.
+- Le jeu n'est **pas** touché : une partie en cours continue, B joue et peut être affronté (file, salon) ; les revanches ne sont pas filtrées. Seul le chat est coupé.
+
+**Sourdine** (`chat_muted`) : le serveur ne remet aucun chat entrant à ce compte ; l'émetteur reçoit son écho comme d'habitude. Le compte peut toujours écrire.
+
+**Signalements** : écrits dans `reports` et journalisés (`tracing::warn!`, sans le texte de l'extrait, seulement sa taille). Un même signalant ne signale la même cible qu'une fois par `report_window` (24 h par défaut ; le doublon est acquitté mais ignoré) et dépose au plus `report_max` (20) signalements par fenêtre (`error rate_limited` au-delà) ; la connexion paie en plus `expensive_cost` jetons par message de modération (voir `docs/spec-v4.md`, « Durcissement »). Aucune interface de modération n'est fournie : la table se lit à la base.
+
 ## 5. Fonctions de jeu
 
 ### Horloges (serveur autoritaire)
