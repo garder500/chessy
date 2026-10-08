@@ -1,3 +1,4 @@
+import { ChallengeSheet } from "../ui/ChallengeSheet";
 import { useEffect, useMemo, useState } from "react";
 import type { FriendInfo, UserResult } from "../protocol";
 import { hrefFor } from "../router";
@@ -267,6 +268,7 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
   const { outgoingChallenge } = useAppState();
   const { state, reload } = useProfile(friend.username);
   const [confirming, setConfirming] = useState(false);
+  const [sheet, setSheet] = useState(false);
 
   const pending = outgoingChallenge !== null && outgoingChallenge.toLowerCase() === friend.username.toLowerCase();
   const otherPending = outgoingChallenge !== null && !pending;
@@ -305,7 +307,7 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
             </>
           ) : (
             <>
-              <button type="button" className="btn pri" disabled={!canChallenge} onClick={() => store.send({ type: "challenge", username: friend.username })}>
+              <button type="button" className="btn pri" disabled={!canChallenge} onClick={() => setSheet(true)}>
                 Défier
               </button>
               {friend.presence === "in_game" && friend.game_id && (
@@ -350,6 +352,8 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
           </a>
         </>
       )}
+
+      <ChallengeSheet friend={sheet ? friend : null} onClose={() => setSheet(false)} />
 
       <div className="frd-remove">
         {confirming ? (

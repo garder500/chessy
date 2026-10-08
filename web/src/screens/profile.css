@@ -27,3 +27,8 @@
   .pf-cols { grid-template-columns: 1fr; }
   .pf-head { padding: 20px; }
 }
+
+/* Réglages dans le profil */
+.pf-settings { display: grid; gap: 18px; scroll-margin-top: 16px; }
+:root .pf-set-h { margin: 8px 0 -6px; font-size: 22px; letter-spacing: 0.08em; font-family: var(--font-display); font-weight: 800; text-transform: uppercase; color: var(--text); }
+.pf-q-foot { display: flex; flex-direction: column; gap: 8px; }

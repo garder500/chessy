@@ -213,8 +213,8 @@ impl App {
             }
             match msg {
                 ClientMsg::Hello { .. } => {}
-                ClientMsg::QueueJoin { ranked } => hub.queue_join(player, ranked),
-                ClientMsg::CreateRoom => hub.create_room(player),
+                ClientMsg::QueueJoin { ranked, time } => hub.queue_join(player, ranked, time),
+                ClientMsg::CreateRoom { time } => hub.create_room(player, time),
                 ClientMsg::JoinRoom { code } => hub.join_room(player, &code),
                 ClientMsg::LeaveLobby => hub.leave_lobby(player),
                 ClientMsg::LeaveDeckSelect => hub.leave_deck_select(player),
@@ -237,7 +237,7 @@ impl App {
                 ClientMsg::FriendRemove { username } => hub.friend_remove(player, &username),
                 ClientMsg::FriendsList => hub.friends_list(player),
                 ClientMsg::UserSearch { query } => hub.user_search(player, &query),
-                ClientMsg::Challenge { username } => hub.challenge(player, &username),
+                ClientMsg::Challenge { username, time } => hub.challenge(player, &username, time),
                 ClientMsg::ChallengeRespond { username, accept } => {
                     hub.challenge_respond(player, &username, accept)
                 }

@@ -245,6 +245,8 @@ struct Session {
     /// Came from the ranked queue between two accounts; whether Elo really
     /// moves also depends on how long the game lasts.
     rated: bool,
+    /// Game length both players asked for (`None`: the server default).
+    time: Option<TimeControl>,
     /// Who plays each colour, as shown to the other side.
     info: [OpponentInfo; 2],
     started_unix: i64,
@@ -295,6 +297,7 @@ struct PendingReward {
 
 struct QueueEntry {
     player: PlayerId,
+    time: Option<TimeControl>,
     elo: i32,
     since: Instant,
 }
@@ -307,9 +310,9 @@ pub struct Hub {
     next_game: u64,
     /// Oldest first.
     ranked_queue: Vec<QueueEntry>,
-    casual_queue: VecDeque<PlayerId>,
+    casual_queue: VecDeque<(PlayerId, Option<TimeControl>)>,
     sweep_pending: bool,
-    rooms: HashMap<String, PlayerId>,
+    rooms: HashMap<String, (PlayerId, Option<TimeControl>)>,
     games: HashMap<String, Session>,
     player_game: HashMap<PlayerId, String>,
     rewards: HashMap<PlayerId, PendingReward>,
@@ -691,10 +694,10 @@ impl Hub {
         if self.ranked_queue.iter().any(|e| e.player == player) {
             return LobbyStatus::Queued { ranked: true };
         }
-        if self.casual_queue.iter().any(|p| p == player) {
+        if self.casual_queue.iter().any(|(p, _)| p == player) {
             return LobbyStatus::Queued { ranked: false };
         }
-        match self.rooms.iter().find(|(_, p)| *p == player) {
+        match self.rooms.iter().find(|(_, (p, _))| p == player) {
             Some((code, _)) => LobbyStatus::RoomWaiting { code: code.clone() },
             None => LobbyStatus::Idle,
         }
@@ -702,8 +705,8 @@ impl Hub {
 
     fn leave_lobby_silently(&mut self, player: &str) {
         self.ranked_queue.retain(|e| e.player != player);
-        self.casual_queue.retain(|p| p != player);
-        self.rooms.retain(|_, p| p != player);
+        self.casual_queue.retain(|(p, _)| p != player);
+        self.rooms.retain(|_, (p, _)| p != player);
     }
 
     /// Checks the player may start looking for a game; clears any unclaimed
@@ -721,7 +724,7 @@ impl Hub {
         true
     }
 
-    pub fn queue_join(&mut self, player: &str, ranked: Option<bool>) {
+    pub fn queue_join(&mut self, player: &str, ranked: Option<bool>, time: Option<TimeControl>) {
         if !self.enter_lobby(player) {
             return;
         }
@@ -737,15 +740,19 @@ impl Hub {
                 }
                 self.ranked_queue.push(QueueEntry {
                     player: player.to_string(),
+                    time,
                     elo: row.elo,
                     since: Instant::now(),
                 });
                 self.match_ranked();
                 self.ensure_sweep();
             }
-            _ => match self.casual_queue.pop_front() {
-                Some(other) => self.create_game(other, player.to_string(), false, GameKind::Duel),
-                None => self.casual_queue.push_back(player.to_string()),
+            _ => match self.casual_queue.iter().position(|(_, t)| *t == time) {
+                Some(i) => {
+                    let (other, _) = self.casual_queue.remove(i).expect("position is valid");
+                    self.create_game(other, player.to_string(), false, GameKind::Duel, time)
+                }
+                None => self.casual_queue.push_back((player.to_string(), time)),
             },
         }
         if self.player_game.contains_key(player) {
@@ -772,6 +779,9 @@ impl Hub {
             let mut best: Option<(usize, usize, i32)> = None;
             for (i, a) in self.ranked_queue.iter().enumerate() {
                 for (j, b) in self.ranked_queue.iter().enumerate().skip(i + 1) {
+                    if a.time != b.time {
+                        continue;
+                    }
                     if refused.iter().any(|(x, y)| {
                         (x == &a.player && y == &b.player) || (x == &b.player && y == &a.player)
                     }) {
@@ -798,7 +808,13 @@ impl Hub {
             }
             let second = self.ranked_queue.remove(j);
             let first = self.ranked_queue.remove(i);
-            self.create_game(first.player, second.player, true, GameKind::Duel);
+            self.create_game(
+                first.player,
+                second.player,
+                true,
+                GameKind::Duel,
+                first.time,
+            );
         }
     }
 
@@ -811,7 +827,7 @@ impl Hub {
         }
     }
 
-    pub fn create_room(&mut self, player: &str) {
+    pub fn create_room(&mut self, player: &str, time: Option<TimeControl>) {
         if !self.enter_lobby(player) {
             return;
         }
@@ -822,7 +838,7 @@ impl Hub {
         while self.rooms.contains_key(&code) {
             code = room_code();
         }
-        self.rooms.insert(code.clone(), player.to_string());
+        self.rooms.insert(code.clone(), (player.to_string(), time));
         self.send(
             player,
             ServerMsg::Lobby {
@@ -839,13 +855,13 @@ impl Hub {
         let code = code.trim().to_ascii_uppercase();
         match self.rooms.get(&code) {
             None => self.fail(player, "no_such_room", "that room does not exist"),
-            Some(host) if host == player => {
+            Some((host, _)) if host == player => {
                 self.fail(player, "own_room", "you cannot join your own room")
             }
             Some(_) => {
-                let host = self.rooms.remove(&code).expect("room checked above");
+                let (host, time) = self.rooms.remove(&code).expect("room checked above");
                 self.leave_lobby_silently(player);
-                self.create_game(host, player.to_string(), false, GameKind::Room);
+                self.create_game(host, player.to_string(), false, GameKind::Room, time);
             }
         }
     }
@@ -863,19 +879,33 @@ impl Hub {
     // ---- game setup ------------------------------------------------------
 
     /// Starts a game between two players with random colours.
-    fn create_game(&mut self, a: PlayerId, b: PlayerId, rated: bool, kind: GameKind) {
+    fn create_game(
+        &mut self,
+        a: PlayerId,
+        b: PlayerId,
+        rated: bool,
+        kind: GameKind,
+        time: Option<TimeControl>,
+    ) {
         let (white, black) = if rand::random_bool(0.5) {
             (a, b)
         } else {
             (b, a)
         };
-        self.start_session(white, black, rated, kind);
+        self.start_session(white, black, rated, kind, time);
     }
 
     /// Opens deck selection for two players, clearing whatever else they
     /// were doing: lobby spots, challenges, rematches and unclaimed rewards.
-    fn start_session(&mut self, white: PlayerId, black: PlayerId, rated: bool, kind: GameKind) {
-        self.open_session(white, black, rated, kind, None);
+    fn start_session(
+        &mut self,
+        white: PlayerId,
+        black: PlayerId,
+        rated: bool,
+        kind: GameKind,
+        time: Option<TimeControl>,
+    ) {
+        self.open_session(white, black, rated, kind, None, time);
     }
 
     /// [`Self::start_session`], optionally against the bot: for a Solo game
@@ -888,6 +918,7 @@ impl Hub {
         rated: bool,
         kind: GameKind,
         solo: Option<solo::Solo>,
+        time: Option<TimeControl>,
     ) {
         self.next_game += 1;
         let game_id = format!(
@@ -945,6 +976,7 @@ impl Hub {
             connected,
             epoch: [0, 0],
             rated,
+            time,
             started_unix: now_unix(),
             clock: None,
             draw_offer: None,
@@ -1063,13 +1095,16 @@ impl Hub {
         };
         // A Solo game has no clock.
         if session.solo.is_none() {
+            let initial = session
+                .time
+                .map_or(self.config.clock_initial, TimeControl::initial);
             session.clock = Some(Clock {
-                remaining: [self.config.clock_initial; 2],
+                remaining: [initial; 2],
                 since: Instant::now(),
                 running: Some(Color::White),
             });
             self.timers.push((
-                self.config.clock_initial,
+                initial,
                 Timer::Flag {
                     game_id: game_id.to_string(),
                     color: Color::White,
@@ -1097,6 +1132,7 @@ impl Hub {
         }
         let requeue = session.solo.is_none() && session.recording.kind == GameKind::Duel;
         let rated = session.rated;
+        let time = session.time;
         let other = session
             .players
             .iter()
@@ -1130,7 +1166,7 @@ impl Hub {
                 },
             );
             if requeue {
-                self.requeue(&other, rated);
+                self.requeue(&other, rated, time);
             } else {
                 self.send(
                     &other,
@@ -1146,7 +1182,7 @@ impl Hub {
 
     /// Puts a player back in the queue they were matched from (at the front
     /// of the casual one, they have already waited).
-    fn requeue(&mut self, player: &str, rated: bool) {
+    fn requeue(&mut self, player: &str, rated: bool, time: Option<TimeControl>) {
         let elo = match self.store.player_row(player) {
             Ok(Some(row)) if rated && row.username.is_some() => Some(row.elo),
             _ => None,
@@ -1155,15 +1191,19 @@ impl Hub {
             Some(elo) => {
                 self.ranked_queue.push(QueueEntry {
                     player: player.to_string(),
+                    time,
                     elo,
                     since: Instant::now(),
                 });
                 self.match_ranked();
                 self.ensure_sweep();
             }
-            None => match self.casual_queue.pop_front() {
-                Some(other) => self.create_game(other, player.to_string(), false, GameKind::Duel),
-                None => self.casual_queue.push_front(player.to_string()),
+            None => match self.casual_queue.iter().position(|(_, t)| *t == time) {
+                Some(i) => {
+                    let (other, _) = self.casual_queue.remove(i).expect("position is valid");
+                    self.create_game(other, player.to_string(), false, GameKind::Duel, time)
+                }
+                None => self.casual_queue.push_front((player.to_string(), time)),
             },
         }
         if !self.player_game.contains_key(player) {
@@ -1598,7 +1638,12 @@ impl Hub {
         if solo {
             self.offer_solo_rematch(&session);
         } else {
-            self.offer_rematch(&session.players, session.rated, session.recording.kind);
+            self.offer_rematch(
+                &session.players,
+                session.rated,
+                session.recording.kind,
+                session.time,
+            );
         }
         for player in &session.players {
             self.notify_presence(player);

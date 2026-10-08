@@ -1,0 +1,121 @@
+/* Charte Jade v2, écrans secondaires : mêmes composants que le parcours principal, téléphone d'abord.
+   Chargé après skin.css ; les sélecteurs `:root …` l'emportent sur les feuilles des écrans. */
+
+/* Pages : marges 16 (téléphone), 24 (tablette), 48 (ordinateur) ; titres 36 px puis 44. */
+:root :is(.lv-page, .rk-page, .frd-page, .co-page, .st-page, .pf-page, .rp) { padding-left: 16px; padding-right: 16px; }
+:root :is(.lv-title, .rk-title, .co-title, .st-title, .frd-title) { font-size: 36px; letter-spacing: 0.05em; line-height: 1; margin: 6px 0 0; }
+:root :is(.lv-page, .rk-page, .frd-page, .co-page, .st-page, .pf-page) { padding-top: 16px; }
+@media (min-width: 720px) {
+  :root :is(.lv-page, .rk-page, .frd-page, .co-page, .st-page, .pf-page, .rp) { padding-left: 24px; padding-right: 24px; }
+  :root :is(.lv-title, .rk-title, .co-title, .st-title, .frd-title) { font-size: 44px; }
+}
+@media (min-width: 1100px) {
+  :root :is(.lv-page, .rk-page, .frd-page, .co-page, .st-page, .pf-page, .rp) { padding-left: 48px; padding-right: 48px; }
+  :root :is(.lv-page, .rk-page, .frd-page, .co-page, .st-page, .pf-page) { padding-top: 32px; }
+  :root .rk-foot { margin-left: -48px; margin-right: -48px; }
+}
+
+/* ---------- En direct : une liste, une miniature de plateau Jade par partie ---------- */
+:root .lv-list { display: flex; flex-direction: column; gap: 0; background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--shadow); }
+:root .lv-card { position: relative; grid-template-columns: 60px minmax(0, 1fr) auto; min-height: 84px; padding: 8px 12px; gap: 4px 12px; background: none; border: 0; border-top: 1px solid var(--line-2); box-shadow: none; clip-path: none; }
+:root .lv-card:first-child { border-top: 0; }
+:root .lv-card::before { content: ""; grid-row: 1 / span 2; width: 60px; height: 60px; background: repeating-conic-gradient(var(--sq-d) 0 25%, var(--sq-l) 0 50%) 0 0 / 25% 25%; box-shadow: 0 0 0 1px var(--line-3); }
+:root .lv-players { grid-column: 2; flex-direction: column; align-items: flex-start; gap: 2px; }
+:root .lv-vs, :root .lv-side, :root .lv-player .avatar { display: none; }
+:root .lv-name { flex-direction: row; gap: 8px; align-items: baseline; }
+:root .lv-name strong { font-weight: 600; }
+:root .lv-meta { grid-column: 2; font-size: 13.5px; gap: 2px 10px; }
+:root .lv-watch { grid-column: 3; grid-row: 1 / span 2; min-height: 44px; }
+:root .lv-tag { background: var(--chip); }
+:root .lv-tag.ranked { color: var(--accent-ink); }
+@media (min-width: 720px) {
+  :root .lv-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; background: none; border: 0; box-shadow: none; }
+  :root .lv-card { background: var(--surface); border: 1px solid var(--line-2); box-shadow: var(--shadow); clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut)); }
+}
+
+/* ---------- Mes parties ---------- */
+:root .gl-list { padding: 0 12px; }
+:root .gl-row { min-height: 60px; }
+:root .gl-result { font-family: var(--font-display); font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* ---------- Classement : podium à bandeaux de couleur, liste dense, rang du joueur au-dessus de la barre d'onglets ---------- */
+:root .rk-podium { gap: 8px; margin-bottom: 14px; }
+:root .rk-pod a { padding: 12px 6px; gap: 4px; border-radius: 0; border-top: 3px solid var(--line-3); clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut)); box-shadow: var(--shadow); }
+:root .rk-pod-1 a { border-top-color: var(--rar-legendary); padding-top: 22px; padding-bottom: 18px; }
+:root .rk-pod-2 a { border-top-color: var(--rar-common); }
+:root .rk-pod-3 a { border-top-color: var(--create, #ffb86b); }
+:root .rk-pod-rank, :root .rk-pod-elo { font-family: var(--font-display); font-weight: 800; letter-spacing: 0.02em; }
+:root .rk-pod-rank { font-size: 24px; }
+:root .rk-pod-name { font-size: 14.5px; }
+:root .rk-pod-av { display: none; }
+:root .rk-pod.me a { border-color: var(--accent); }
+:root .rk-table-wrap { clip-path: none; }
+:root .rk-table td { padding: 8px 10px; }
+:root .rk-table th { padding: 10px; }
+:root .c-rank, :root .c-num { font-family: var(--font-display); font-weight: 800; font-size: 20px; }
+:root .c-rank { color: var(--muted); width: 48px; }
+:root .rk-row { min-height: 52px; }
+:root .rk-row.me { box-shadow: inset 3px 0 0 var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+:root .rk-bar > span { background: var(--accent); }
+:root .rk-foot { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); border-top: 1px solid var(--accent); backdrop-filter: none; }
+:root .rk-foot-rank { font-family: var(--font-display); font-weight: 800; color: var(--accent-ink); }
+@media (max-width: 719px) {
+  :root .rk-foot { position: sticky; bottom: calc(64px + env(safe-area-inset-bottom)); }
+  :root .rk-foot-in { grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 10px 0; }
+  :root .rk-foot-pos .eyebrow, :root .rk-foot-next { display: none; }
+  :root .rk-foot-in > p { grid-column: 1 / -1; font-size: 14px; }
+}
+
+/* ---------- Amis ---------- */
+:root .frd-side, :root .frd-card, :root .frd-guest { background: var(--surface); box-shadow: var(--shadow); }
+:root .frd-row { min-height: 60px; }
+:root .frd-row .frd-name { font-size: 17px; letter-spacing: 0.03em; }
+:root .frd-req-btns .btn.sm { min-height: 44px; }
+:root .frd-stats .stat-tile { background: var(--surface); }
+@media (max-width: 960px) { :root .frd-back { min-height: 44px; } }
+
+/* ---------- Collection ---------- */
+:root .co-stat { border-radius: 0; clip-path: polygon(var(--cut-s) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut-s)); box-shadow: var(--shadow); }
+:root .co-stat-n { font-family: var(--font-display); font-weight: 800; font-size: 32px; }
+:root .co-stat-l { font-size: 14px; }
+:root .hi-row { border-radius: 0; box-shadow: none; }
+:root .hi-head { min-height: 60px; }
+:root .hi-art { border-radius: 0; width: 44px; height: 50px; background: none; border: 0; }
+:root .hi-head { grid-template-columns: 50px 1fr auto; }
+:root .hi-name { font-family: var(--font-display); font-weight: 800; font-size: 17px; letter-spacing: 0.04em; text-transform: uppercase; }
+:root .hi-meta .eyebrow { font-size: 13px; }
+@media (max-width: 640px) { :root .hi-head { grid-template-columns: 50px 1fr; } :root .hi-art { width: 44px; height: 50px; } }
+
+/* ---------- Réglages et profil ---------- */
+:root .st-card { box-shadow: var(--shadow); clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut)); border-radius: 0; }
+:root .st-row { min-height: 52px; }
+:root .st-skill { border-radius: 0; clip-path: polygon(var(--cut-s) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut-s)); }
+:root .st-skill-art { border-radius: 0; }
+:root .st-switch { width: 52px; height: 30px; border-radius: 15px; }
+:root .st-switch span { width: 22px; height: 22px; }
+:root .st-switch[aria-checked="true"] span { transform: translateX(22px); }
+:root .stat-tile { border-radius: 0; box-shadow: var(--shadow); }
+:root .stat-value { font-family: var(--font-display); font-weight: 800; letter-spacing: 0.02em; }
+
+/* ---------- Replay : plateau pleine largeur, carte du coup, contrôles en pied ---------- */
+:root .rp-chart-box, :root .rp-acc, :root .rp-explore .rp-variation { border-radius: 0; }
+:root .rp-acc-val { font-family: var(--font-display); font-weight: 800; }
+:root .rp-move { border-radius: 0; min-height: 44px; }
+:root .rp-move[aria-current="step"] { box-shadow: inset 3px 0 0 var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+:root .lb { border-radius: 3px; font-family: var(--font-sans); font-weight: 600; font-size: 12.5px; }
+:root .rp-why { background: var(--surface); }
+@media (max-width: 719px) {
+  :root .rp { padding-left: 0; padding-right: 0; }
+  :root .rp-head, :root .rp-side { padding-left: 12px; padding-right: 12px; }
+  :root .rp-board, :root .rp-stage .gm-board { border-radius: 0; box-shadow: none; }
+}
+
+/* Replay téléphone : en-tête compact (titre 22 px, actions sur une ligne), plaques plates collées au plateau. */
+@media (max-width: 719px) {
+  :root .rp { padding-top: 8px; }
+  :root .rp-head .eyebrow { display: none; }
+  :root .rp-title { font-size: 22px; letter-spacing: 0.05em; }
+  :root .rp-head-actions .btn { min-height: 44px; height: 44px; font-size: 14px; letter-spacing: 0.08em; }
+  :root .rp .gm-plate.card { margin: 0; clip-path: none; border-width: 1px 0; box-shadow: none; }
+  :root .lv-watch { min-height: 44px; padding: 0 12px; font-size: 15px; }
+}

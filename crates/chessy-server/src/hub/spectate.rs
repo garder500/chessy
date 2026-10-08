@@ -525,8 +525,8 @@ mod tests {
         let (a, _ra) = connect(&mut hub);
         let (b, _rb) = connect(&mut hub);
         let (s, mut rs) = connect(&mut hub);
-        hub.queue_join(&a, Some(false));
-        hub.queue_join(&b, Some(false));
+        hub.queue_join(&a, Some(false), None);
+        hub.queue_join(&b, Some(false), None);
         hub.select_deck(&a, vec![]);
         hub.select_deck(&b, vec![]);
         let game_id = hub.player_game[&a].clone();

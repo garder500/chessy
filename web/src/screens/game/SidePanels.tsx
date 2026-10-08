@@ -145,9 +145,9 @@ function PanelHead({ id, title, count, compact, open, onToggle, peek }: { id: st
   );
 }
 
-export function Journal({ log, you }: { log: LogLine[]; you: StateView["you"] }) {
+export function Journal({ log, you, flat }: { log: LogLine[]; you: StateView["you"]; flat?: boolean }) {
   const end = useRef<HTMLLIElement>(null);
-  const compact = useCompact();
+  const compact = useCompact() && !flat;
   const [fold, setFold] = useState(false);
   const open = !compact || fold;
   useEffect(() => {
@@ -155,7 +155,7 @@ export function Journal({ log, you }: { log: LogLine[]; you: StateView["you"] })
   }, [log.length, open]);
   const last = log[log.length - 1];
   return (
-    <section className={`gm-panel card gm-journal${open ? "" : " folded"}`} aria-labelledby="gm-journal-h">
+    <section className={`gm-panel${flat ? "" : " card"} gm-journal${open ? "" : " folded"}`} aria-labelledby="gm-journal-h">
       <PanelHead id="gm-journal-h" title="Journal" count={log.length} compact={compact} open={open} onToggle={() => setFold(!fold)} peek={last ? `${last.actor === you ? "Vous" : "Adv."} : ${last.text}` : undefined} />
       <ol className="gm-log" hidden={!open}>
         {log.length === 0 && <li className="muted gm-empty">Aucune action pour l'instant.</li>}
@@ -242,10 +242,10 @@ export function TrainingNote() {
 
 const QUICK = ["Bien joué !", "Merci", "Bonne chance", "Oups…", "Belle compétence"];
 
-export function Chat({ lines }: { lines: ChatLine[] }) {
+export function Chat({ lines, flat }: { lines: ChatLine[]; flat?: boolean }) {
   const [text, setText] = useState("");
   const list = useRef<HTMLDivElement>(null);
-  const compact = useCompact();
+  const compact = useCompact() && !flat;
   const [fold, setFold] = useState(false);
   const open = !compact || fold;
   useEffect(() => {
@@ -259,7 +259,7 @@ export function Chat({ lines }: { lines: ChatLine[] }) {
   };
 
   return (
-    <section className={`gm-panel card gm-chat${open ? "" : " folded"}`} aria-labelledby="gm-chat-h">
+    <section className={`gm-panel${flat ? "" : " card"} gm-chat${open ? "" : " folded"}`} aria-labelledby="gm-chat-h">
       {compact ? (
         <PanelHead id="gm-chat-h" title="Chat" count={lines.length} compact open={open} onToggle={() => setFold(!fold)} peek={lines.length ? `${lines[lines.length - 1].mine ? "Vous" : "Adv."} : ${lines[lines.length - 1].text}` : "Dites bonjour"} />
       ) : (
@@ -301,5 +301,104 @@ export function Chat({ lines }: { lines: ChatLine[] }) {
         </button>
       </form>
     </section>
+  );
+}
+
+/** Proposition de nulle de l'adversaire : visible sans ouvrir de menu. */
+export function DrawBanner({ view }: { view: StateView }) {
+  if (view.draw_offer !== "them") return null;
+  return (
+    <div className="gm-banner" role="alert">
+      <strong>Nulle proposée</strong>
+      <span className="muted">L'adversaire vous propose la nulle.</span>
+      <div className="gm-row">
+        <button type="button" className="btn sm pri" onClick={() => store.respondDraw(true)}>
+          Accepter
+        </button>
+        <button type="button" className="btn sm" onClick={() => store.respondDraw(false)}>
+          Refuser
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Contenu du panneau « Plus » (téléphone) : proposer la nulle, abandonner avec confirmation. */
+export function Options({ view, onClose }: { view: StateView; onClose: () => void }) {
+  const [confirm, setConfirm] = useState(false);
+  if (confirm) {
+    return (
+      <div className="gm-opts" role="alertdialog" aria-label="Confirmer l'abandon">
+        <h3 className="sheet-title">Abandonner la partie ?</h3>
+        <p className="sheet-sub">
+          {view.rated ? "Vous perdez de l'Elo et votre adversaire peut vous prendre une compétence." : "Votre adversaire sera déclaré vainqueur."}
+        </p>
+        <button type="button" className="btn danger solid block" onClick={() => store.send({ type: "resign" })} autoFocus>
+          Abandonner
+        </button>
+        <button type="button" className="btn block" onClick={() => setConfirm(false)}>
+          Continuer à jouer
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="gm-opts">
+      <button
+        type="button"
+        className="btn block"
+        disabled={view.draw_offer !== "none"}
+        onClick={() => {
+          store.offerDraw();
+          onClose();
+        }}
+      >
+        {view.draw_offer === "you" ? "Nulle proposée" : "Proposer la nulle"}
+      </button>
+      <button type="button" className="btn block danger" onClick={() => setConfirm(true)}>
+        Abandonner
+      </button>
+      <button type="button" className="link" onClick={onClose}>
+        Reprendre la partie
+      </button>
+    </div>
+  );
+}
+
+/** Barre d'actions du bas (téléphone) : coups, messages, retourner le plateau, options. */
+export function GameNav({ onMoves, onChat, onFlip, onMore, flipped, unread, over }: { onMoves: () => void; onChat: () => void; onFlip: () => void; onMore: () => void; flipped: boolean; unread: number; over: boolean }) {
+  const ico = { viewBox: "0 0 24 24", width: 22, height: 22, fill: "none", stroke: "currentColor", strokeWidth: 1.8, "aria-hidden": true } as const;
+  return (
+    <nav className="gm-nav" aria-label="Actions de partie">
+      <button type="button" className="gm-nav-b" onClick={onMoves}>
+        <svg {...ico}>
+          <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />
+        </svg>
+        Coups
+      </button>
+      <button type="button" className="gm-nav-b" onClick={onChat}>
+        <svg {...ico}>
+          <path d="M4 5h16v11H9l-5 4z" />
+        </svg>
+        Messages
+        {unread > 0 && <span className="nav-count gm-nav-count">{unread}</span>}
+      </button>
+      <button type="button" className="gm-nav-b" aria-pressed={flipped} onClick={onFlip}>
+        <svg {...ico} width={20} height={20}>
+          <path d="M7 4v14l-3-3M17 20V6l3 3" />
+        </svg>
+        Retourner
+      </button>
+      {!over && (
+        <button type="button" className="gm-nav-b" onClick={onMore}>
+          <svg {...ico} fill="currentColor" stroke="none">
+            <circle cx="5" cy="12" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="19" cy="12" r="2" />
+          </svg>
+          Plus
+        </button>
+      )}
+    </nav>
   );
 }

@@ -200,9 +200,11 @@ async fn presence_is_pushed_on_connect_disconnect_and_games() {
     b.clear();
     b.send(chessy_server::protocol::ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     c.send(chessy_server::protocol::ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     assert_eq!(a.last("friends")["friends"][0]["presence"], "in_game");
     let (mut b, mut c) = matched(b, c);
@@ -305,9 +307,11 @@ async fn challenges_need_an_online_free_friend() {
     let c = account(&app, &store, "carol");
     b.send(chessy_server::protocol::ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     c.send(chessy_server::protocol::ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     let (_b, _c) = matched(b, c);
     a.clear();

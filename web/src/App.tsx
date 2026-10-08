@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
-import { useRoute } from "./router";
-import { Auth } from "./screens/Auth";
+import { navigate, useRoute } from "./router";
+import { Auth, needsWelcome } from "./screens/Auth";
 import { Collection } from "./screens/Collection";
 import { DeckSelect } from "./screens/DeckSelect";
 import { Friends } from "./screens/Friends";
@@ -34,12 +34,19 @@ export function App() {
     return () => store.disconnect();
   }, []);
   useEffect(() => installUiClicks(), []);
+  // Première visite sans compte ni invité : l'écran de bienvenue ouvre le parcours.
+  useEffect(() => {
+    if (route.name === "home" && needsWelcome()) navigate({ name: "auth" });
+    // Une seule fois au chargement.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Un nouvel écran s'ouvre en haut de page (sinon un onglet de la barre du bas garde le défilement du précédent).
   useEffect(() => {
     window.scrollTo(0, 0); // renvoie une Promise sur les Chrome récents : ne pas la retourner comme nettoyage
   }, [route.name, route.param]);
 
-  const reward = state.over?.reward ?? state.pendingReward;
+  // Une récompense gagnée à l'instant s'ouvre depuis l'écran de victoire ; une récompense en attente (reconnexion) s'ouvre tout de suite.
+  const reward = state.over ? (state.rewardOpen ? state.over.reward : null) : state.pendingReward;
   // Une partie en cours (ou son choix de compétences) prend la place de n'importe quelle page.
   const inGame = state.game !== null || state.deckSelect !== null;
 
@@ -77,7 +84,8 @@ export function App() {
         screen = <Collection />;
         break;
       case "settings":
-        screen = <Settings />;
+        // Un compte retrouve ses réglages dans son profil ; l'invité garde la page seule.
+        screen = state.account && !state.account.guest && state.account.username ? <Profile username={state.account.username} /> : <Settings />;
         break;
       case "live":
         screen = <Live />;
@@ -112,7 +120,7 @@ export function App() {
           Connexion perdue, nouvelle tentative…
         </div>
       )}
-      {!inGame && state.connection !== "replaced" && <NavBar state={state} route={route.name} />}
+      {!inGame && state.connection !== "replaced" && route.name !== "auth" && <NavBar state={state} route={route.name} />}
       {screen}
       {reward && <RewardModal offer={reward} />}
       {state.incomingChallenge && <ChallengeModal challenge={state.incomingChallenge} />}

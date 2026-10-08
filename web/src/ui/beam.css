@@ -1,0 +1,5 @@
+.beam {
+  position: absolute; z-index: 0; top: 0; left: 50%; width: var(--beam-w, 600px); max-width: 160%; height: var(--beam-h, 520px); transform: translateX(-50%); pointer-events: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--beam-c, var(--accent)) 24%, transparent), transparent 88%);
+  clip-path: polygon(42% 0, 58% 0, 100% 100%, 0 100%);
+}

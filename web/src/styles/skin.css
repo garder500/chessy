@@ -18,7 +18,7 @@
 :root .lb-h2, :root .dk-h2 { font-size: 22px; }
 :root .skc-name, :root .gm-skill-name, :root .slot-name, :root .hi-name { font-size: 19px; letter-spacing: 0.04em; }
 :root .eyebrow, :root .field-label, :root .gm-h, :root .rw-label, :root .hi-day-title {
-  font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint);
+  font-family: var(--font-sans); font-weight: 600; font-size: 14px; letter-spacing: 0; text-transform: none; color: var(--muted);
 }
 :root .eyebrow { color: var(--accent-ink); }
 :root .mono { font-family: var(--font-sans); font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; }
@@ -37,23 +37,25 @@
 :root .btn:active:not(:disabled) { transform: translateY(1px); }
 :root .btn.pri {
   color: var(--on-accent);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 92%, #fff), var(--accent-deep));
-  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18), 0 10px 28px color-mix(in srgb, var(--accent) 28%, transparent);
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 78%, #000), var(--accent-deep));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -4px 0 rgba(0, 0, 0, 0.2);
 }
 :root .btn.pri:hover:not(:disabled) {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 80%, #fff), color-mix(in srgb, var(--accent) 75%, #00140f));
-  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18), 0 12px 32px color-mix(in srgb, var(--accent) 40%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #000), color-mix(in srgb, var(--accent) 62%, #00140f));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -4px 0 rgba(0, 0, 0, 0.2);
 }
 :root .btn.danger { color: var(--danger); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 55%, transparent); background: color-mix(in srgb, var(--danger) 8%, var(--surface)); }
+:root .btn.danger.solid { color: #fff; background: #a8322c; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.2); }
 :root .btn.ghost { color: var(--muted); background: transparent; box-shadow: inset 0 0 0 1px var(--line-2); }
 :root .btn.ghost:hover:not(:disabled) { color: var(--text); background: var(--surface); }
 /* Bouton fin à liseré d'accent (« Inviter ») */
 :root .btn.line { color: var(--accent-ink); background: transparent; box-shadow: inset 0 0 0 1px var(--accent); clip-path: none; }
 :root .btn.line:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-:root .btn.sm { height: auto; min-height: 38px; padding: 0 14px; font-size: 14px; }
+:root .btn.sm { height: auto; min-height: 44px; padding: 0 14px; font-size: 15px; }
+:root .btn.block { display: flex; width: 100%; }
 :root .btn:disabled { opacity: 0.45; cursor: default; }
 :root .lb-main { min-height: 58px; font-size: 22px; }
+@media (pointer: coarse), (max-width: 720px) { :root .btn { min-height: 52px; } :root .btn.sm { min-height: 44px; } }
 
 /* ---------- Champs, onglets segmentés ---------- */
 :root .input { height: 46px; border: 1px solid var(--line-2); border-radius: var(--radius); background: var(--surface); font-weight: 500; }
@@ -68,20 +70,20 @@
 
 /* ---------- Panneaux : coin supérieur gauche coupé ---------- */
 :root .card, :root .gm-panel {
-  background: var(--surface); border: 1px solid var(--line-2); border-radius: 0; box-shadow: none;
+  background: var(--surface); border: 1px solid var(--line-2); border-radius: 0; box-shadow: var(--shadow);
   clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut));
 }
 /* Les menus déroulants débordent de leur panneau : pas de découpe. */
 :root .nav-pop.card { clip-path: none; }
-:root .md, :root .rw, :root .gm-result, :root .gm-promo {
-  background: var(--surface); border: 1px solid var(--line-3); border-radius: 0; box-shadow: var(--shadow);
-  clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);
+:root .md, :root .gm-promo, :root .gm-result {
+  background: var(--surface); border: 1px solid var(--line-3); border-radius: 0; box-shadow: var(--shadow-pop);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut));
 }
 :root .md-backdrop { background: var(--veil); }
 :root .avatar { background: transparent; border: 1.5px solid var(--accent); color: var(--accent-ink); font-family: var(--font-sans); font-weight: 500; box-shadow: none; }
 :root .avatar.solid { background: var(--accent); color: var(--on-accent); }
-:root .tag { font-family: var(--font-display); font-weight: 700; font-size: 12px; letter-spacing: 0.12em; border-radius: var(--radius-s); padding: 1px 8px; border: 1px solid var(--line-3); background: var(--surface); color: var(--text-2); }
-:root .rar-tag { border-color: color-mix(in srgb, var(--rar) 60%, transparent); background: color-mix(in srgb, var(--rar) 12%, var(--surface)); color: var(--rar); }
+:root .tag { display: inline-block; font-family: var(--font-sans); font-weight: 500; font-size: 12.5px; letter-spacing: 0; text-transform: none; border: 0; border-radius: 3px; padding: 1px 8px; background: var(--chip); color: var(--text-2); }
+:root .rar-tag { background: color-mix(in srgb, var(--rar) 14%, var(--surface)); color: var(--rar); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rar) 55%, transparent); }
 .gems { margin-right: 6px; font-size: 9px; letter-spacing: 2px; }
 :root .presence.online { background: var(--online); }
 :root .presence { border-color: var(--surface); }
@@ -102,9 +104,9 @@
 :root .nav-chip-elo { color: var(--muted); font-size: 13px; }
 :root .nav-gear { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius); color: var(--muted); }
 :root .nav-gear:hover { color: var(--accent-ink); background: var(--surface-2); }
-:root .nav-pop { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--radius); box-shadow: var(--shadow); }
+:root .nav-pop { background: var(--surface); border: 1px solid var(--line-2); border-radius: var(--radius); box-shadow: var(--shadow-pop); }
 :root .nav-pop a:hover, :root .nav-pop button:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-:root .toast { background: var(--surface); border: 1px solid var(--line-2); border-left: 3px solid var(--accent); border-radius: 0; box-shadow: var(--shadow); }
+:root .toast { background: var(--surface); border: 1px solid var(--line-2); border-left: 3px solid var(--accent); border-radius: 0; box-shadow: var(--shadow-pop); }
 :root .toast-x:hover { background: var(--surface-3); }
 :root .out-challenge { background: var(--surface); }
 :root .conn-banner { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); }
@@ -134,7 +136,7 @@
 :root .skc, :root .gm-skill, :root .slot, :root .hi-row {
   border: 1px solid var(--line-2); border-left: 4px solid var(--fam, var(--line-3)); border-radius: 0;
   background: color-mix(in srgb, var(--fam, transparent) 5%, var(--surface)); box-shadow: none;
-  clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%, 0 12px);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut));
 }
 :root .skc { align-items: center; grid-template-columns: 66px 1fr; }
 :root button.skc:hover:not(:disabled), :root button.gm-skill:hover:not(:disabled) { background: color-mix(in srgb, var(--fam, var(--accent)) 10%, var(--surface)); }
@@ -158,7 +160,7 @@
 :root .gm-clock { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.04em; border: 1px solid var(--line-3); border-radius: 0; background: var(--surface); color: var(--text); clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
 :root .gm-clock.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 :root .gm-clock.on.low { background: var(--danger); border-color: var(--danger); color: #fff; }
-:root .gm-board { border-radius: 4px; box-shadow: 0 0 0 1px var(--line-3), var(--shadow); }
+:root .gm-board { border-radius: 4px; box-shadow: 0 0 0 1px var(--line-3); }
 :root .gm-plate.turn { border-color: var(--accent); }
 :root .gm-plate.turn::before { background: var(--accent); }
 :root .gm-turn-tag { border-color: var(--accent); color: var(--on-accent); background: var(--accent); }
@@ -224,3 +226,56 @@
 
 /* Cartouche du logo */
 .wordmark-mark { display: inline-grid; place-items: center; width: 36px; height: 36px; border: 1.5px solid var(--accent); border-radius: var(--radius-l); color: var(--accent-ink); }
+
+/* ---------- Charte v2 : moins de capitales ----------
+   Condensé en capitales pour titres, boutons, onglets et chiffres. Étiquettes, intertitres et en-têtes de tableau : Barlow 600 en casse normale. */
+:root :is(.stat-label, .pf-h, .pl-label, .frd-sec-h, .frd-sub-h, .gl-result, .rk-table th, .rp-sum thead th, .rp-side-label, .st-skill-fam, .sv-pair-cap, .gm-log-who, .hi-day-title) {
+  font-family: var(--font-sans); font-weight: 600; font-size: 14px; letter-spacing: 0; text-transform: none;
+}
+:root :is(.rk-table th, .rp-sum thead th, .rp-side-label, .sv-pair-cap, .gm-log-who) { font-size: 13px; }
+:root .rw-label { font-family: var(--font-sans); font-size: 14px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+:root .gm-h { font-size: 14px; letter-spacing: 0; }
+
+/* Écrans tactiles : cartes plus aérées, cibles de 44 px. */
+@media (pointer: coarse) {
+  :root .tag { font-size: 13px; }
+}
+
+/* ---------- Petits composants de la charte v2 ---------- */
+:root .link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 8px; border: 0; background: none; color: var(--accent-ink); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+:root .link:hover:not(:disabled) { text-decoration: underline; }
+:root .link:disabled { opacity: 0.5; cursor: default; }
+:root .hex { flex: none; display: inline-block; clip-path: polygon(50% 0, 96% 25%, 96% 75%, 50% 100%, 4% 75%, 4% 25%); }
+:root .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 2px 8px; background: var(--chip); color: var(--muted); border-radius: 3px; white-space: nowrap; }
+:root .num { font-family: var(--font-display); font-weight: 800; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+
+/* Contrôle segmenté de la charte v2 (mode, filtres, cadence) */
+:root .segs { display: flex; gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--line-2); }
+:root .sg { flex: 1; min-height: 46px; border: 0; background: none; color: var(--muted); font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+:root .sg.on { background: var(--surface); color: var(--text); box-shadow: inset 0 -3px 0 var(--accent), var(--shadow); }
+
+:root .meta { font-size: 13.5px; color: var(--faint); }
+
+/* ---------- Navigation responsive (charte v2) ----------
+   Téléphone (< 720) : barre d'onglets en bas, en-tête réduit au logo et à l'avatar (voir plus haut).
+   Tablette (720 – 1099) : rail d'icônes à gauche.
+   Ordinateur (≥ 1100) : onglets dans la barre du haut, profil à droite. */
+:root .nav-avatar { display: grid; place-items: center; width: 44px; height: 44px; text-decoration: none; }
+:root .nav-avatar .avatar { width: 36px; height: 36px; }
+@media (min-width: 720px) and (max-width: 1099px) {
+  :root .nav-tab-icon { display: block; }
+  :root .nav { position: fixed; z-index: 60; top: 0; bottom: 0; left: 0; width: 76px; height: auto; padding: env(safe-area-inset-top) 0 0; border-bottom: 0; border-right: 1px solid var(--line-2); backdrop-filter: none; background: var(--surface); }
+  :root .nav-in { height: 100%; padding: 14px 0; flex-direction: column; align-items: center; justify-content: flex-start; gap: 18px; }
+  :root .wordmark > span:last-child { display: none; }
+  :root .nav-tabs { flex: 1; align-self: stretch; flex-direction: column; gap: 4px; overflow: visible; }
+  :root .nav-tab { position: relative; height: 64px; padding: 0 2px; flex-direction: column; justify-content: center; gap: 3px; font-size: 11px; letter-spacing: 0.04em; }
+  :root .nav-tab[aria-current="page"] { color: var(--accent-ink); box-shadow: inset 3px 0 0 var(--accent); }
+  :root .nav-tab .nav-count { position: absolute; top: 8px; left: calc(50% + 6px); }
+  :root .nav-user { flex-direction: column; gap: 8px; }
+  :root .nav-chip { padding: 0 6px; }
+  :root .nav-chip-name, :root .nav-chip-elo, :root .nav-chip svg:last-child, :root .nav-guest { display: none; }
+  :root .nav-user .btn.sm { width: 64px; min-height: 40px; padding: 0 2px; font-size: 11px; letter-spacing: 0.02em; line-height: 1.1; white-space: normal; text-align: center; }
+  :root .nav-pop { left: calc(100% + 10px); right: auto; top: auto; bottom: 0; }
+  body:has(.nav) { padding-left: 76px; }
+  :root .toasts { left: calc(50% + 38px); }
+}

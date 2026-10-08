@@ -14,8 +14,14 @@ use serde_json::json;
 fn friendly_pair(app: &std::sync::Arc<chessy_server::App>) -> (Client, Client) {
     let a = guest(app);
     let b = guest(app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     into_game(a, b)
 }
 
@@ -34,8 +40,14 @@ async fn state_carries_clock_opponent_and_draw_offer() {
     let (app, store) = new_app(HubConfig::default());
     let mut a = account(&app, &store, "alice");
     let b = account(&app, &store, "bob");
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     a.color = serde_json::from_value(a.next("deck_select")["you"].clone()).ok();
     a.pick_nothing();
     b.pick_nothing();
@@ -177,8 +189,14 @@ async fn acting_in_time_defuses_the_old_flag_timer() {
     let mut b = guest(&app);
     store.set_deck(&a.id, &[SkillId::Teleportation]).unwrap();
     store.set_deck(&b.id, &[SkillId::Teleportation]).unwrap();
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     a.color = serde_json::from_value(a.next("deck_select")["you"].clone()).ok();
     a.pick(&[SkillId::Teleportation]);
     b.pick(&[SkillId::Teleportation]);
@@ -209,8 +227,14 @@ async fn time_does_not_run_during_deck_selection() {
     let (app, _) = new_app(clock_config(1_000, 0));
     let mut a = guest(&app);
     let mut b = guest(&app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     a.pick_nothing();
     tokio::time::sleep(Duration::from_millis(400)).await;
     b.pick_nothing();
@@ -294,8 +318,14 @@ async fn offering_back_accepts_and_phases_are_checked() {
     assert_eq!(a.error_code(), "not_in_game");
 
     let b = guest(&app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     a.send(ClientMsg::OfferDraw);
     assert_eq!(
         a.error_code(),
@@ -464,7 +494,10 @@ async fn leaving_declines_the_rematch() {
 
     // The opponent starts looking for another game.
     let (a, mut b) = finished_game(&app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     assert!(b.try_next("rematch_declined").is_some());
     b.send(ClientMsg::RematchRequest);
     assert_eq!(b.error_code(), "no_rematch");

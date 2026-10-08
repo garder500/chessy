@@ -1,45 +1,34 @@
-.au-page { max-width: 1200px; margin: 0 auto; padding: 56px 48px 72px; }
-.au-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 460px); gap: 80px; align-items: center; min-height: calc(100vh - 64px - 128px); }
-.au-title { font-size: clamp(40px, 5vw, 64px); line-height: 1.02; letter-spacing: -0.035em; font-weight: 600; margin: 14px 0 18px; }
-.au-lead { color: var(--text-2); font-size: 17px; max-width: 460px; }
-.au-args { list-style: none; margin: 40px 0 0; padding: 0; display: grid; gap: 4px; max-width: 460px; }
-.au-args li { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-top: 1px solid var(--line); }
-.au-ico { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border: 1px solid var(--line-2); border-radius: var(--radius); color: var(--text-2); background: var(--surface); }
-.au-args strong { display: block; font-weight: 600; font-size: 15px; }
-.au-arg-text { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; }
+/* Bienvenue : pièce sous le faisceau, trois arguments, actions en bas. Le formulaire vit dans un panneau (ui/Sheet). */
+.wl { position: relative; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 0 20px calc(20px + env(safe-area-inset-bottom)); overflow: hidden; }
+.wl-mid { position: relative; z-index: 1; flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 12px; padding-top: 24px; }
+.wl-piece { height: 150px; width: auto; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.35)); }
+.wl-title { margin: 8px 0 0; font-size: 64px; letter-spacing: 0.08em; line-height: 1; }
+.wl-lead { margin: 0; color: var(--muted); font-size: 18px; }
+.wl-args { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.wl-args li { display: flex; gap: 12px; align-items: center; }
+.wl-hex { width: 18px; height: 20px; }
+.wl-act { position: relative; z-index: 1; width: min(420px, 100%); display: flex; flex-direction: column; gap: 10px; }
+.wl-guest { align-self: center; }
 
-.au-card { padding: 28px; }
-.au-form { margin-top: 22px; display: grid; gap: 18px; }
+.au-form { display: grid; gap: 14px; }
 .au-field { min-width: 0; }
-.au-hint { font-size: 12.5px; color: var(--faint); margin-top: 7px; }
+.au-field .field-label { margin-bottom: 6px; }
+.au-hint { font-size: 13.5px; color: var(--faint); margin-top: 6px; }
 .au-pw { position: relative; }
 .au-pw .input { padding-right: 96px; }
-.au-eye { position: absolute; right: 6px; top: 6px; height: 38px; padding: 0 12px; border: 0; background: transparent; color: var(--muted); font-size: 13px; border-radius: var(--radius-s); cursor: pointer; }
-.au-eye:hover { color: var(--text); background: var(--surface-2); }
+.au-eye { position: absolute; right: 4px; top: 4px; height: 44px; padding: 0 12px; border: 0; background: transparent; color: var(--accent-ink); font-size: 14px; font-weight: 600; cursor: pointer; }
+.au-eye:hover { color: var(--text); }
 
-/* Jauge : 4 segments blanc cassé, aucune couleur sémantique. */
 .au-meter { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
 .au-meter-bars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; flex: 1; }
 .au-meter-bars span { height: 4px; border-radius: 2px; background: var(--line-2); transition: background 0.2s; }
-.au-meter-bars span.on { background: var(--text); }
-.au-meter-label { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); min-width: 120px; text-align: right; }
+.au-meter-bars span.on { background: var(--accent); }
+.au-meter-label { font-size: 13px; color: var(--muted); min-width: 120px; text-align: right; }
 
-.au-form-err { font-size: 13.5px; color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 8%, transparent); border-radius: var(--radius-s); padding: 10px 14px; }
-.au-submit { width: 100%; }
-.au-sep { display: flex; align-items: center; gap: 14px; margin: 22px 0 16px; color: var(--faint); font-size: 12px; }
-.au-sep::before, .au-sep::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-.au-guest { width: 100%; }
-.au-note { font-size: 12.5px; color: var(--faint); text-align: center; margin-top: 12px; }
+.au-form-err { font-size: 14px; color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--line)); background: color-mix(in srgb, var(--danger) 8%, transparent); border-radius: var(--radius-s); padding: 10px 14px; }
+.au-switch { margin: 0; text-align: center; color: var(--muted); font-size: 14.5px; }
 
-@media (max-width: 920px) {
-  .au-page { padding: 32px 20px 56px; }
-  .au-wrap { grid-template-columns: 1fr; gap: 40px; min-height: 0; }
-  .au-args { margin-top: 24px; }
-  .au-card { padding: 20px; }
-}
-/* Téléphone : le formulaire monte sous l'accroche ; les arguments restent sur grand écran. */
-@media (max-width: 720px) {
-  .au-page { padding: 24px 16px 40px; }
-  .au-wrap { gap: 20px; }
-  .au-args { display: none; }
+@media (min-width: 900px) {
+  .wl-piece { height: 190px; }
+  .wl-title { font-size: 84px; }
 }

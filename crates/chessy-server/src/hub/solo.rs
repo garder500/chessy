@@ -82,7 +82,7 @@ impl Hub {
             bot: human.opposite(),
             elo,
         };
-        self.open_session(white, black, false, GameKind::Solo, Some(seat));
+        self.open_session(white, black, false, GameKind::Solo, Some(seat), None);
     }
 
     // ---- the bot's turn --------------------------------------------------

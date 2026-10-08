@@ -11,6 +11,30 @@ use crate::hub::SpectatorView;
 
 pub type PlayerId = String;
 
+/// Game length a player asks for. Absent means the server's default clock (`HubConfig::clock_initial`).
+/// Players only meet an opponent who asked for the same length.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TimeControl {
+    /// Blitz, 5 minutes.
+    Short,
+    /// 15 minutes.
+    Medium,
+    /// 30 minutes.
+    Long,
+}
+
+impl TimeControl {
+    /// Time on each clock at the start of the game.
+    pub fn initial(self) -> std::time::Duration {
+        std::time::Duration::from_secs(match self {
+            TimeControl::Short => 5 * 60,
+            TimeControl::Medium => 15 * 60,
+            TimeControl::Long => 30 * 60,
+        })
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClientMsg {
@@ -22,8 +46,13 @@ pub enum ClientMsg {
     QueueJoin {
         #[serde(default)]
         ranked: Option<bool>,
+        #[serde(default)]
+        time: Option<TimeControl>,
     },
-    CreateRoom,
+    CreateRoom {
+        #[serde(default)]
+        time: Option<TimeControl>,
+    },
     JoinRoom {
         code: String,
     },
@@ -70,6 +99,8 @@ pub enum ClientMsg {
     },
     Challenge {
         username: String,
+        #[serde(default)]
+        time: Option<TimeControl>,
     },
     ChallengeRespond {
         username: String,

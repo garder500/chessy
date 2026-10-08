@@ -27,8 +27,9 @@ export function dragScale(touch: boolean): number {
 }
 
 /** Marge, en pixels du canvas, où un appui tactile compte encore pour la case de bord la plus proche (le cadre n'est pas une zone morte). */
+export const TOUCH_SLOP = 24;
 export function touchSlop(touch: boolean): number {
-  return touch ? FRAME : 0;
+  return touch ? TOUCH_SLOP : 0;
 }
 
 /** Côté d'une case en pixels CSS pour un plateau affiché sur `boardCssPx` de large (cadre compris). */

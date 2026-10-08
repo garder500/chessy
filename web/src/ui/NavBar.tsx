@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { hrefFor, navigate, type Route } from "../router";
 import { store, type AppState } from "../store";
 
@@ -10,6 +10,19 @@ const TABS: { name: Route["name"]; label: string; icon: string }[] = [
   { name: "friends", label: "Amis", icon: "M9 4.5a3.5 3.5 0 110 7 3.5 3.5 0 010-7zM2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.8a3.5 3.5 0 010 6.4M18.5 14.8c1.6.8 2.6 2.5 3 5.2" },
   { name: "collection", label: "Collection", icon: "M5 6h11v15H5zM8 3h11a1 1 0 011 1v14" },
 ];
+
+const PHONE = "(max-width: 719px)";
+function usePhone(): boolean {
+  return useSyncExternalStore(
+    (fn) => {
+      const mq = window.matchMedia(PHONE);
+      mq.addEventListener("change", fn);
+      return () => mq.removeEventListener("change", fn);
+    },
+    () => window.matchMedia(PHONE).matches,
+    () => false,
+  );
+}
 
 export function Wordmark() {
   return (
@@ -88,6 +101,7 @@ export function NavBar({ state, route }: { state: AppState; route: Route["name"]
 
 function UserMenu({ username, elo }: { username: string; elo: number }) {
   const [open, setOpen] = useState(false);
+  const phone = usePhone();
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -105,6 +119,15 @@ function UserMenu({ username, elo }: { username: string; elo: number }) {
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  // Téléphone : l'avatar ouvre directement le profil, qui regroupe réglages et déconnexion.
+  if (phone) {
+    return (
+      <a className="nav-avatar" href={hrefFor({ name: "profile", param: username })} aria-label={`Profil et réglages de ${username}`}>
+        <span className="avatar sm">{initialOf(username)}</span>
+      </a>
+    );
+  }
 
   return (
     <div className="nav-menu" ref={root}>

@@ -13,6 +13,7 @@
   --surface: #151a1b;
   --surface-2: #1a2021;
   --surface-3: #212929;
+  --chip: #232b2b;
   --sunken: #0a0d0e;
   --line: #232b2b;
   --line-2: #2d3737;
@@ -32,15 +33,16 @@
   --warn: #f2bb4a;
   --hot: #ff5a5f;
   --gold: #f2bb4a;
-  --shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+  --shadow: none;
+  --shadow-pop: 0 18px 48px rgba(0, 0, 0, 0.45);
   --veil: rgba(6, 9, 9, 0.72);
 
-  /* Rareté : gris, turquoise, bleu, violet, or ; le nombre de gemmes double la couleur. */
-  --rar-common: #9aa7a4;
-  --rar-uncommon: #35d6c4;
-  --rar-rare: #4c8dff;
-  --rar-epic: #b05cff;
-  --rar-legendary: #ffb02e;
+  /* Rareté v2 : gris, tilleul, bleu, violet, or, à luminosité égale ; la rareté est toujours écrite en plus de sa couleur. */
+  --rar-common: #a7b0ad;
+  --rar-uncommon: #9cc65a;
+  --rar-rare: #6aa1f2;
+  --rar-epic: #b48af0;
+  --rar-legendary: #f2a93b;
   /* Familles : rouge, turquoise, bleu clair, lilas, orange. */
   --fam-attack: #ff6b6b;
   --fam-defense: #4dd0e1;
@@ -56,6 +58,9 @@
   /* Coins coupés : en haut à gauche pour les panneaux, en diagonale pour les boutons. */
   --cut: 14px;
   --cut-s: 8px;
+  /* Plateau « Jade » (défaut) : repris par les aperçus DOM. */
+  --sq-l: #e3ece7;
+  --sq-d: #6f948a;
   --radius-s: 2px;
   --radius: 3px;
   --radius-l: 4px;
@@ -63,19 +68,20 @@
 }
 
 :root[data-mode="light"] {
-  --bg: #eef1f0;
-  --bg-2: #e5e9e8;
-  --surface: #f9fbfa;
-  --surface-2: #f3f6f5;
-  --surface-3: #e7ecea;
-  --sunken: #e9edec;
-  --line: #d9dfdd;
-  --line-2: #c6cecc;
-  --line-3: #9aa5a2;
+  --bg: #e2e8e6;
+  --bg-2: #d9e0de;
+  --surface: #ffffff;
+  --surface-2: #f4f7f6;
+  --surface-3: #e6ecea;
+  --chip: #e6ecea;
+  --sunken: #e6ebe9;
+  --line: #d3dad8;
+  --line-2: #c3ccc9;
+  --line-3: #97a3a0;
   --text: #121817;
   --text-2: #2c3634;
-  --muted: #56615e;
-  --faint: #6b7774;
+  --muted: #4d5855;
+  --faint: #5f6b68;
   --accent-ink: color-mix(in srgb, var(--accent) 58%, #000);
   --accent-deep: color-mix(in srgb, var(--accent) 50%, #002a20);
   --online: #2fbf84;
@@ -83,14 +89,15 @@
   --warn: #a86d00;
   --hot: #d93a40;
   --gold: #a86d00;
-  --shadow: 0 18px 44px rgba(20, 40, 36, 0.16);
+  --shadow: 0 1px 0 rgba(18, 24, 23, 0.04), 0 6px 18px rgba(18, 24, 23, 0.08);
+  --shadow-pop: 0 18px 44px rgba(20, 40, 36, 0.18);
   --veil: rgba(228, 234, 232, 0.78);
 
   --rar-common: #6c7774;
-  --rar-uncommon: #11907f;
+  --rar-uncommon: #5c8a1f;
   --rar-rare: #2e64d6;
-  --rar-epic: #8a3ad6;
-  --rar-legendary: #c27a00;
+  --rar-epic: #7a45c9;
+  --rar-legendary: #b06a00;
   --fam-attack: #d64545;
   --fam-defense: #138a9a;
   --fam-mobility: #3f6fd8;

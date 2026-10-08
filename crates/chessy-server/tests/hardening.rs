@@ -128,8 +128,14 @@ async fn friendly_games_pay_no_reward() {
     // Two guests, even in a long game.
     let (app, _) = new_app(HubConfig::default());
     let (a, b) = (guest(&app), guest(&app));
-    a.send(ClientMsg::QueueJoin { ranked: Some(true) });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: Some(true),
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let (mut a, mut b) = matched(a, b);
     mate(&a, &b);
     assert!(a.next("game_over")["reward"].is_null());
@@ -139,7 +145,7 @@ async fn friendly_games_pay_no_reward() {
     let (app, store) = new_app(HubConfig::default());
     let (mut host, mut joiner) = (account(&app, &store, "alice"), account(&app, &store, "bob"));
     host.clear();
-    host.send(ClientMsg::CreateRoom);
+    host.send(ClientMsg::CreateRoom { time: None });
     let code = host.next("lobby")["status"]["code"]
         .as_str()
         .unwrap()
@@ -168,9 +174,11 @@ async fn friendly_games_pay_no_reward() {
     let (a, b) = (account(&app, &store, "alice"), account(&app, &store, "bob"));
     a.send(ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     b.send(ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     let (mut a, mut b) = matched(a, b);
     mate(&a, &b);
@@ -308,8 +316,14 @@ async fn rated_rematches_between_the_same_pair_stop_counting_after_three() {
     let (app, store) = new_app(HubConfig::default());
     let mut a = account(&app, &store, "alice");
     let mut b = account(&app, &store, "bob");
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     for game in 1..=5 {
         let rated = start(&mut a, &mut b);
         assert_eq!(rated, game <= 3, "game {game}");
@@ -340,22 +354,37 @@ async fn the_ranked_queue_does_not_pair_a_capped_pair_again() {
     });
     let mut a = account(&app, &store, "alice");
     let mut b = account(&app, &store, "bob");
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     assert!(start(&mut a, &mut b));
     short_game(&mut a, &mut b);
 
     // Same two again: they wait instead of being matched.
     a.clear();
     b.clear();
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     assert!(a.try_next("deck_select").is_none() && b.try_next("deck_select").is_none());
     assert_eq!(b.last("lobby")["status"]["type"], "queued");
 
     // A third account is paired with one of them instead.
     let mut c = account(&app, &store, "carol");
-    c.send(ClientMsg::QueueJoin { ranked: None });
+    c.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let paired = usize::from(a.try_next("deck_select").is_some())
         + usize::from(b.try_next("deck_select").is_some());
     assert_eq!(paired, 1);
@@ -373,15 +402,27 @@ async fn a_capped_pair_alone_in_the_queue_is_paired_anyway_for_an_unrated_game()
     });
     let mut a = account(&app, &store, "alice");
     let mut b = account(&app, &store, "bob");
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     assert!(start(&mut a, &mut b));
     short_game(&mut a, &mut b);
 
     a.clear();
     b.clear();
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     // Not at once: someone else is preferred for a moment.
     assert!(a.try_next("deck_select").is_none() && b.try_next("deck_select").is_none());
     let da = a.wait_for("deck_select").await;
@@ -408,8 +449,14 @@ async fn games_older_than_the_window_do_not_count() {
     );
     let mut a = account(&app, &store, "alice");
     let mut b = account(&app, &store, "bob");
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     assert!(start(&mut a, &mut b));
     short_game(&mut a, &mut b);
     db.raw()
@@ -443,8 +490,11 @@ async fn logging_out_drops_the_connection_that_used_the_session() {
     assert_eq!(alice.next("error")["code"], "session_revoked");
     // Nothing the revoked connection sends is acted on.
     alice.clear();
-    alice.send(ClientMsg::QueueJoin { ranked: None });
-    alice.send(ClientMsg::CreateRoom);
+    alice.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    alice.send(ClientMsg::CreateRoom { time: None });
     assert!(alice.try_next("lobby").is_none());
     assert!(!app.is_connected(&alice.id));
     // Other connections are untouched.
@@ -472,7 +522,10 @@ async fn logging_out_one_session_keeps_the_other_session_connected() {
         .await;
     assert_eq!(status, 204);
     on_second.clear();
-    on_second.send(ClientMsg::QueueJoin { ranked: None });
+    on_second.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     assert_eq!(on_second.next("lobby")["status"]["type"], "queued");
     assert!(on_second.try_next("error").is_none());
 }
@@ -578,7 +631,10 @@ async fn the_lobby_is_capped() {
         set_rating(&db, &p.id, elo, 0);
     }
     for p in &mut players {
-        p.send(ClientMsg::QueueJoin { ranked: None });
+        p.send(ClientMsg::QueueJoin {
+            ranked: None,
+            time: None,
+        });
     }
     assert_eq!(players[0].last("lobby")["status"]["type"], "queued");
     assert_eq!(players[1].last("lobby")["status"]["type"], "queued");
@@ -588,9 +644,9 @@ async fn the_lobby_is_capped() {
         p.send(ClientMsg::LeaveLobby);
         p.clear();
     }
-    players[0].send(ClientMsg::CreateRoom);
-    players[1].send(ClientMsg::CreateRoom);
-    players[2].send(ClientMsg::CreateRoom);
+    players[0].send(ClientMsg::CreateRoom { time: None });
+    players[1].send(ClientMsg::CreateRoom { time: None });
+    players[2].send(ClientMsg::CreateRoom { time: None });
     assert!(players[1].try_next("lobby").is_some());
     assert_eq!(players[2].error_code(), "rooms_full");
 }
@@ -611,8 +667,14 @@ async fn flood_during_a_timed_game(config: HubConfig) -> (Duration, Duration, bo
     });
     let spammer = account(&app, &store, "spammer");
     let (a, b) = (guest(&app), guest(&app));
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let (_white, mut black) = into_game(a, b);
     let started = Instant::now();
     app.reset_lock_hold();

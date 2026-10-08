@@ -1,0 +1,21 @@
+/* Panneau du bas (charte v2) : monte du bas sur téléphone, fenêtre centrée dès 720 px. */
+.sheet-scrim { position: fixed; inset: 0; z-index: 80; display: flex; flex-direction: column; justify-content: flex-end; background: var(--veil); animation: sheet-fade 0.18s both; }
+.sheet {
+  position: relative; display: flex; flex-direction: column; gap: 10px; max-height: 92dvh; overflow-y: auto; outline: none;
+  padding: 8px 16px calc(18px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--line-3);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut)); animation: sheet-up 0.24s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.sheet-grab { width: 40px; height: 4px; flex: none; border-radius: 2px; background: var(--line-3); align-self: center; margin-bottom: 4px; }
+.sheet-head { display: flex; align-items: center; min-height: 44px; }
+.sheet-title { flex: 1; margin: 0; font-size: 21px; letter-spacing: 0.08em; }
+.sheet-head:has(.sr-only) { justify-content: flex-end; }
+.sheet-x { width: 44px; height: 44px; flex: none; display: grid; place-items: center; margin-right: -8px; border: 0; background: none; color: var(--text); cursor: pointer; }
+.sheet-sub { margin: 0; color: var(--muted); }
+@keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
+@keyframes sheet-fade { from { opacity: 0; } }
+@media (min-width: 720px) {
+  .sheet-scrim { align-items: center; justify-content: center; padding: 24px; }
+  .sheet { width: min(460px, 100%); padding-bottom: 20px; border: 1px solid var(--line-3); box-shadow: var(--shadow-pop); }
+  .sheet-grab { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .sheet, .sheet-scrim { animation: none; } }

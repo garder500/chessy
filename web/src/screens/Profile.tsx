@@ -1,13 +1,16 @@
-import { useState } from "react";
-import { hrefFor } from "../router";
+import { useEffect, useState } from "react";
+import { hrefFor, navigate } from "../router";
 import { store, useAppState } from "../store";
+import { ChallengeSheet } from "../ui/ChallengeSheet";
 import { EloChart } from "../ui/EloChart";
 import { RecentGames } from "../ui/RecentGames";
 import { StatTile } from "../ui/StatTile";
 import { initialOf, memberSince, sameUser, winRate } from "../ui/social";
 import { tierOf } from "../ui/tier";
 import { useProfile } from "../ui/useProfile";
+import { SettingsBody } from "./Settings";
 import "./profile.css";
+import "./settings.css";
 
 interface Props {
   username: string;
@@ -26,6 +29,8 @@ function streakHint(streak: number): string | undefined {
 
 export function Profile({ username }: Props) {
   const { state, reload } = useProfile(username);
+  const { account } = useAppState();
+  const isMe = !!account && !account.guest && sameUser(account.username, username);
 
   if (state.status === "loading") {
     return (
@@ -58,12 +63,14 @@ export function Profile({ username }: Props) {
             Réessayer
           </button>
         </div>
+        {isMe && <ProfileSettings />}
       </main>
     );
   }
 
   const p = state.profile;
   const rate = winRate(p.wins, p.games);
+  const mine = !!account && !account.guest && sameUser(account.username, p.username);
 
   return (
     <main className="pf-page">
@@ -108,7 +115,40 @@ export function Profile({ username }: Props) {
           <RecentGames games={p.recent.slice(0, 10)} />
         </section>
       </div>
+
+      {mine && <ProfileSettings />}
     </main>
+  );
+}
+
+/** Réglages du compte, dans le profil : apparence, sons et jeu, puis mes parties et déconnexion. */
+function ProfileSettings() {
+  // `#/settings` ouvre le profil directement sur cette section.
+  useEffect(() => {
+    if (location.hash.startsWith("#/settings")) document.getElementById("reglages")?.scrollIntoView();
+  }, []);
+  return (
+    <section id="reglages" className="pf-settings" aria-labelledby="pf-set-h">
+      <h2 id="pf-set-h" className="pf-h pf-set-h">
+        Réglages
+      </h2>
+      <SettingsBody />
+      <div className="card pf-card pf-q-foot">
+        <a className="btn block" href={hrefFor({ name: "games" })}>
+          Mes parties
+        </a>
+        <button
+          type="button"
+          className="btn block"
+          onClick={() => {
+            void store.logout();
+            navigate({ name: "home" });
+          }}
+        >
+          Se déconnecter
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -116,6 +156,7 @@ export function Profile({ username }: Props) {
 function Relation({ username }: { username: string }) {
   const { account, friends, outgoingChallenge, connection } = useAppState();
   const [requested, setRequested] = useState(false);
+  const [sheet, setSheet] = useState(false);
   const online = connection === "open";
 
   if (!account) return null;
@@ -154,9 +195,12 @@ function Relation({ username }: { username: string }) {
             </button>
           </>
         ) : (
-          <button type="button" className="btn pri" disabled={!can} onClick={() => store.send({ type: "challenge", username: friend.username })}>
-            Défier
-          </button>
+          <>
+            <button type="button" className="btn pri" disabled={!can} onClick={() => setSheet(true)}>
+              Défier
+            </button>
+            <ChallengeSheet friend={sheet ? friend : null} onClose={() => setSheet(false)} />
+          </>
         )}
         {reason && !pending && <span className="muted pf-reason">{reason}</span>}
       </div>

@@ -3,7 +3,8 @@ import type { Color, PieceKind } from "../protocol";
 import { luminance, mixHex } from "../theme";
 
 export const TILE = 80;
-export const FRAME = 24;
+/** Marge autour des 8 × 8 cases : le plateau plat « Jade » va bord à bord, la marge ne sert qu'aux plateaux à cadre. */
+export const FRAME = 8;
 export const BOARD_PX = TILE * 8;
 export const SIZE = BOARD_PX + FRAME * 2;
 
@@ -123,20 +124,8 @@ export function drawBoard(canvas: HTMLCanvasElement, orientation: Color, colors:
   ctx.fillRect(FRAME, FRAME, BOARD_PX, 10);
 }
 
-/** Plateau moderne : cases plates, cadre sombre à filet cyan, repères dans les cases (sombres sur clair, clairs sur sombre). */
-function cssVar(name: string, fallback: string): string {
-  if (typeof document === "undefined") return fallback;
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return v || fallback;
-}
-
+/** Plateau plat (Jade, Glacier) : cases pleines, bord à bord (les cases du pourtour s'étendent dans la marge), repères dans les cases. */
 function drawFlatBoard(ctx: CanvasRenderingContext2D, orientation: Color, colors: BoardColors) {
-  // Cadre Jade : la surface du thème courant, filet neutre (pas de lueur colorée).
-  ctx.fillStyle = cssVar("--surface-2", "#1a2021");
-  ctx.fillRect(0, 0, SIZE, SIZE);
-  ctx.strokeStyle = cssVar("--line-3", "#43504f");
-  ctx.lineWidth = 2;
-  ctx.strokeRect(FRAME - 5, FRAME - 5, BOARD_PX + 10, BOARD_PX + 10);
   ctx.font = '700 17px "Barlow Condensed", system-ui, sans-serif';
   ctx.textBaseline = "top";
   for (let row = 0; row < 8; row++) {
@@ -147,8 +136,12 @@ function drawFlatBoard(ctx: CanvasRenderingContext2D, orientation: Color, colors
       const rank = orientation === "white" ? 7 - row : row;
       const light = (file + rank) % 2 === 1;
       ctx.fillStyle = light ? colors.light : colors.dark;
-      ctx.fillRect(x, y, TILE, TILE);
-      ctx.fillStyle = light ? "#5a6f99" : "#eaf0fb";
+      const left = col === 0 ? FRAME : 0;
+      const top = row === 0 ? FRAME : 0;
+      const right = col === 7 ? FRAME : 0;
+      const bottom = row === 7 ? FRAME : 0;
+      ctx.fillRect(x - left, y - top, TILE + left + right, TILE + top + bottom);
+      ctx.fillStyle = light ? colors.dark : colors.light;
       if (col === 0) {
         ctx.textAlign = "left";
         ctx.fillText(String(rank + 1), x + 6, y + 5);

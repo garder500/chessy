@@ -1,7 +1,10 @@
-import { useId, useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent } from "react";
+import { useId, useState } from "react";
+import type { FormEvent } from "react";
 import { api, ApiError } from "../api";
 import { navigate } from "../router";
+import { Beam } from "../ui/Beam";
+import { HeroPiece } from "../ui/HeroPiece";
+import { Sheet } from "../ui/Sheet";
 import { readToken, store, useAppState } from "../store";
 import {
   hasErrors,
@@ -16,55 +19,38 @@ import "./auth.css";
 type Touched = Record<"username" | "password" | "confirm", boolean>;
 const NOT_TOUCHED: Touched = { username: false, password: false, confirm: false };
 
-const svgProps = {
-  width: 22,
-  height: 22,
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.6,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
+const WELCOME_KEY = "chessy.welcomed";
+
+/** Marque l'écran de bienvenue comme vu : l'application ouvre ensuite directement sur Jouer. */
+export function markWelcomed() {
+  try {
+    localStorage.setItem(WELCOME_KEY, "1");
+  } catch {
+    // Mode privé : l'écran reviendra au prochain chargement.
+  }
+}
+
+export function needsWelcome(): boolean {
+  try {
+    return !readToken() && !localStorage.getItem(WELCOME_KEY);
+  } catch {
+    return false;
+  }
+}
 
 const ARGUMENTS = [
-  {
-    title: "Un classement Elo",
-    text: "Grimpez de Novice à Maître en gagnant des parties classées.",
-    icon: (
-      <svg {...svgProps}>
-        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
-      </svg>
-    ),
-  },
-  {
-    title: "Vos amis, en direct",
-    text: "Voyez qui est en ligne et lancez un défi en un clic.",
-    icon: (
-      <svg {...svgProps}>
-        <circle cx="9" cy="8" r="3.5" />
-        <path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6" />
-        <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.4c2 .7 3.5 2.6 3.5 5.6" />
-      </svg>
-    ),
-  },
-  {
-    title: "Votre deck vous suit",
-    text: "Vos compétences sont conservées sur tous vos appareils.",
-    icon: (
-      <svg {...svgProps}>
-        <rect x="3" y="6" width="12" height="15" rx="2" />
-        <path d="M8 3h11a2 2 0 0 1 2 2v12" />
-      </svg>
-    ),
-  },
+  { text: "Parties de 3 à 10 minutes", color: "var(--accent)" },
+  { text: "Trois compétences par partie", color: "var(--rar-rare)" },
+  { text: "Gagnez en classée, forgez la vôtre", color: "var(--rar-legendary)" },
 ];
 
 export function Auth() {
   const uid = useId();
   const { account } = useAppState();
-  const [mode, setMode] = useState<AuthMode>("login");
+  const [sheet, setSheet] = useState<AuthMode | null>(null);
+  // Le dernier mode choisi reste actif pendant la fermeture du panneau.
+  const [lastMode, setLastMode] = useState<AuthMode>("register");
+  const mode: AuthMode = sheet ?? lastMode;
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -73,7 +59,6 @@ export function Auth() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<{ field: ServerField; message: string } | null>(null);
-  const tabRefs = useRef<Record<AuthMode, HTMLButtonElement | null>>({ login: null, register: null });
 
   const errors: FormErrors = validateForm(mode, { username, password, confirm });
   const strength = passwordStrength(password);
@@ -93,20 +78,13 @@ export function Auth() {
   const clearServer = () => setServerError(null);
 
   function switchMode(next: AuthMode) {
-    if (next === mode) return;
-    setMode(next);
+    if (next === mode && sheet) return;
+    setSheet(next);
+    setLastMode(next);
     setTouched(NOT_TOUCHED);
     setSubmitted(false);
     setServerError(null);
     setConfirm("");
-  }
-
-  function onTabKey(e: KeyboardEvent<HTMLButtonElement>) {
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-    e.preventDefault();
-    const next: AuthMode = mode === "login" ? "register" : "login";
-    switchMode(next);
-    tabRefs.current[next]?.focus();
   }
 
   async function onSubmit(e: FormEvent) {
@@ -127,6 +105,7 @@ export function Auth() {
         res = await api.login({ username, password });
       }
       store.applyAuth(res.token);
+      markWelcomed();
       navigate({ name: "home" });
     } catch (err) {
       setServerError(mapAuthError(err instanceof ApiError ? err.code : "unknown"));
@@ -137,182 +116,172 @@ export function Auth() {
   const id = (name: string) => `${uid}-${name}`;
   const formError = serverError?.field === "form" ? serverError.message : null;
 
-  return (
-    <main className="au-page">
-      <div className="au-wrap">
-        <section className="au-pitch" aria-labelledby={id("title")}>
-          <p className="eyebrow">Chessy</p>
-          <h1 id={id("title")} className="au-title">
-            Rejoignez l'arène.
-          </h1>
-          <p className="au-lead">
-            Les échecs, avec des compétences. Créez un compte pour jouer en classé et retrouver vos amis.
-          </p>
-          <ul className="au-args">
-            {ARGUMENTS.map((a) => (
-              <li key={a.title}>
-                <span className="au-ico">{a.icon}</span>
-                <span>
-                  <strong>{a.title}</strong>
-                  <span className="au-arg-text">{a.text}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+  const closeSheet = () => {
+    setSheet(null);
+    setTouched(NOT_TOUCHED);
+    setSubmitted(false);
+    setServerError(null);
+  };
+  const title = register ? "Créer un compte" : "Se connecter";
 
-        <section className="card au-card" aria-label="Authentification">
-          <div className="seg" role="tablist" aria-label="Mode">
-            {(["login", "register"] as const).map((m) => (
-              <button
-                key={m}
-                ref={(el) => {
-                  tabRefs.current[m] = el;
-                }}
-                type="button"
-                role="tab"
-                id={id(`tab-${m}`)}
-                aria-selected={mode === m}
-                aria-controls={id("panel")}
-                tabIndex={mode === m ? 0 : -1}
-                onClick={() => switchMode(m)}
-                onKeyDown={onTabKey}
-              >
-                {m === "login" ? "Connexion" : "Inscription"}
-              </button>
-            ))}
+  return (
+    <main className="wl">
+      <Beam width={620} height={540} />
+      <div className="wl-mid">
+        <HeroPiece kind="king" className="wl-piece" />
+        <h1 id={id("title")} className="wl-title">
+          Chessy
+        </h1>
+        <p className="wl-lead">Les échecs, avec des compétences.</p>
+        <ul className="wl-args">
+          {ARGUMENTS.map((a) => (
+            <li key={a.text}>
+              <span className="hex wl-hex" style={{ background: a.color }} aria-hidden="true" />
+              {a.text}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="wl-act">
+        <button type="button" className="btn pri block" onClick={() => switchMode("register")}>
+          Créer un compte
+        </button>
+        <button type="button" className="btn block" onClick={() => switchMode("login")}>
+          Se connecter
+        </button>
+        <button
+          type="button"
+          className="link wl-guest"
+          onClick={() => {
+            markWelcomed();
+            navigate({ name: "home" });
+          }}
+        >
+          Jouer en invité
+        </button>
+      </div>
+
+      <Sheet open={sheet !== null} title={title} onClose={closeSheet}>
+        <form className="au-form" onSubmit={onSubmit} noValidate>
+          <div className="au-field">
+            <label className="field-label" htmlFor={id("username")}>
+              Pseudo
+            </label>
+            <input
+              id={id("username")}
+              className={`input${usernameErr ? " err" : ""}`}
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                clearServer();
+              }}
+              onBlur={() => touch("username")}
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              maxLength={32}
+              aria-invalid={!!usernameErr}
+              aria-describedby={id("username-msg")}
+              disabled={loading}
+            />
+            <div id={id("username-msg")} aria-live="polite">
+              {usernameErr ? (
+                <p className="field-msg">{usernameErr}</p>
+              ) : register ? (
+                <p className="au-hint">3 à 16 caractères : lettres, chiffres ou _.</p>
+              ) : null}
+            </div>
           </div>
 
-          <form
-            id={id("panel")}
-            role="tabpanel"
-            aria-labelledby={id(`tab-${mode}`)}
-            className="au-form"
-            onSubmit={onSubmit}
-            noValidate
-          >
-            <div className="au-field">
-              <label className="field-label" htmlFor={id("username")}>
-                Pseudo
-              </label>
+          <div className="au-field">
+            <label className="field-label" htmlFor={id("password")}>
+              Mot de passe
+            </label>
+            <div className="au-pw">
               <input
-                id={id("username")}
-                className={`input${usernameErr ? " err" : ""}`}
-                value={username}
+                id={id("password")}
+                className={`input${passwordErr ? " err" : ""}`}
+                type={showPw ? "text" : "password"}
+                value={password}
                 onChange={(e) => {
-                  setUsername(e.target.value);
+                  setPassword(e.target.value);
                   clearServer();
                 }}
-                onBlur={() => touch("username")}
-                autoComplete="username"
-                autoCapitalize="none"
-                spellCheck={false}
-                maxLength={32}
-                aria-invalid={!!usernameErr}
-                aria-describedby={id("username-msg")}
+                onBlur={() => touch("password")}
+                autoComplete={register ? "new-password" : "current-password"}
+                maxLength={160}
+                aria-invalid={!!passwordErr}
+                aria-describedby={id("password-msg")}
                 disabled={loading}
               />
-              <div id={id("username-msg")} aria-live="polite">
-                {usernameErr ? (
-                  <p className="field-msg">{usernameErr}</p>
-                ) : register ? (
-                  <p className="au-hint">3 à 16 caractères : lettres, chiffres ou _.</p>
-                ) : null}
-              </div>
+              <button
+                type="button"
+                className="au-eye"
+                onClick={() => setShowPw((s) => !s)}
+                aria-pressed={showPw}
+                aria-label={showPw ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              >
+                {showPw ? "Masquer" : "Afficher"}
+              </button>
             </div>
-
-            <div className="au-field">
-              <label className="field-label" htmlFor={id("password")}>
-                Mot de passe
-              </label>
-              <div className="au-pw">
-                <input
-                  id={id("password")}
-                  className={`input${passwordErr ? " err" : ""}`}
-                  type={showPw ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    clearServer();
-                  }}
-                  onBlur={() => touch("password")}
-                  autoComplete={register ? "new-password" : "current-password"}
-                  maxLength={160}
-                  aria-invalid={!!passwordErr}
-                  aria-describedby={id("password-msg")}
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  className="au-eye"
-                  onClick={() => setShowPw((s) => !s)}
-                  aria-pressed={showPw}
-                  aria-label={showPw ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                >
-                  {showPw ? "Masquer" : "Afficher"}
-                </button>
-              </div>
-              <div id={id("password-msg")} aria-live="polite">
-                {passwordErr && <p className="field-msg">{passwordErr}</p>}
-              </div>
-              {register && (
-                <div className="au-meter" data-level={strength}>
-                  <div className="au-meter-bars" role="img" aria-label={`Robustesse : ${STRENGTH_LABEL[strength] || "vide"}`}>
-                    {[1, 2, 3, 4].map((n) => (
-                      <span key={n} className={n <= strength ? "on" : ""} />
-                    ))}
-                  </div>
-                  <span className="au-meter-label mono">{STRENGTH_LABEL[strength] || "8 caractères minimum"}</span>
-                </div>
-              )}
+            <div id={id("password-msg")} aria-live="polite">
+              {passwordErr && <p className="field-msg">{passwordErr}</p>}
             </div>
-
             {register && (
-              <div className="au-field">
-                <label className="field-label" htmlFor={id("confirm")}>
-                  Confirmation
-                </label>
-                <input
-                  id={id("confirm")}
-                  className={`input${confirmErr ? " err" : ""}`}
-                  type={showPw ? "text" : "password"}
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  onBlur={() => touch("confirm")}
-                  autoComplete="new-password"
-                  maxLength={160}
-                  aria-invalid={!!confirmErr}
-                  aria-describedby={id("confirm-msg")}
-                  disabled={loading}
-                />
-                <div id={id("confirm-msg")} aria-live="polite">
-                  {confirmErr && <p className="field-msg">{confirmErr}</p>}
+              <div className="au-meter" data-level={strength}>
+                <div className="au-meter-bars" role="img" aria-label={`Robustesse : ${STRENGTH_LABEL[strength] || "vide"}`}>
+                  {[1, 2, 3, 4].map((n) => (
+                    <span key={n} className={n <= strength ? "on" : ""} />
+                  ))}
                 </div>
+                <span className="au-meter-label">{STRENGTH_LABEL[strength] || "8 caractères minimum"}</span>
               </div>
             )}
-
-            <div aria-live="assertive">
-              {formError && (
-                <p className="au-form-err" role="alert">
-                  {formError}
-                </p>
-              )}
-            </div>
-
-            <button type="submit" className="btn pri au-submit" disabled={loading} aria-busy={loading}>
-              {loading ? (register ? "Création du compte…" : "Connexion…") : register ? "Créer mon compte" : "Se connecter"}
-            </button>
-          </form>
-
-          <div className="au-sep" role="separator">
-            <span>ou</span>
           </div>
-          <button type="button" className="btn ghost au-guest" onClick={() => navigate({ name: "home" })} disabled={loading}>
-            Continuer en invité
+
+          {register && (
+            <div className="au-field">
+              <label className="field-label" htmlFor={id("confirm")}>
+                Confirmation
+              </label>
+              <input
+                id={id("confirm")}
+                className={`input${confirmErr ? " err" : ""}`}
+                type={showPw ? "text" : "password"}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                onBlur={() => touch("confirm")}
+                autoComplete="new-password"
+                maxLength={160}
+                aria-invalid={!!confirmErr}
+                aria-describedby={id("confirm-msg")}
+                disabled={loading}
+              />
+              <div id={id("confirm-msg")} aria-live="polite">
+                {confirmErr && <p className="field-msg">{confirmErr}</p>}
+              </div>
+            </div>
+          )}
+
+          <div aria-live="assertive">
+            {formError && (
+              <p className="au-form-err" role="alert">
+                {formError}
+              </p>
+            )}
+          </div>
+
+          <button type="submit" className="btn pri block" disabled={loading} aria-busy={loading}>
+            {loading ? (register ? "Création du compte…" : "Connexion…") : title}
           </button>
-          <p className="au-note">Sans compte : parties amicales uniquement, ni classement, ni amis, ni compétence à gagner.</p>
-        </section>
-      </div>
+          <p className="au-switch">
+            {register ? "Déjà un compte ?" : "Pas encore de compte ?"}{" "}
+            <button type="button" className="link" onClick={() => switchMode(register ? "login" : "register")} disabled={loading}>
+              {register ? "Se connecter" : "Créer un compte"}
+            </button>
+          </p>
+        </form>
+      </Sheet>
     </main>
   );
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { DeckSelectInfo, SkillId } from "../protocol";
 import { skillInfo } from "../skills";
 import { store } from "../store";
-import { Wordmark, initialOf } from "../ui/NavBar";
+import { initialOf } from "../ui/NavBar";
 import { SkillCard } from "./SkillCard";
 import "./deck.css";
 
@@ -32,117 +32,81 @@ export function DeckSelect({ info }: { info: DeckSelectInfo }) {
   const share = info.seconds > 0 ? Math.max(0, Math.min(1, left / info.seconds)) : 0;
   const urgent = left <= 10;
 
+  const ready = picked.length >= Math.min(info.max_picks, classic.length);
+  const cta = ready ? "Prêt" : picked.length === 0 ? "Jouer sans compétence" : `Jouer avec ${picked.length} compétence${picked.length > 1 ? "s" : ""}`;
+
   return (
     <main className="dk-page">
-      <div className="dk-top">
-        <Wordmark />
-      </div>
-      <header className="dk-head">
-        <div>
-          <p className="eyebrow">
-            Sélection · vous jouez les {info.you === "white" ? "blancs" : "noirs"}
-          </p>
-          <h1 className="dk-title">Choisissez vos compétences</h1>
-          <p className="muted dk-sub">
-            Jusqu'à {info.max_picks} compétences pour cette partie ; vos compétences uniques s'ajoutent sans compter dans le quota.
-          </p>
-        </div>
-        <div className="card dk-opp" aria-label="Adversaire">
-          <span className="avatar">{initialOf(oppName)}</span>
-          <div className="dk-opp-txt">
-            <span className="dk-opp-name">
-              {oppName}
-              {isBot && opp.elo !== null && <span className="mono muted"> · {opp.elo}</span>}
-            </span>
-            <span className="muted dk-opp-meta">
-              {isBot ? (
-                "partie d'entraînement"
-              ) : (
-                <>
-                  {opp.elo !== null ? (
-                    <>
-                      <span className="mono">{opp.elo}</span> Elo ·{" "}
-                    </>
-                  ) : null}
-                  {info.rated ? "classée" : "amicale"}
-                </>
-              )}
-            </span>
-          </div>
-          <span className="tag">{isBot ? "IA" : info.rated ? "Classée" : "Amicale"}</span>
-        </div>
-      </header>
-
-      <div className="dk-timer" role="timer" aria-label={`Temps restant : ${left} secondes`}>
-        <div className="dk-timer-bar" aria-hidden="true">
-          <i className={urgent ? "urgent" : ""} style={{ transform: `scaleX(${share})` }} />
-        </div>
-        <span className={`mono dk-timer-num${urgent ? " urgent" : ""}`}>
+      <header className="dk-top">
+        <button type="button" className="dk-back" aria-label={isBot ? "Annuler" : "Quitter"} onClick={() => store.send({ type: "leave_deck_select" })}>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M15 5l-7 7 7 7" />
+          </svg>
+        </button>
+        <h1 className="dk-title">Vos compétences</h1>
+        <span className={`chip num dk-timer-chip${urgent ? " urgent" : ""}`} role="timer" aria-label={`Temps restant : ${left} secondes`}>
           0:{String(left).padStart(2, "0")}
         </span>
+      </header>
+      <div className="dk-bar" aria-hidden="true">
+        <i className={urgent ? "urgent" : ""} style={{ transform: `scaleX(${share})` }} />
       </div>
 
-      <section aria-labelledby="dk-classic">
-        <div className="dk-sec-head">
-          <h2 id="dk-classic" className="dk-h2">
-            Compétences classiques
-          </h2>
-          <span className="mono muted" data-testid="pick-count">
-            {picked.length}/{info.max_picks}
+      <div className="dk-body">
+        <div className="dk-opp" aria-label="Adversaire">
+          <span className="avatar">{initialOf(oppName)}</span>
+          <span className="dk-opp-txt">
+            <strong>{isBot ? oppName : `Contre ${oppName}`}</strong>
+            <span className="meta dk-opp-meta">
+              {isBot ? "Partie d'entraînement" : `${opp.elo !== null ? `${opp.elo} · ` : ""}${info.rated ? "Classée" : "Amicale"}`} · vous jouez les {info.you === "white" ? "blancs" : "noirs"}
+            </span>
           </span>
         </div>
-        <div className="dk-grid">
-          {classic.map((skill) => {
-            const rank = picked.indexOf(skill);
-            return (
-              <SkillCard
-                key={skill}
-                skill={skill}
-                selected={rank >= 0}
-                order={rank >= 0 ? rank + 1 : undefined}
-                disabled={info.submitted || (rank < 0 && picked.length >= info.max_picks)}
-                onClick={() => toggle(skill)}
-              />
-            );
-          })}
-        </div>
-      </section>
 
-      {unique.length > 0 && (
-        <section aria-labelledby="dk-unique" className="dk-unique">
-          <div className="dk-sec-head">
-            <h2 id="dk-unique" className="dk-h2">
-              Compétence unique
-            </h2>
-            <span className="muted">toujours incluse</span>
-          </div>
+        <section aria-labelledby="dk-classic">
+          <p id="dk-classic" className="dk-label">
+            Choisissez-en {info.max_picks} dans votre deck <strong data-testid="pick-count">· {picked.length}/{info.max_picks}</strong>
+          </p>
           <div className="dk-grid">
-            {unique.map((skill) => (
-              <SkillCard key={skill} skill={skill} locked />
-            ))}
+            {classic.map((skill) => {
+              const rank = picked.indexOf(skill);
+              return (
+                <SkillCard
+                  key={skill}
+                  skill={skill}
+                  selected={rank >= 0}
+                  order={rank >= 0 ? rank + 1 : undefined}
+                  disabled={info.submitted || (rank < 0 && picked.length >= info.max_picks)}
+                  onClick={() => toggle(skill)}
+                />
+              );
+            })}
           </div>
         </section>
-      )}
+
+        {unique.length > 0 && (
+          <section aria-labelledby="dk-unique" className="dk-unique">
+            <p id="dk-unique" className="dk-label">
+              Compétence unique <span className="muted">· toujours incluse</span>
+            </p>
+            <div className="dk-grid">
+              {unique.map((skill) => (
+                <SkillCard key={skill} skill={skill} locked />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
 
       <footer className="dk-foot">
-        <button type="button" className="btn ghost" onClick={() => store.send({ type: "leave_deck_select" })}>
-          {info.opponent.bot ? "Annuler" : "Quitter"}
-        </button>
         {info.submitted ? (
           <p className="dk-wait" role="status">
             Sélection envoyée. En attente de l'adversaire…
           </p>
         ) : (
-          <>
-            <p className="muted">
-              {picked.length === 0
-                ? "Vous pouvez aussi commencer sans compétence classique."
-                : `${picked.length} compétence${picked.length > 1 ? "s" : ""} sélectionnée${picked.length > 1 ? "s" : ""}.`}
-            </p>
-            <button type="button" className="btn pri" onClick={() => store.send({ type: "select_deck", skills: picked })}>
-              Valider mon deck
-            </button>
-          </>
+          <button type="button" className="btn pri block" onClick={() => store.send({ type: "select_deck", skills: picked })}>
+            {cta}
+          </button>
         )}
       </footer>
     </main>

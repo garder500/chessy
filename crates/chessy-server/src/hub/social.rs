@@ -15,6 +15,7 @@ const SEARCH_RESULTS: u32 = 10;
 
 pub(super) struct Challenge {
     target: PlayerId,
+    time: Option<TimeControl>,
     seq: u64,
 }
 
@@ -22,6 +23,7 @@ pub(super) struct Rematch {
     pub opponent: PlayerId,
     rated: bool,
     kind: GameKind,
+    time: Option<TimeControl>,
     /// Who played white last time; colours swap.
     white: PlayerId,
     requested_by: Option<PlayerId>,
@@ -36,6 +38,7 @@ impl Rematch {
             opponent: bot.clone(),
             rated: false,
             kind: GameKind::Solo,
+            time: None,
             white: bot,
             requested_by: None,
             solo: Some(setup),
@@ -245,7 +248,7 @@ impl Hub {
 
     // ---- challenges ------------------------------------------------------
 
-    pub fn challenge(&mut self, player: &str, username: &str) {
+    pub fn challenge(&mut self, player: &str, username: &str, time: Option<TimeControl>) {
         let Some(me) = self.account(player) else {
             return;
         };
@@ -283,6 +286,7 @@ impl Hub {
             player.to_string(),
             Challenge {
                 target: target.id.clone(),
+                time,
                 seq,
             },
         );
@@ -327,7 +331,7 @@ impl Hub {
         {
             return self.fail(player, "no_challenge", "there is no such challenge");
         }
-        self.challenges.remove(&challenger.id);
+        let time = self.challenges.remove(&challenger.id).and_then(|c| c.time);
         if !accept {
             let my_name = self.name_of(player).unwrap_or_default();
             return self.notice(&challenger.id, "challenge_declined", Some(&my_name));
@@ -345,6 +349,7 @@ impl Hub {
             player.to_string(),
             false,
             GameKind::Challenge,
+            time,
         );
     }
 
@@ -437,7 +442,13 @@ impl Hub {
     // ---- rematches -------------------------------------------------------
 
     /// Called when a game ends: both players may now ask for a rematch.
-    pub(super) fn offer_rematch(&mut self, players: &[PlayerId; 2], rated: bool, kind: GameKind) {
+    pub(super) fn offer_rematch(
+        &mut self,
+        players: &[PlayerId; 2],
+        rated: bool,
+        kind: GameKind,
+        time: Option<TimeControl>,
+    ) {
         for (i, player) in players.iter().enumerate() {
             self.rematches.insert(
                 player.clone(),
@@ -445,6 +456,7 @@ impl Hub {
                     opponent: players[1 - i].clone(),
                     rated,
                     kind,
+                    time,
                     white: players[0].clone(),
                     requested_by: None,
                     solo: None,
@@ -524,12 +536,12 @@ impl Hub {
             return;
         };
         let r = &self.rematches[player];
-        let (rated, kind) = (r.rated, r.kind);
+        let (rated, kind, time) = (r.rated, r.kind, r.time);
         let (white, black) = if r.white == player {
             (opponent, player.to_string())
         } else {
             (player.to_string(), opponent)
         };
-        self.start_session(white, black, rated, kind);
+        self.start_session(white, black, rated, kind, time);
     }
 }
