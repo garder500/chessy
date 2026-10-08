@@ -42,10 +42,8 @@
 .rc-saved { display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; }
 .rc-saved input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
 
-/* Réglages du profil : carte de génération du code. */
-.rc-settings { display: flex; flex-direction: column; gap: 10px; }
-.rc-settings-h { margin: 0; font-size: 17px; }
-.rc-settings-p { margin: 0; font-size: 14px; line-height: 1.5; }
+/* Réglages du profil : carte de génération du code (carte `st-card`, comme les autres réglages). */
+.rc-settings-p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; }
 
 @media (min-width: 900px) {
   .wl-piece { height: 190px; }

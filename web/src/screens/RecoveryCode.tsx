@@ -274,9 +274,9 @@ export function RecoveryCodeSettings() {
   }
 
   return (
-    <div className="card pf-card rc-settings">
-      <h3 className="rc-settings-h">Code de récupération</h3>
-      <p className="muted rc-settings-p">
+    <section className="card st-card" aria-labelledby={`${uid}-rc-h`}>
+      <h2 id={`${uid}-rc-h`} className="st-h">Code de récupération</h2>
+      <p className="muted st-hint rc-settings-p">
         Sans adresse e-mail, ce code est le seul moyen de retrouver votre compte si vous oubliez votre mot de passe. En générer un nouveau remplace l'ancien.
       </p>
       <button type="button" className="btn block" onClick={() => setOpen(true)}>
@@ -319,6 +319,6 @@ export function RecoveryCodeSettings() {
           </form>
         )}
       </Sheet>
-    </div>
+    </section>
   );
 }

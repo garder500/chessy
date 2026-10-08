@@ -1,5 +1,7 @@
 /* Bloquer / signaler un joueur, et la liste des joueurs bloqués (Réglages). */
 .mod-actions { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+/* Confirmation de blocage : action destructive en haut, annulation dessous. */
+.mod-confirm { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
 .mod-reasons { display: flex; flex-direction: column; gap: 6px; }
 .mod-reasons .sg { text-align: left; }
 .mod-attach { display: flex; align-items: center; gap: 10px; font-size: 14px; min-height: 44px; cursor: pointer; }

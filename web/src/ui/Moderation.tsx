@@ -25,6 +25,7 @@ interface Props {
 export function ModerationActions({ username, gameId, excerpt }: Props) {
   const { account, blocked, connection } = useAppState();
   const [report, setReport] = useState(false);
+  const [confirmBlock, setConfirmBlock] = useState(false);
   const online = connection === "open";
   const member = !!account && !account.guest;
   useEffect(() => {
@@ -40,15 +41,43 @@ export function ModerationActions({ username, gameId, excerpt }: Props) {
           Débloquer
         </button>
       ) : (
-        <button type="button" className="btn sm ghost" disabled={!online} onClick={() => store.blockUser(username)}>
+        <button type="button" className="btn sm ghost" disabled={!online} onClick={() => setConfirmBlock(true)}>
           Bloquer
         </button>
       )}
       <button type="button" className="btn sm ghost" disabled={!online} onClick={() => setReport(true)}>
         Signaler
       </button>
+      <BlockSheet open={confirmBlock} username={username} onClose={() => setConfirmBlock(false)} />
       <ReportSheet open={report} username={username} gameId={gameId} excerpt={excerpt} onClose={() => setReport(false)} />
     </span>
+  );
+}
+
+/** Confirmation avant de bloquer : l'effet est large (amitié, demandes, défis, chat) et le joueur n'en est pas informé. */
+function BlockSheet({ open, username, onClose }: { open: boolean; username: string; onClose: () => void }) {
+  return (
+    <Sheet open={open} title={`Bloquer ${username} ?`} onClose={onClose}>
+      <p className="sheet-sub">
+        Ses messages, ses demandes d'ami et ses défis ne vous parviendront plus, et il sera retiré de vos amis. Vous pouvez toujours jouer
+        contre lui. {username} n'en est pas informé, et vous pourrez le débloquer à tout moment dans Réglages.
+      </p>
+      <div className="mod-confirm">
+        <button
+          type="button"
+          className="btn danger solid block"
+          onClick={() => {
+            store.blockUser(username);
+            onClose();
+          }}
+        >
+          Bloquer {username}
+        </button>
+        <button type="button" className="btn ghost block" onClick={onClose}>
+          Annuler
+        </button>
+      </div>
+    </Sheet>
   );
 }
 
