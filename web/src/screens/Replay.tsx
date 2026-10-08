@@ -23,6 +23,9 @@ import { EvalBar, Plate } from "./game/Plate";
 import { PromotionPicker, SpawnPicker } from "./game/Overlays";
 import { SkillList } from "./game/SidePanels";
 import { AnalysisPanel, type AnalysisState } from "./replay/AnalysisPanel";
+import { Sheet } from "../ui/Sheet";
+import { useCompact } from "../ui/useCompact";
+import { Accuracy, BottomControls, EvalStrip, MoveCard } from "./replay/Compact";
 import { BoardStage } from "./replay/BoardStage";
 import { Controls } from "./replay/Controls";
 import { EvalChart } from "./replay/EvalChart";
@@ -117,6 +120,8 @@ function ReplayPlayer({ record, autoAnalyse }: { record: GameRecord; autoAnalyse
   const [orientation, setOrientation] = useState<Color>(() => defaultOrientation(record, username));
   const [nav, dispatch] = useReducer(navReduce, max, (m) => initialNav(m));
   const [showBest, setShowBest] = useState(true);
+  const compact = useCompact();
+  const [more, setMore] = useState(false);
 
   // ---- analyse ----
   const [depth, setDepth] = useState(3);
@@ -335,6 +340,93 @@ function ReplayPlayer({ record, autoAnalyse }: { record: GameRecord; autoAnalyse
   const top = opposite(orientation);
   const title = `${seatName(record.white)} contre ${seatName(record.black)}`;
   const skillsDisabled = !exploring || explore.pending;
+
+  if (compact) {
+    const vs = mine ? seatName(record[opposite(mine)]) : title;
+    return (
+      <main className="rp rp-compact">
+        <header className="rc-top">
+          <a className="rc-ic" href="#/games" aria-label="Retour à mes parties">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M15 5l-7 7 7 7" />
+            </svg>
+          </a>
+          <h1 className="rc-title">{mine ? `Contre ${vs}` : vs}</h1>
+          <button type="button" className="rc-ic" aria-label="Retourner le plateau" aria-pressed={orientation === "black"} onClick={() => setOrientation((o) => opposite(o))}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M7 4v14l-3-3M17 20V6l3 3" />
+            </svg>
+          </button>
+          <button type="button" className="rc-ic" aria-label="Plus d'options" onClick={() => setMore(true)}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+              <circle cx="5" cy="12" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="19" cy="12" r="2" />
+            </svg>
+          </button>
+        </header>
+        <EvalStrip cp={evalCp} />
+        <BoardStage view={views.display} orientation={orientation} interactive={exploring && !explore.pending} highlights={interact.highlights} onSquare={interact.onSquare} arrow={arrow}>
+          {interact.promotion && <PromotionPicker options={interact.promotion.options} onCancel={interact.cancelPromotion} onPick={interact.pickPromotion} />}
+          {interact.spawn && <SpawnPicker skill={interact.spawn.skill} options={interact.spawn.options} onPick={interact.pickSpawn} onCancel={interact.cancelSpawn} />}
+        </BoardStage>
+        <div className="rc-body">
+          {exploreNote && (
+            <p className="rp-inline-error" role="alert">
+              {exploreNote}
+            </p>
+          )}
+          {exploring ? (
+            <>
+              <ExplorePanel state={explore.state} pending={explore.pending} error={explore.error} onUndo={undoExploreMove} onExit={exitExplore} />
+              {views.play && <SkillList slots={views.play.my_skills} view={views.play} myTurn={!skillsDisabled} active={interact.activeSkill} onToggle={interact.toggleSkill} />}
+            </>
+          ) : (
+            <>
+              <MoveCard move={move} analysis={moveAnalysis} index={nav.index} max={max} analysing={analysis.status === "loading"} onAnalyse={() => runAnalysis(depth)} />
+              {over && atEnd && <p className="muted rc-note">{hint}</p>}
+              <Accuracy data={analysisData} state={analysis} onAnalyse={() => runAnalysis(depth)} names={{ white: seatName(record.white), black: seatName(record.black) }} />
+            </>
+          )}
+        </div>
+        <BottomControls nav={nav} disabled={exploring || exploreStarting} dispatch={dispatch} />
+        <Sheet open={more} title="Plus" onClose={() => setMore(false)}>
+          <div className="rc-more">
+            {exploring ? (
+              <button type="button" className="btn block" onClick={() => { exitExplore(); setMore(false); }}>
+                Retour à la partie
+              </button>
+            ) : (
+              <button type="button" className="btn block" disabled={exploreStarting} onClick={() => { startExplore(); setMore(false); }}>
+                {exploreStarting ? "Chargement…" : "Explorer à partir d'ici"}
+              </button>
+            )}
+            {bestHere && !exploring && (
+              <label className="rp-check">
+                <input type="checkbox" checked={showBest} onChange={(e) => setShowBest(e.target.checked)} />
+                <span>
+                  Flèche du meilleur coup : <strong className="mono">{bestHere.notation}</strong>
+                </span>
+              </label>
+            )}
+            <AnalysisPanel record={record} state={analysis} depth={depth} onDepth={setDepth} onAnalyse={() => runAnalysis(depth)} onCancel={cancelAnalysis} />
+            <MoveList
+              moves={record.moves}
+              index={exploring ? explore.state.ply : nav.index}
+              analysis={analysisData}
+              onSelect={(i) => {
+                seek(i);
+                setMore(false);
+              }}
+            />
+            <a className="link" href="#/games">
+              Mes parties
+            </a>
+          </div>
+        </Sheet>
+      </main>
+    );
+  }
 
   return (
     <main className="rp">
