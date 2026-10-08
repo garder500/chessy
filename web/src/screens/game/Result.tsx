@@ -124,6 +124,12 @@ export function Result({ outcome, you, rated, solo = false, elo, rematch, reward
             <button type="button" className="link" onClick={() => analyse()}>
               Revoir la partie
             </button>
+            <span aria-hidden="true" className="rs-home-sep">
+              ·
+            </span>
+            <button type="button" className="link rs-home" onClick={leave}>
+              Retour à l'accueil
+            </button>
           </div>
         </div>
       </main>

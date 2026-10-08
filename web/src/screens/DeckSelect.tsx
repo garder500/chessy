@@ -3,6 +3,7 @@ import type { DeckSelectInfo, SkillId } from "../protocol";
 import { skillInfo } from "../skills";
 import { store } from "../store";
 import { initialOf } from "../ui/NavBar";
+import { SkillArt } from "../ui/SkillArt";
 import { SkillCard } from "./SkillCard";
 import "./deck.css";
 
@@ -97,6 +98,46 @@ export function DeckSelect({ info }: { info: DeckSelectInfo }) {
           </section>
         )}
       </div>
+
+      <aside className="dk-side card" aria-label="Récapitulatif">
+        <div className="dk-side-opp">
+          <span className="avatar">{initialOf(oppName)}</span>
+          <span className="dk-opp-txt">
+            <strong>{isBot ? oppName : `Contre ${oppName}`}</strong>
+            <span className="meta">
+              {isBot ? "Partie d'entraînement" : `${opp.elo !== null ? `${opp.elo} · ` : ""}${info.rated ? "Classée" : "Amicale"}`} · {info.you === "white" ? "blancs" : "noirs"}
+            </span>
+          </span>
+        </div>
+        <div className="dk-side-time">
+          <span className="dk-label">Temps pour choisir</span>
+          <span className={`num dk-side-clock${urgent ? " urgent" : ""}`}>0:{String(left).padStart(2, "0")}</span>
+        </div>
+        <p className="dk-label">
+          Votre sélection · {picked.length}/{info.max_picks}
+        </p>
+        <ul className="dk-slots">
+          {Array.from({ length: info.max_picks }, (_, i) => {
+            const id = picked[i];
+            const sk = id ? skillInfo(id) : null;
+            return (
+              <li key={i} className={id ? "full" : ""}>
+                {sk ? <SkillArt id={id} size={26} /> : <span className="hex dk-slot-empty" />}
+                <span>{sk ? sk.name : "Emplacement libre"}</span>
+              </li>
+            );
+          })}
+        </ul>
+        {info.submitted ? (
+          <p className="dk-wait" role="status">
+            Sélection envoyée. En attente de l'adversaire…
+          </p>
+        ) : (
+          <button type="button" className="btn pri block" onClick={() => store.send({ type: "select_deck", skills: picked })}>
+            {cta}
+          </button>
+        )}
+      </aside>
 
       <footer className="dk-foot">
         {info.submitted ? (

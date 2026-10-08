@@ -55,9 +55,10 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
       </header>
 
       <div className="rw-body">
+        <h2 className="rw-h1">Votre récompense</h2>
         <p className="muted rw-sub">Prenez une compétence à votre adversaire, ou faites-en forger une inédite.</p>
 
-        <div className="rw-sec">
+        <div className="rw-sec rw-sec-pick">
           <p className="rw-label" id="rw-take">
             Récupérer
           </p>
@@ -77,7 +78,7 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
           )}
         </div>
 
-        <div className="rw-sec">
+        <div className="rw-sec rw-sec-pick">
           <p className="rw-label" id="rw-luck">
             Ou tenter sa chance
           </p>
