@@ -143,7 +143,7 @@ export function Lobby({ state }: { state: AppState }) {
           <span className="jp-deck-hex" aria-hidden="true">
             {Array.from({ length: DECK_SLOTS }, (_, i) => {
               const id = deck[i];
-              return <span key={i} className="hex" data-rar={id ? tileRarity(id) : undefined} style={{ background: id ? `var(--rar-${tileRarity(id)})` : "var(--line-2)" }} />;
+              return <span key={i} className="hex" style={{ background: id ? `var(--rar-${tileRarity(id)})` : "var(--line-2)" }} />;
             })}
           </span>
           <span className="jp-deck-txt">

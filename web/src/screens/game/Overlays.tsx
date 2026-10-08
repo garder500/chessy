@@ -1,12 +1,7 @@
 import { useEffect, useRef, type CSSProperties } from "react";
 import { FAMILY_LABEL } from "../../catalog";
-import { formatDelta, resultFor, resultHeadline } from "../../outcome";
-import type { Color, EloChange, Outcome, PieceKind, SpawnKind } from "../../protocol";
+import type { PieceKind, SpawnKind } from "../../protocol";
 import { skillInfo } from "../../skills";
-import { navigate } from "../../router";
-import { store } from "../../store";
-import { Confetti } from "../../ui/Confetti";
-import { CountUp } from "../../ui/CountUp";
 import { PieceIcon, SkillArt } from "../../ui/SkillArt";
 
 const PROMO_LABEL: Record<string, string> = { queen: "Dame", rook: "Tour", bishop: "Fou", knight: "Cavalier" };
@@ -90,107 +85,6 @@ export function LaunchCard({ skill, mine }: { skill: string; mine: boolean }) {
         <p className="gm-launch-fam eyebrow">{FAMILY_LABEL[info.family]}</p>
         <p className="gm-launch-desc">{info.description}</p>
         {info.unique && <span className="tag gm-launch-unique">compétence unique</span>}
-      </div>
-    </div>
-  );
-}
-
-interface ResultProps {
-  outcome: Outcome;
-  you: Color;
-  rated: boolean;
-  /** Partie contre l'IA : ni Elo ni récompense, revanche immédiate. */
-  solo?: boolean;
-  elo: EloChange | null;
-  rematch: "none" | "offered" | "received";
-  onHide: () => void;
-  /** Partie enregistrée : active « Revoir la partie » et « Analyser » (replay, docs/spec-v4.md §5). */
-  gameId?: string;
-}
-
-export function ResultPanel({ outcome, you, rated, solo = false, elo, rematch, onHide, gameId }: ResultProps) {
-  const { title, reason } = resultHeadline(outcome, you);
-  const result = resultFor(outcome, you);
-  const delta = elo ? elo.you_after - elo.you_before : null;
-  const first = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    first.current?.focus();
-  }, []);
-
-  return (
-    <div className="gm-veil gm-veil-result" role="dialog" aria-modal="true" aria-labelledby="res-title">
-      {result === "win" && <Confetti />}
-      <div className={`gm-result card ${result ?? ""}`}>
-        <p className="eyebrow">Partie terminée</p>
-        <h2 id="res-title" className="gm-result-title">
-          {title}
-        </h2>
-        <p className="muted">{reason}</p>
-
-        {solo ? (
-          <p className="muted gm-elo-none">Partie d'entraînement : ni Elo ni récompense en jeu.</p>
-        ) : rated && elo && delta !== null ? (
-          <div className="gm-elo">
-            <CountUp className="gm-elo-delta mono" to={delta} format={formatDelta} />
-            <span className="muted">
-              Nouvel Elo <strong className="mono gm-elo-new">{elo.you_after}</strong>
-            </span>
-          </div>
-        ) : (
-          <p className="muted gm-elo-none">{rated ? "Partie classée non comptabilisée : ni Elo ni récompense." : "Partie amicale : ni Elo ni récompense en jeu."}</p>
-        )}
-
-        <div className="gm-result-actions">
-          {rematch === "received" ? (
-            <>
-              <p className="gm-rematch-msg">L'adversaire propose une revanche.</p>
-              <div className="gm-result-row">
-                <button type="button" className="btn pri" ref={first} onClick={() => store.respondRematch(true)}>
-                  Accepter la revanche
-                </button>
-                <button type="button" className="btn" onClick={() => store.respondRematch(false)}>
-                  Refuser
-                </button>
-              </div>
-            </>
-          ) : (
-            <button type="button" className="btn pri" ref={first} disabled={rematch === "offered"} onClick={() => store.requestRematch()}>
-              {rematch === "offered" ? (solo ? "Nouvelle partie…" : "Revanche proposée…") : "Revanche"}
-            </button>
-          )}
-          {gameId && (
-            <div className="gm-result-row">
-              <button
-                type="button"
-                className="btn"
-                onClick={() => {
-                  store.leaveGame();
-                  navigate({ name: "replay", param: gameId });
-                }}
-              >
-                Revoir la partie
-              </button>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => {
-                  store.leaveGame();
-                  navigate({ name: "replay", param: gameId, sub: "analyse" });
-                }}
-              >
-                Analyser
-              </button>
-            </div>
-          )}
-          <div className="gm-result-row">
-            <button type="button" className="btn ghost" onClick={onHide}>
-              Revoir l'échiquier
-            </button>
-            <button type="button" className="btn ghost" onClick={() => store.leaveGame()}>
-              Retour au lobby
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

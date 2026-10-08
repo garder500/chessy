@@ -39,7 +39,8 @@ import { useTheme } from "../theme";
 import { Wordmark } from "../ui/NavBar";
 import { Sheet } from "../ui/Sheet";
 import { useCompact } from "../ui/useCompact";
-import { LaunchCard, PromotionPicker, ResultPanel, SpawnPicker } from "./game/Overlays";
+import { LaunchCard, PromotionPicker, SpawnPicker } from "./game/Overlays";
+import { Result } from "./game/Result";
 import { EvalBar, Plate } from "./game/Plate";
 import { Actions, BenchPanel, Chat, DrawBanner, GameNav, Journal, Options, SkillList, TrainingNote } from "./game/SidePanels";
 import { useGameSounds } from "./game/useGameSounds";
@@ -494,18 +495,6 @@ export function Game({ view }: { view: StateView }) {
                 />
               )}
               {spawn && <SpawnPicker skill={spawn.skill} options={spawn.options} onPick={pickSpawn} onCancel={cancelSpawnPick} />}
-              {over_ && !resultHidden && (
-                <ResultPanel
-                  outcome={view.outcome}
-                  you={view.you}
-                  rated={over?.rated ?? view.rated}
-                  solo={isBot}
-                  elo={over?.elo ?? null}
-                  rematch={rematch}
-                  gameId={view.game_id}
-                  onHide={() => setResultHidden(true)}
-                />
-              )}
             </div>
           </div>
 
@@ -536,6 +525,21 @@ export function Game({ view }: { view: StateView }) {
           </aside>
         )}
       </main>
+
+      {over_ && !resultHidden && (
+        <Result
+          outcome={view.outcome}
+          you={view.you}
+          rated={over?.rated ?? view.rated}
+          solo={isBot}
+          elo={over?.elo ?? null}
+          rematch={rematch}
+          reward={!!over?.reward}
+          gameId={view.game_id}
+          onReward={() => store.openReward()}
+          onHide={() => setResultHidden(true)}
+        />
+      )}
 
       {compact && (
         <>

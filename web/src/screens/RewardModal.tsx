@@ -38,14 +38,24 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
   const choice = buildChoice(offer, pick, replace);
   const needsReplace = offer.deck_full && pick !== null && replace === undefined;
 
+  const stolen = pick?.kind === "steal" ? skillInfo(pick.skill).name : null;
+  const cta = forging ? "Forge en cours…" : pick?.kind === "random" ? "Lancer la forge" : stolen ? `Prendre ${stolen}` : "Choisir";
+
   return (
-    <div className="md-backdrop rw-backdrop">
-      <div className="rw card" role="dialog" aria-modal="true" aria-labelledby="rw-title" tabIndex={-1} ref={dialog}>
-        <p className="eyebrow">Victoire</p>
+    <div className="rw" role="dialog" aria-modal="true" aria-labelledby="rw-title" tabIndex={-1} ref={dialog}>
+      <header className="rw-top">
+        <button type="button" className="rw-back" aria-label="Retour au résultat" disabled={forging} onClick={() => store.closeReward()}>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M15 5l-7 7 7 7" />
+          </svg>
+        </button>
         <h2 id="rw-title" className="rw-title">
-          Choisissez votre récompense
+          Votre récompense
         </h2>
-        <p className="muted rw-sub">Prenez une compétence à votre adversaire, faites-en forger une inédite, ou passez.</p>
+      </header>
+
+      <div className="rw-body">
+        <p className="muted rw-sub">Prenez une compétence à votre adversaire, ou faites-en forger une inédite.</p>
 
         <div className="rw-sec">
           <p className="rw-label" id="rw-take">
@@ -61,6 +71,17 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
                 onClick={() => setPick({ kind: "steal", skill })}
               />
             ))}
+          </div>
+          {offer.steal_options.length === 0 && (
+            <p className="muted rw-empty">Votre adversaire n'a rien que vous n'ayez déjà : seul le tirage au hasard reste possible.</p>
+          )}
+        </div>
+
+        <div className="rw-sec">
+          <p className="rw-label" id="rw-luck">
+            Ou tenter sa chance
+          </p>
+          <div className="rw-opts" role="radiogroup" aria-labelledby="rw-luck">
             <button
               type="button"
               role="radio"
@@ -74,17 +95,11 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
               </span>
               <span className="skc-body">
                 <span className="skc-name">Forger une compétence</span>
-                <span className="skc-desc">
-                  Le forgeron crée une compétence inédite, de rareté aléatoire (commune à légendaire) ; l'adversaire en perd
-                  une au hasard.
-                </span>
+                <span className="skc-desc">Inédite, de commune à légendaire. Votre adversaire en perd une au hasard.</span>
               </span>
               <span className="skc-ring" aria-hidden="true" />
             </button>
           </div>
-          {offer.steal_options.length === 0 && (
-            <p className="muted rw-empty">Votre adversaire n'a rien que vous n'ayez déjà : seul le tirage au hasard reste possible.</p>
-          )}
         </div>
 
         {offer.deck_full && (
@@ -119,27 +134,28 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
           </div>
         )}
 
-        <div className="rw-foot">
-          <p className="muted rw-hint" role="status">
-            {forging ? "Le forgeron travaille…" : needsReplace ? "Sélectionnez la compétence à remplacer pour continuer." : ""}
-          </p>
-          <button type="button" className="btn ghost" disabled={forging} onClick={() => store.send({ type: "reward_choice", choice: { kind: "skip" } })}>
-            Passer
-          </button>
-          <button
-            type="button"
-            className="btn pri"
-            disabled={!choice || forging}
-            onClick={() => {
-              if (!choice) return;
-              if (choice.kind === "random") setForging(true);
-              store.send({ type: "reward_choice", choice });
-            }}
-          >
-            {forging ? "Forge en cours…" : "Confirmer"}
-          </button>
-        </div>
       </div>
+
+      <footer className="rw-foot">
+        <p className="muted rw-hint" role="status">
+          {forging ? "Le forgeron travaille…" : needsReplace ? "Sélectionnez la compétence à remplacer pour continuer." : ""}
+        </p>
+        <button
+          type="button"
+          className="btn pri block"
+          disabled={!choice || forging}
+          onClick={() => {
+            if (!choice) return;
+            if (choice.kind === "random") setForging(true);
+            store.send({ type: "reward_choice", choice });
+          }}
+        >
+          {cta}
+        </button>
+        <button type="button" className="link" disabled={forging} onClick={() => store.send({ type: "reward_choice", choice: { kind: "skip" } })}>
+          Passer
+        </button>
+      </footer>
     </div>
   );
 }

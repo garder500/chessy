@@ -54,6 +54,8 @@ export interface AppState {
   over: GameOver | null;
   /** A reward from a past game that was never claimed. */
   pendingReward: RewardOffer | null;
+  /** L'écran « Votre récompense » est ouvert (il suit l'écran de victoire). */
+  rewardOpen: boolean;
   friends: FriendsSnapshot;
   userResults: { query: string; users: UserResult[] } | null;
   incomingChallenge: { username: string; elo: number } | null;
@@ -121,6 +123,7 @@ const initial: AppState = {
   game: null,
   over: null,
   pendingReward: null,
+  rewardOpen: false,
   friends: EMPTY_FRIENDS,
   userResults: null,
   incomingChallenge: null,
@@ -315,6 +318,15 @@ export class Store {
     this.reconnect();
   }
 
+  closeReward() {
+    this.set({ rewardOpen: false });
+  }
+
+  /** Passe de l'écran de victoire à l'écran de récompense. */
+  openReward() {
+    this.set({ rewardOpen: true });
+  }
+
   /** Leaves a finished game and returns to the lobby. */
   leaveGame() {
     this.set({ game: null, over: null, deckSelect: null, rematch: "none" });
@@ -490,6 +502,7 @@ export class Store {
       case "game_over":
         this.set({
           over: { outcome: msg.outcome, reward: msg.reward, rated: msg.rated, elo: msg.elo, reason: msg.reason },
+          rewardOpen: false,
           // L'Elo affiché dans la barre de navigation suit la partie classée.
           account:
             this.state.account && msg.elo ? { ...this.state.account, elo: msg.elo.you_after } : this.state.account,
@@ -507,6 +520,7 @@ export class Store {
         this.set({
           deck: msg.deck,
           pendingReward: null,
+          rewardOpen: false,
           over: this.state.over ? { ...this.state.over, reward: null } : null,
         });
         break;

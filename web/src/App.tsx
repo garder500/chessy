@@ -45,7 +45,8 @@ export function App() {
     window.scrollTo(0, 0); // renvoie une Promise sur les Chrome récents : ne pas la retourner comme nettoyage
   }, [route.name, route.param]);
 
-  const reward = state.over?.reward ?? state.pendingReward;
+  // Une récompense gagnée à l'instant s'ouvre depuis l'écran de victoire ; une récompense en attente (reconnexion) s'ouvre tout de suite.
+  const reward = state.over ? (state.rewardOpen ? state.over.reward : null) : state.pendingReward;
   // Une partie en cours (ou son choix de compétences) prend la place de n'importe quelle page.
   const inGame = state.game !== null || state.deckSelect !== null;
 

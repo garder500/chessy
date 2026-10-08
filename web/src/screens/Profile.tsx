@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { hrefFor } from "../router";
+import { useState, useSyncExternalStore } from "react";
+import { hrefFor, navigate } from "../router";
+import { sfx } from "../sound";
 import { store, useAppState } from "../store";
+import { BOARD_THEMES, setTheme, useTheme, type ColorMode } from "../theme";
 import { EloChart } from "../ui/EloChart";
 import { RecentGames } from "../ui/RecentGames";
 import { StatTile } from "../ui/StatTile";
@@ -26,6 +28,7 @@ function streakHint(streak: number): string | undefined {
 
 export function Profile({ username }: Props) {
   const { state, reload } = useProfile(username);
+  const { account } = useAppState();
 
   if (state.status === "loading") {
     return (
@@ -64,6 +67,7 @@ export function Profile({ username }: Props) {
 
   const p = state.profile;
   const rate = winRate(p.wins, p.games);
+  const mine = !!account && !account.guest && sameUser(account.username, p.username);
 
   return (
     <main className="pf-page">
@@ -108,7 +112,80 @@ export function Profile({ username }: Props) {
           <RecentGames games={p.recent.slice(0, 10)} />
         </section>
       </div>
+
+      {mine && <QuickSettings />}
     </main>
+  );
+}
+
+const MODES: { id: ColorMode; label: string }[] = [
+  { id: "system", label: "Système" },
+  { id: "light", label: "Clair" },
+  { id: "dark", label: "Sombre" },
+];
+
+/** Réglages du quotidien, à portée de l'avatar : apparence, plateau, sons, déconnexion. Le reste vit dans « Réglages ». */
+function QuickSettings() {
+  const theme = useTheme();
+  const snd = useSyncExternalStore(sfx.subscribe, sfx.getSettings);
+  return (
+    <section className="card pf-card pf-quick" aria-labelledby="pf-quick-h">
+      <h2 id="pf-quick-h" className="pf-h">
+        Réglages
+      </h2>
+      <div className="pf-q-row">
+        <span className="pf-q-l">Thème</span>
+        <div className="segs pf-q-segs" role="radiogroup" aria-label="Apparence">
+          {MODES.map((m) => (
+            <button key={m.id} type="button" role="radio" aria-checked={theme.mode === m.id} className={`sg${theme.mode === m.id ? " on" : ""}`} onClick={() => setTheme({ mode: m.id })}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="pf-q-row">
+        <span className="pf-q-l">Plateau</span>
+        <div className="pf-boards" role="radiogroup" aria-label="Plateau">
+          {BOARD_THEMES.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              role="radio"
+              aria-checked={theme.board === b.id}
+              aria-label={b.label}
+              title={b.label}
+              className={`pf-board${theme.board === b.id ? " on" : ""}`}
+              style={{ background: `repeating-conic-gradient(${b.dark} 0 25%, ${b.light} 0 50%) 0 0 / 50% 50%` }}
+              onClick={() => setTheme({ board: b.id })}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="pf-q-row">
+        <span className="pf-q-l">Sons</span>
+        <button type="button" role="switch" aria-checked={snd.enabled} aria-label="Sons activés" className="st-switch" data-sfx="off" onClick={() => sfx.setSettings({ enabled: !snd.enabled })}>
+          <span />
+        </button>
+      </div>
+      <div className="pf-q-foot">
+        <a className="link" href={hrefFor({ name: "settings" })}>
+          Tous les réglages
+        </a>
+        <a className="link" href={hrefFor({ name: "games" })}>
+          Mes parties
+        </a>
+        <button
+          type="button"
+          className="btn block"
+          onClick={() => {
+            void store.logout();
+            navigate({ name: "home" });
+          }}
+        >
+          Se déconnecter
+        </button>
+      </div>
+    </section>
   );
 }
 

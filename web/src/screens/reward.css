@@ -1,29 +1,26 @@
-.md-backdrop.rw-backdrop { z-index: 100; overflow-y: auto; align-items: start; }
-.rw { width: min(780px, 100%); margin: 4vh auto; padding: 28px; background: var(--surface-2); border-color: var(--line-2); box-shadow: 0 24px 64px rgba(0,0,0,.55); outline: none; }
-.rw-title { font-size: 26px; letter-spacing: -0.03em; margin: 8px 0 6px; font-weight: 650; }
-.rw-sub { font-size: 14.5px; margin-bottom: 8px; }
-.rw-sec { margin-top: 22px; }
-.rw-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
-.rw-opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
-.rw-random { border-left-color: var(--line-3); }
-.rw-empty { margin-top: 10px; font-size: 13px; }
+/* Récompense (charte v2) : plein écran, liste de choix radio, action collée en bas. */
+.rw { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; background: linear-gradient(var(--bg), var(--bg-2)); outline: none; animation: rw-in 0.25s both; }
+.rw-top { flex: none; display: flex; align-items: center; gap: 4px; height: calc(56px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 8px 0 4px; background: var(--surface); border-bottom: 1px solid var(--line-2); }
+.rw-back { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; color: var(--text); cursor: pointer; }
+.rw-back:disabled { opacity: 0.4; cursor: default; }
+:root .rw .rw-title { margin: 0; font-size: 22px; letter-spacing: 0.06em; }
+.rw-body { flex: 1; width: min(720px, 100%); margin: 0 auto; overflow-y: auto; padding: 14px 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.rw-sub { margin: 0; }
+.rw-sec { display: flex; flex-direction: column; gap: 8px; }
+.rw-label { margin: 0; }
+.rw-opts { display: flex; flex-direction: column; gap: 8px; }
+.rw-random { border-left-color: var(--rar-legendary); }
+.rw-empty { margin: 0; font-size: 14px; }
 .rw-replace { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
 .rw-slot { position: relative; cursor: pointer; color: var(--text); font: inherit; }
 .rw-slot:hover { background: var(--surface-3); }
-.rw-slot.on { border-color: var(--text); border-top-color: var(--fam); box-shadow: 0 0 0 1px var(--text) inset; }
-.rw-slot .slot-art { width: 56px; height: 56px; }
+.rw-slot.on { border-color: var(--accent); border-top-color: var(--fam); }
+.rw-slot .slot-art { width: 56px; height: 63px; }
 .rw-ring { top: 8px; right: 8px; width: 16px; height: 16px; }
-.rw-slot.on .rw-ring { border-color: var(--text); box-shadow: inset 0 0 0 3px var(--surface-2); background: var(--text); }
-.rw-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line); }
-.rw-hint { flex: 1; font-size: 13px; }
-.rw-foot .btn.pri { min-width: 140px; }
-@media (max-width: 560px) { .rw { padding: 20px 16px; } .rw-opts { grid-template-columns: 1fr; } }
-@media (max-width: 560px) {
-  /* Téléphone : Passer / Confirmer restent collés en bas de l'écran pendant qu'on fait défiler les compétences. */
-  .md-backdrop.rw-backdrop { padding: 8px 8px 0; }
-  .rw { margin: 0 auto 8px; }
-  .rw-foot { position: sticky; bottom: 0; z-index: 1; flex-wrap: wrap; margin: 18px -16px -20px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--surface-2); border-radius: 0 0 var(--radius-l) var(--radius-l); }
-  .rw-hint { flex: 1 1 100%; order: -1; margin: 0; }
-  .rw-hint:empty { display: none; }
-  .rw-foot .btn { flex: 1; min-width: 0; }
-}
+.rw-slot.on .rw-ring { border-color: var(--accent); box-shadow: inset 0 0 0 3px var(--surface); background: var(--accent); }
+.rw-foot { flex: none; padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--line-2); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.rw-foot > .btn { width: min(720px, 100%); }
+.rw-hint { margin: 0; font-size: 13.5px; min-height: 0; }
+.rw-hint:empty { display: none; }
+@keyframes rw-in { from { opacity: 0; transform: translateY(12px); } }
+@media (prefers-reduced-motion: reduce) { .rw { animation: none; } }
