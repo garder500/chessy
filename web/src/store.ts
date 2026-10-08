@@ -299,8 +299,11 @@ export class Store {
     this.reconnect();
   }
 
-  /** Déconnexion : invalide la session côté serveur, efface le jeton et repart en invité. */
-  async logout() {
+  /**
+   * Déconnexion : invalide la session côté serveur, efface le jeton et repart en invité.
+   * Avec `everywhere`, toutes les sessions du compte sont terminées (autres appareils compris).
+   */
+  async logout(everywhere = false) {
     const token = readToken();
     writeToken(null);
     // Détache la socket tout de suite : le serveur la ferme à la déconnexion
@@ -310,7 +313,7 @@ export class Store {
     old?.close();
     if (token) {
       try {
-        await fetch("/api/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+        await fetch(everywhere ? "/api/auth/logout-all" : "/api/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
       } catch {
         // Hors ligne : la session expirera côté serveur, le client repart en invité quand même.
       }

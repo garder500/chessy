@@ -18,9 +18,11 @@ pub mod store;
 pub mod ws;
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::routing::get;
 use axum::Router;
+use store::Store;
 
 pub use app::App;
 
@@ -31,4 +33,27 @@ pub fn router(app: Arc<App>) -> Router {
         .route("/healthz", get(|| async { "ok" }))
         .nest("/api", api::routes().merge(api_games::routes()))
         .with_state(app)
+}
+
+/// Deletes the sessions unused for more than `ttl`, once now and then every
+/// `every`. Runs on its own tokio task, outside the (synchronous) hub; the
+/// task ends with the runtime or when the handle is aborted.
+pub fn spawn_session_purge(
+    store: Store,
+    every: Duration,
+    ttl: Duration,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(every);
+        loop {
+            tick.tick().await;
+            let store = store.clone();
+            match tokio::task::spawn_blocking(move || store.purge_expired_sessions(ttl)).await {
+                Ok(Ok(0)) => {}
+                Ok(Ok(n)) => tracing::info!("purged {n} expired sessions"),
+                Ok(Err(e)) => tracing::warn!("session purge failed: {e}"),
+                Err(e) => tracing::warn!("session purge task failed: {e}"),
+            }
+        }
+    })
 }

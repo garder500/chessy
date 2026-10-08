@@ -117,6 +117,10 @@ export const api = {
   logout(token: string) {
     return request<void>("/auth/logout", { method: "POST", token });
   },
+  /** Termine toutes les sessions du compte (tous les appareils). */
+  logoutAll(token: string) {
+    return request<void>("/auth/logout-all", { method: "POST", token });
+  },
   me(token: string, signal?: AbortSignal) {
     return request<Me>("/me", { token, signal });
   },

@@ -28,6 +28,7 @@ pub fn routes() -> Router<Arc<App>> {
         .route("/auth/register", post(register))
         .route("/auth/login", post(login))
         .route("/auth/logout", post(logout))
+        .route("/auth/logout-all", post(logout_all))
         .route("/me", get(me))
         .route("/me/skills", get(my_skills))
         .route("/leaderboard", get(leaderboard))
@@ -81,8 +82,9 @@ fn bearer(headers: &HeaderMap) -> Option<&str> {
 
 fn authenticate(app: &App, headers: &HeaderMap) -> ApiResult<String> {
     let token = bearer(headers).ok_or_else(ApiError::unauthorized)?;
+    let config = app.config();
     app.store()
-        .player_by_token(token)?
+        .session_player(token, config.session_ttl, config.session_touch_interval)?
         .ok_or_else(ApiError::unauthorized)
 }
 
@@ -157,11 +159,17 @@ async fn register(
         return Err(ApiError::bad_request("weak_password"));
     }
     let hash = blocking(move || hash_password(req.password)).await??;
-    let (player, token) =
-        match app
+    // An expired guest session is not promoted (and a live one is refreshed).
+    let config = app.config();
+    let guest_token = match req.guest_token.as_deref() {
+        Some(t) => app
             .store()
-            .register(&req.username, &hash, req.guest_token.as_deref())
-        {
+            .session_player(t, config.session_ttl, config.session_touch_interval)?
+            .map(|_| t),
+        None => None,
+    };
+    let (player, token) =
+        match app.store().register(&req.username, &hash, guest_token) {
             Ok(found) => found,
             Err(RegisterError::UsernameTaken) => {
                 return Err(ApiError(StatusCode::CONFLICT, "username_taken"))
@@ -218,6 +226,17 @@ async fn logout(State(app): State<Arc<App>>, headers: HeaderMap) -> ApiResult<St
     app.store().delete_session(token)?;
     // An open WebSocket that logged in with this session must not outlive it.
     app.session_revoked(token);
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Ends every session of the caller's account, on every device.
+async fn logout_all(State(app): State<Arc<App>>, headers: HeaderMap) -> ApiResult<StatusCode> {
+    let player = authenticate(&app, &headers)?;
+    let tokens = app.store().delete_sessions_of(&player)?;
+    // Open WebSockets that logged in with one of these sessions must not outlive them.
+    for token in &tokens {
+        app.session_revoked(token);
+    }
     Ok(StatusCode::NO_CONTENT)
 }
 

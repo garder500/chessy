@@ -96,6 +96,14 @@ pub struct HubConfig {
     /// position refuses (a hidden piece was in the way): trying moves at random
     /// to find hidden pieces is not free. Games without a clock are not charged.
     pub blocked_attempt_cost: Duration,
+    /// A session unused for this long is expired: its token no longer resolves
+    /// (REST and WebSocket hello) and the periodic purge deletes it.
+    pub session_ttl: Duration,
+    /// `last_used` is refreshed at most this often per session (a write per
+    /// request would be wasteful; the TTL is far longer than this).
+    pub session_touch_interval: Duration,
+    /// How often the purge task deletes expired sessions (see `spawn_session_purge`).
+    pub session_purge_interval: Duration,
 }
 
 impl Default for HubConfig {
@@ -130,6 +138,9 @@ impl Default for HubConfig {
             rated_pair_scale: 10,
             capped_pair_wait: Duration::from_secs(20),
             blocked_attempt_cost: Duration::from_secs(10),
+            session_ttl: Duration::from_secs(30 * 24 * 3600),
+            session_touch_interval: Duration::from_secs(3600),
+            session_purge_interval: Duration::from_secs(3600),
         }
     }
 }
@@ -427,7 +438,11 @@ impl Hub {
         tx: UnboundedSender<ServerMsg>,
     ) -> Result<(PlayerId, u64), StoreError> {
         let known = match &token {
-            Some(t) => self.store.player_by_token(t)?,
+            Some(t) => self.store.session_player(
+                t,
+                self.config.session_ttl,
+                self.config.session_touch_interval,
+            )?,
             None => None,
         };
         let (id, token) = match (known, token) {
