@@ -291,9 +291,13 @@ pub(super) fn spectator_events(
 
 #[cfg(test)]
 mod tests {
-    use chessy_engine::{parse_square, Action, Trap};
+    use chessy_engine::{parse_square, Action, Outcome, Trap};
+    use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
     use super::*;
+    use crate::hub::{Hub, HubConfig, Phase, Timer};
+    use crate::protocol::{ServerMsg, SoloColor, StateView};
+    use crate::store::Store;
 
     fn sq(name: &str) -> Square {
         parse_square(name).unwrap()
@@ -440,5 +444,237 @@ mod tests {
         assert!(!hidden.contains(&queen));
         // Spectators never get anything unmasked.
         assert!(spectator_hidden(&pair).contains(&queen));
+    }
+
+    // ---- the documented edge: the only real action is a capture the view hides
+
+    /// White: Kh1, Ph2. Black: Ka8, Ba7, Ph3 and a rook on g3, which is hidden.
+    /// In reality `hxg3` is the only legal move (Kg1 is covered by the rook and
+    /// the bishop, Kg2 by the pawn and the rook, h3 is blocked). On the board
+    /// white sees, g3 is empty: the pawn has nothing to capture and the king
+    /// still has no square (Kg1 by the bishop, Kg2 by the pawn).
+    const EDGE_WHITE: &str = "k7/b7/8/8/8/6rp/7P/7K w - - 0 1";
+    /// The same position with the colours swapped, black (the bot) to move.
+    const EDGE_BLACK: &str = "7k/7p/6RP/8/8/8/B7/K7 b - - 0 1";
+
+    fn drain(rx: &mut UnboundedReceiver<ServerMsg>) -> Vec<ServerMsg> {
+        std::iter::from_fn(|| rx.try_recv().ok()).collect()
+    }
+
+    fn connect(hub: &mut Hub) -> (String, UnboundedReceiver<ServerMsg>) {
+        let (tx, rx) = unbounded_channel();
+        let (id, _) = hub.connect(None, tx).unwrap();
+        (id, rx)
+    }
+
+    /// Replaces the running game of `game_id` by `fen` with `hidden` invisible.
+    fn rig(hub: &mut Hub, game_id: &str, fen: &str, hidden: &str) {
+        let mut pos = Position::from_fen(fen).unwrap();
+        hide(&mut pos, hidden);
+        let session = hub.games.get_mut(game_id).expect("the session");
+        let Phase::Playing { game } = &mut session.phase else {
+            panic!("the game has not started");
+        };
+        **game = Game::from_position(pos, &[], &[]);
+    }
+
+    fn game_of<'a>(hub: &'a Hub, game_id: &str) -> &'a Game {
+        match &hub.games[game_id].phase {
+            Phase::Playing { game } => game,
+            Phase::DeckSelect { .. } => panic!("the game has not started"),
+        }
+    }
+
+    fn capture() -> Action {
+        Action::Move {
+            from: sq("h2"),
+            to: sq("g3"),
+            promo: None,
+        }
+    }
+
+    fn last_state(msgs: Vec<ServerMsg>) -> Box<StateView> {
+        msgs.into_iter()
+            .rev()
+            .find_map(|m| match m {
+                ServerMsg::State(s) => Some(s),
+                _ => None,
+            })
+            .expect("a state message")
+    }
+
+    #[test]
+    fn the_edge_position_has_one_real_action_and_none_in_the_view() {
+        let mut pos = Position::from_fen(EDGE_WHITE).unwrap();
+        hide(&mut pos, "g3");
+        let game = Game::from_position(pos, &[], &[]);
+        // Real position: the pawn capture is the one and only action, so the
+        // game is not over (no false stalemate) ...
+        assert_eq!(game.legal_actions(), vec![capture()]);
+        assert_eq!(game.outcome(), Outcome::Ongoing);
+        // ... the hidden rook does not give check, so it is not unmasked ...
+        assert!(!game.pos.in_check(Color::White));
+        let hidden = hidden_ids(&game.pos, Color::White);
+        assert_eq!(hidden.len(), 1);
+        // ... and on the board white sees nothing is offered.
+        let seen = view_position(&game.pos, Color::White, &hidden);
+        assert!(seen.board[sq("g3") as usize].is_none());
+        assert!(game.legal_actions_on(&seen).is_empty());
+        assert!(!game.is_legal_on(&seen, capture()));
+    }
+
+    #[test]
+    fn a_player_whose_only_real_action_is_a_hidden_capture_loses_on_time() {
+        let mut hub = Hub::new(Store::open(":memory:").unwrap(), HubConfig::default());
+        let (a, ra) = connect(&mut hub);
+        let (b, rb) = connect(&mut hub);
+        hub.queue_join(&a, Some(false), None);
+        hub.queue_join(&b, Some(false), None);
+        hub.select_deck(&a, vec![]);
+        hub.select_deck(&b, vec![]);
+        let game_id = hub.player_game[&a].clone();
+        let white = hub.games[&game_id].players[0].clone();
+        let (mut rw, mut rbk) = if white == a { (ra, rb) } else { (rb, ra) };
+
+        rig(&mut hub, &game_id, EDGE_WHITE, "g3");
+        let timers = hub.take_timers();
+        assert!(
+            timers.iter().any(|(_, t)| matches!(
+                t,
+                Timer::Flag {
+                    color: Color::White,
+                    ply: 0,
+                    ..
+                }
+            )),
+            "white's flag is armed: {timers:?}"
+        );
+        drain(&mut rw);
+        drain(&mut rbk);
+        hub.broadcast_state(&game_id, Vec::new());
+        // (`spectate_publish` queues spectator-feed timers: set them aside)
+        hub.take_timers();
+
+        // White is told it is their move and is offered nothing at all.
+        let state = last_state(drain(&mut rw));
+        assert_eq!(state.to_move, Color::White);
+        assert_eq!(state.outcome, Outcome::Ongoing);
+        assert!(!state.in_check);
+        assert!(state.moves.is_empty(), "{:?}", state.moves);
+        assert!(state.skill_options.is_empty());
+        assert!(
+            state.board[sq("g3") as usize].is_none(),
+            "the rook is hidden"
+        );
+        assert!(state.board[sq("h2") as usize].is_some());
+        // Black sees its own rook and is not on the move.
+        let theirs = last_state(drain(&mut rbk));
+        assert!(theirs.board[sq("g3") as usize].is_some());
+        assert!(theirs.moves.is_empty());
+
+        // The clock keeps running for white: nothing ends or skips the turn.
+        let clock = hub.games[&game_id].clock.as_ref().unwrap();
+        assert_eq!(clock.running, Some(Color::White));
+        let before = clock.remaining[Color::White.index()];
+
+        // The capture is not on the view, so it is refused like any action
+        // that was never offered: same error, no state, no time charged.
+        hub.action(&white, capture());
+        let msgs = drain(&mut rw);
+        assert!(
+            matches!(
+                msgs.as_slice(),
+                [ServerMsg::Error { code, message }]
+                    if code == "illegal_action" && message == "that action is not allowed"
+            ),
+            "{msgs:?}"
+        );
+        assert!(hub.take_timers().is_empty(), "no new timer, no penalty");
+        let clock = hub.games[&game_id].clock.as_ref().unwrap();
+        assert_eq!(clock.remaining[Color::White.index()], before);
+        let game = game_of(&hub, &game_id);
+        assert_eq!(game.pos.ply, 0);
+        assert_eq!(game.side_to_move(), Color::White);
+        assert_eq!(game.outcome(), Outcome::Ongoing);
+
+        // When the flag falls, white loses on time and the game is over.
+        hub.on_timer(Timer::Flag {
+            game_id: game_id.clone(),
+            color: Color::White,
+            ply: 0,
+        });
+        let over = last_state(drain(&mut rw));
+        assert_eq!(
+            over.outcome,
+            Outcome::Timeout {
+                winner: Color::Black
+            }
+        );
+        assert!(!hub.games.contains_key(&game_id));
+        assert!(!hub.player_game.contains_key(&white));
+    }
+
+    #[test]
+    fn a_solo_player_in_that_position_has_no_clock_and_can_only_resign() {
+        let mut hub = Hub::new(Store::open(":memory:").unwrap(), HubConfig::default());
+        let (p, mut rp) = connect(&mut hub);
+        hub.solo_start(&p, 1200, SoloColor::White);
+        hub.select_deck(&p, vec![]);
+        let game_id = hub.player_game[&p].clone();
+        rig(&mut hub, &game_id, EDGE_WHITE, "g3");
+        hub.take_timers();
+        drain(&mut rp);
+        hub.broadcast_state(&game_id, Vec::new());
+        let timers = hub.take_timers();
+
+        let state = last_state(drain(&mut rp));
+        assert_eq!(state.to_move, Color::White);
+        assert!(state.moves.is_empty() && state.skill_options.is_empty());
+        assert!(hub.games[&game_id].clock.is_none(), "Solo has no clock");
+        assert!(
+            timers.iter().all(|(_, t)| !matches!(t, Timer::Flag { .. })),
+            "no flag will ever fall: {timers:?}"
+        );
+        // Nothing else moves the game on: the way out is to resign.
+        hub.action(&p, capture());
+        assert!(matches!(
+            drain(&mut rp).as_slice(),
+            [ServerMsg::Error { code, .. }] if code == "illegal_action"
+        ));
+        hub.resign(&p);
+        assert!(!hub.games.contains_key(&game_id));
+        let over = last_state(drain(&mut rp));
+        assert_eq!(
+            over.outcome,
+            Outcome::Resignation {
+                winner: Color::Black
+            }
+        );
+    }
+
+    #[test]
+    fn a_bot_whose_only_real_action_is_a_hidden_capture_still_plays_it() {
+        let mut hub = Hub::new(Store::open(":memory:").unwrap(), HubConfig::default());
+        let (p, _rp) = connect(&mut hub);
+        hub.solo_start(&p, 1200, SoloColor::White);
+        hub.select_deck(&p, vec![]);
+        let game_id = hub.player_game[&p].clone();
+        rig(&mut hub, &game_id, EDGE_BLACK, "g6");
+        let ply = game_of(&hub, &game_id).pos.ply;
+
+        // The bot searches the board its side sees: nothing to play there.
+        let job = hub.bot_job(&game_id, ply).expect("the bot is due to move");
+        assert!(job.game.legal_actions_on(&job.game.pos).is_empty());
+        let choice = crate::bot::think(&job);
+        assert_eq!(choice, None);
+
+        // `apply_bot_move` then falls back on the real legal actions (its
+        // documented safety net), so the game advances instead of hanging.
+        hub.apply_bot_move(&game_id, ply, choice);
+        let game = game_of(&hub, &game_id);
+        assert_eq!(game.side_to_move(), Color::White);
+        let pawn = game.pos.board[sq("g6") as usize].expect("the black pawn took on g6");
+        assert_eq!(pawn.color, Color::Black);
+        assert!(game.pos.board[sq("h7") as usize].is_none());
     }
 }

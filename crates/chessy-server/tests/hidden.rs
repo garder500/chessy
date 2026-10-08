@@ -138,6 +138,34 @@ async fn legal_moves_are_those_of_the_board_the_player_sees() {
 }
 
 #[tokio::test]
+async fn a_visible_diagonal_capture_is_offered_until_the_piece_is_hidden() {
+    let (app, store) = new_app(HubConfig::default());
+    let (mut white, black) = start(&app, &store, &[SkillId::Freeze], &[SkillId::Invisibility]);
+    white.mv("e2", "e4");
+    black.mv("d7", "d5");
+    // Visible: the pawn capture is offered, as always.
+    let state = white.last("state");
+    assert!(!state["board"][sq("d5") as usize].is_null());
+    assert!(offers_move(&state, "e4", "d5"), "visible capture");
+    white.mv("f1", "c4");
+    skill(
+        &black,
+        SkillId::Invisibility,
+        SkillTarget::Piece { square: sq("d5") },
+    );
+    // Hidden: no pawn capture, but moving onto the square still captures.
+    let state = white.last("state");
+    assert!(state["board"][sq("d5") as usize].is_null());
+    assert!(!offers_move(&state, "e4", "d5"), "hidden capture");
+    assert!(offers_move(&state, "c4", "d5"));
+    white.mv("c4", "d5");
+    let state = white.last("state");
+    assert_eq!(state["to_move"], "black");
+    assert_eq!(events(&state, "captured").len(), 1);
+    assert_eq!(state["board"][sq("d5") as usize]["kind"], "bishop");
+}
+
+#[tokio::test]
 async fn skill_targets_follow_the_view_too() {
     let (_app, _white, _black, state) = black_hides_d5(&[SkillId::Freeze, SkillId::Trap]);
     assert!(
