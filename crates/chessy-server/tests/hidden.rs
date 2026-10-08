@@ -27,8 +27,14 @@ fn start(
 ) -> (Client, Client) {
     let mut a = guest(app);
     let mut b = guest(app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     a.color = serde_json::from_value(a.next("deck_select")["you"].clone()).ok();
     b.color = serde_json::from_value(b.next("deck_select")["you"].clone()).ok();
     let (mut white, mut black) = if a.color == Some(Color::White) {

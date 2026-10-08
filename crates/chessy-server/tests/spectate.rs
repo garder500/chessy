@@ -43,8 +43,14 @@ fn start_game(
 ) -> (Client, Client, String) {
     let mut a = guest(app);
     let mut b = guest(app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     a.color = serde_json::from_value(a.next("deck_select")["you"].clone()).ok();
     b.color = serde_json::from_value(b.next("deck_select")["you"].clone()).ok();
     let (mut white, mut black) = if a.color == Some(Color::White) {
@@ -73,8 +79,14 @@ fn start_game(
 fn plain_game(app: &Arc<App>) -> (Client, Client, String) {
     let mut a = guest(app);
     let mut b = guest(app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     a.color = serde_json::from_value(a.next("deck_select")["you"].clone()).ok();
     b.color = serde_json::from_value(b.next("deck_select")["you"].clone()).ok();
     a.pick_nothing();
@@ -143,8 +155,14 @@ async fn the_live_list_shows_running_games_but_not_deck_selection() {
     // A duel still choosing skills is not listed.
     let mut a = guest(&app);
     let mut b = guest(&app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let _ = a.next("deck_select");
     let _ = b.next("deck_select");
     assert!(live(&app).is_empty());
@@ -235,7 +253,7 @@ async fn the_kind_tells_duels_rooms_challenges_and_rematches_apart() {
     // A private room.
     let mut host = guest(&app);
     let other = guest(&app);
-    host.send(ClientMsg::CreateRoom);
+    host.send(ClientMsg::CreateRoom { time: None });
     let code = host.last("lobby")["status"]["code"]
         .as_str()
         .unwrap()
@@ -663,8 +681,14 @@ async fn players_cannot_watch_and_unknown_games_do_not_exist() {
     // A game still in deck selection is not watchable.
     let mut a = guest(&app);
     let b = guest(&app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let id = a.next("deck_select")["game_id"]
         .as_str()
         .unwrap()
@@ -790,12 +814,15 @@ async fn a_spectator_who_starts_a_game_stops_watching() {
     // The queue.
     let s = watcher(&app, &game_id);
     assert_eq!(count(), 1);
-    s.send(ClientMsg::QueueJoin { ranked: None });
+    s.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     assert_eq!(count(), 0);
 
     // A room.
     let s = watcher(&app, &game_id);
-    s.send(ClientMsg::CreateRoom);
+    s.send(ClientMsg::CreateRoom { time: None });
     assert_eq!(count(), 0);
 }
 
@@ -828,9 +855,11 @@ async fn friends_see_the_game_they_can_watch() {
 
     alice.send(ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     carol.send(ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     let _ = alice.next("deck_select");
     let _ = carol.next("deck_select");

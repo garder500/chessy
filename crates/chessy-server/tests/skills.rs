@@ -31,8 +31,14 @@ fn start_with(
     // Only rated games reward a skill: two accounts in the ranked queue.
     let mut a = account(app, store, "alice");
     let mut b = account(app, store, "bob");
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     a.color = serde_json::from_value(a.next("deck_select")["you"].clone()).ok();
     b.color = serde_json::from_value(b.next("deck_select")["you"].clone()).ok();
     let (mut white, mut black) = if a.color == Some(Color::White) {
@@ -155,8 +161,14 @@ async fn new_classic_skills_can_be_picked_and_unique_ones_still_cannot() {
             ],
         )
         .unwrap();
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let _ = a.next("deck_select");
     a.pick(&[SkillId::Mirage]);
     assert_eq!(a.error_code(), "invalid_deck");

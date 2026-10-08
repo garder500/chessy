@@ -25,8 +25,14 @@ fn setup() -> (Arc<App>, Store, Api) {
 fn friendly_game(app: &Arc<App>) -> (Client, Client) {
     let a = guest(app);
     let b = guest(app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     into_game(a, b)
 }
 
@@ -67,8 +73,14 @@ async fn a_ranked_duel_is_recorded_with_its_elo_movement() {
     let (app, store, api) = setup();
     let a = account(&app, &store, "alice");
     let b = account(&app, &store, "bobby");
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let (white, black) = into_game(a, b);
     fools_mate(&white, &black);
 
@@ -108,9 +120,11 @@ async fn friendly_games_keep_account_ratings_but_move_none() {
     let b = account(&app, &store, "bobby");
     a.send(ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     b.send(ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     let (white, black) = into_game(a, b);
     fools_mate(&white, &black);
@@ -146,7 +160,7 @@ async fn rooms_and_challenges_have_their_own_kind() {
     let a = account(&app, &store, "alice");
     let b = account(&app, &store, "bobby");
     let mut a = a;
-    a.send(ClientMsg::CreateRoom);
+    a.send(ClientMsg::CreateRoom { time: None });
     let code = a.last("lobby")["status"]["code"]
         .as_str()
         .unwrap()
@@ -245,9 +259,11 @@ async fn a_game_cancelled_before_it_starts_is_not_recorded() {
     let b = account(&app, &store, "bobby");
     a.send(ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     b.send(ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     // Nobody has chosen a deck yet: leaving cancels the game.
     a.send(ClientMsg::Resign);
@@ -643,8 +659,14 @@ async fn a_game_with_skills_replays_exactly_what_the_players_saw() {
     ];
     store.set_deck(&a.id, &a_deck).unwrap();
     store.set_deck(&b.id, &b_deck).unwrap();
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let (mut a, mut b) = (a, b);
     for (c, deck) in [(&mut a, &a_deck), (&mut b, &b_deck)] {
         let ds = c.next("deck_select");
@@ -1235,8 +1257,14 @@ async fn exploration_offers_the_skills_of_the_loadouts() {
     store
         .set_deck(&b.id, &[SkillId::Imune, SkillId::Trap])
         .unwrap();
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let (mut a, mut b) = (a, b);
     for (c, deck) in [
         (&mut a, vec![SkillId::Teleportation, SkillId::Freeze]),
@@ -1387,8 +1415,14 @@ async fn new_games_are_recorded_next_to_old_ones() {
     let api = Api::new(&app);
     let a = Client::connect(&app, Some("old-token-a".into()));
     let b = Client::connect(&app, Some("old-token-b".into()));
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let (white, black) = into_game(a, b);
     fools_mate(&white, &black);
     let (_, list) = api.get("/api/me/games", Some(&white.token)).await;
@@ -1414,8 +1448,14 @@ async fn a_long_game_is_analysed_within_the_budget() {
     let b_deck = [SkillId::Imune, SkillId::Trap, SkillId::Bench];
     store.set_deck(&a.id, &a_deck).unwrap();
     store.set_deck(&b.id, &b_deck).unwrap();
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let (mut a, mut b) = (a, b);
     for (c, deck) in [(&mut a, a_deck), (&mut b, b_deck)] {
         let ds = c.next("deck_select");

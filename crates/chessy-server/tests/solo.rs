@@ -97,8 +97,14 @@ async fn people_are_not_marked_as_bots() {
     let (app, _) = new_app(cfg());
     let a = guest(&app);
     let b = guest(&app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let (mut a, _b) = matched_keep(a, b);
     let s = a.last("state");
     assert!(s["opponent"].get("bot").is_none() || s["opponent"]["bot"] == false);
@@ -134,13 +140,16 @@ async fn color_defaults_to_random_and_random_gives_both_sides() {
 async fn solo_start_is_refused_when_busy_or_out_of_range() {
     let (app, _) = new_app(cfg());
     let mut a = guest(&app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     a.clear();
     a.say(json!({"type": "solo_start", "elo": 1000, "color": "white"}));
     assert_eq!(a.error_code(), "already_in_game", "while queued");
     a.send(ClientMsg::LeaveLobby);
 
-    a.send(ClientMsg::CreateRoom);
+    a.send(ClientMsg::CreateRoom { time: None });
     a.clear();
     a.say(json!({"type": "solo_start", "elo": 1000, "color": "white"}));
     assert_eq!(a.error_code(), "already_in_game", "while hosting a room");
@@ -150,13 +159,22 @@ async fn solo_start_is_refused_when_busy_or_out_of_range() {
     solo(&mut a, 1000, "white");
     a.say(json!({"type": "solo_start", "elo": 1000, "color": "white"}));
     assert_eq!(a.error_code(), "already_in_game", "while in a solo game");
-    a.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     assert_eq!(a.error_code(), "already_in_game", "queueing during solo");
 
     let b = guest(&app);
     let c = guest(&app);
-    b.send(ClientMsg::QueueJoin { ranked: None });
-    c.send(ClientMsg::QueueJoin { ranked: None });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    c.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let (mut b, _c) = matched(b, c);
     b.say(json!({"type": "solo_start", "elo": 1000, "color": "white"}));
     assert_eq!(b.error_code(), "already_in_game", "while in a duel");
@@ -193,8 +211,14 @@ async fn the_game_has_no_clock_and_the_bot_has_three_classic_skills() {
     // A normal game keeps its clock.
     let a = guest(&app);
     let b = guest(&app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let (mut a, _b) = matched_keep(a, b);
     let s = a.last("state");
     assert_eq!(s["clock_enabled"], true);
@@ -422,7 +446,10 @@ async fn no_rematch_without_a_finished_solo_game_or_after_leaving() {
     g.next("deck_select");
     g.pick_nothing();
     resign_and_wait(&mut g);
-    g.send(ClientMsg::QueueJoin { ranked: None });
+    g.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     g.clear();
     g.send(ClientMsg::RematchRequest);
     assert_eq!(g.error_code(), "no_rematch");
@@ -742,7 +769,7 @@ async fn the_bot_search_does_not_hold_the_hub() {
     g.pick_nothing();
     let mut other = guest(&app);
     let started = std::time::Instant::now();
-    other.send(ClientMsg::CreateRoom);
+    other.send(ClientMsg::CreateRoom { time: None });
     other.next("lobby");
     assert!(
         started.elapsed() < Duration::from_millis(200),
@@ -793,8 +820,14 @@ async fn leaving_deck_selection_puts_the_opponent_back_in_the_queue() {
     let (app, _) = new_app(cfg());
     let mut a = guest(&app);
     let mut b = guest(&app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     a.next("deck_select");
     b.next("deck_select");
     a.send(ClientMsg::LeaveDeckSelect);
@@ -803,7 +836,10 @@ async fn leaving_deck_selection_puts_the_opponent_back_in_the_queue() {
     assert_eq!(b.last("lobby")["status"]["type"], "queued");
     // A newcomer is matched with the waiting player.
     let mut c = guest(&app);
-    c.send(ClientMsg::QueueJoin { ranked: None });
+    c.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     c.next("deck_select");
     b.next("deck_select");
 }

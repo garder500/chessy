@@ -190,8 +190,14 @@ pub fn into_game(a: Client, b: Client) -> (Client, Client) {
 
 /// Two accounts matched in the ranked queue, in the order given.
 pub fn ranked_match(a: Client, b: Client) -> (Client, Client) {
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    b.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     matched(a, b)
 }
 

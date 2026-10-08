@@ -11,12 +11,16 @@ use common::*;
 use serde_json::json;
 
 fn ranked() -> ClientMsg {
-    ClientMsg::QueueJoin { ranked: Some(true) }
+    ClientMsg::QueueJoin {
+        ranked: Some(true),
+        time: None,
+    }
 }
 
 fn friendly() -> ClientMsg {
     ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     }
 }
 
@@ -192,7 +196,10 @@ async fn friendly_queue_is_first_come_and_separate_from_ranked() {
     let mut g2 = guest(&app);
 
     acct.send(ranked());
-    g1.send(ClientMsg::QueueJoin { ranked: None });
+    g1.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     assert_eq!(
         g1.last("lobby")["status"],
         json!({"type": "queued", "ranked": false})
@@ -236,4 +243,58 @@ async fn a_player_cannot_sit_in_two_queues() {
     );
     a.send(ranked());
     assert!(a.try_next("deck_select").is_some());
+}
+
+#[tokio::test]
+async fn players_only_meet_someone_who_asked_for_the_same_length() {
+    use chessy_server::protocol::TimeControl::{Long, Short};
+    let (app, store, db) = world(HubConfig::default());
+    let mut a = rated_account(&app, &store, &db, "aa", 1200);
+    let mut b = rated_account(&app, &store, &db, "bb", 1200);
+    let mut c = rated_account(&app, &store, &db, "cc", 1200);
+
+    a.send(ClientMsg::QueueJoin {
+        ranked: Some(true),
+        time: Some(Short),
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: Some(true),
+        time: Some(Long),
+    });
+    assert!(
+        a.try_next("deck_select").is_none(),
+        "different lengths never pair"
+    );
+    assert!(b.try_next("deck_select").is_none());
+
+    c.send(ClientMsg::QueueJoin {
+        ranked: Some(true),
+        time: Some(Short),
+    });
+    assert!(a.try_next("deck_select").is_some());
+    assert!(c.try_next("deck_select").is_some());
+    assert!(b.try_next("deck_select").is_none());
+}
+
+#[tokio::test]
+async fn the_clock_starts_at_the_requested_length() {
+    use chessy_server::protocol::TimeControl::Medium;
+    let (app, _store, _db) = world(HubConfig::default());
+    let mut a = guest(&app);
+    let mut b = guest(&app);
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: Some(Medium),
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: Some(Medium),
+    });
+    a.next("deck_select");
+    b.next("deck_select");
+    a.send(ClientMsg::SelectDeck { skills: vec![] });
+    b.send(ClientMsg::SelectDeck { skills: vec![] });
+    let state = a.next("state");
+    assert_eq!(state["clock"]["white_ms"], 15 * 60 * 1000);
+    assert_eq!(state["clock"]["black_ms"], 15 * 60 * 1000);
 }

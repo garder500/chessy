@@ -148,9 +148,11 @@ async fn friendly_and_short_games_do_not_touch_ratings() {
     // Friendly queue.
     a.send(ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     b.send(ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     let (mut a, mut b) = matched(a, b);
     four_plies(&a, &b);
@@ -177,7 +179,7 @@ async fn friendly_and_short_games_do_not_touch_ratings() {
     let _ = b.next("game_over");
 
     // Private room.
-    a.send(ClientMsg::CreateRoom);
+    a.send(ClientMsg::CreateRoom { time: None });
     let code = a.last("lobby")["status"]["code"]
         .as_str()
         .unwrap()
@@ -201,7 +203,10 @@ async fn guests_never_play_rated() {
     let g = guest(&w.app);
     let acct = account(&w.app, &w.store, "solo");
     // A guest asking for ranked is silently put in the friendly queue.
-    g.send(ClientMsg::QueueJoin { ranked: Some(true) });
+    g.send(ClientMsg::QueueJoin {
+        ranked: Some(true),
+        time: None,
+    });
     let mut g = g;
     assert_eq!(
         g.last("lobby")["status"],
@@ -209,6 +214,7 @@ async fn guests_never_play_rated() {
     );
     acct.send(ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
     let (mut g, mut acct) = matched(g, acct);
     four_plies(&g, &acct);
@@ -290,8 +296,14 @@ async fn friendly_games_appear_in_recent_without_a_delta() {
     let api = Api::new(&w.app);
     let a = account(&w.app, &w.store, "amy");
     let g = guest(&w.app);
-    a.send(ClientMsg::QueueJoin { ranked: None });
-    g.send(ClientMsg::QueueJoin { ranked: None });
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    g.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     // Queue kinds differ (ranked vs friendly), so nobody is matched yet.
     let mut a = a;
     assert_eq!(a.last("lobby")["status"]["ranked"], true);
@@ -299,8 +311,12 @@ async fn friendly_games_appear_in_recent_without_a_delta() {
     a.send(ClientMsg::LeaveLobby);
     a.send(ClientMsg::QueueJoin {
         ranked: Some(false),
+        time: None,
     });
-    g.send(ClientMsg::QueueJoin { ranked: None });
+    g.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
     let (mut a, mut g) = matched(a, g);
     four_plies(&a, &g);
     g.send(ClientMsg::Resign);
