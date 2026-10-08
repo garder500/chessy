@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use std::path::Path;
 use std::time::Duration;
 
@@ -5,11 +6,6 @@ use chessy_server::hub::HubConfig;
 use chessy_server::store::Store;
 use chessy_server::{router, spawn_session_purge, App};
 use tower_http::services::{ServeDir, ServeFile};
-
-/// A whole number from the environment; a value that does not parse is ignored.
-fn env_number(name: &str) -> Option<u64> {
-    std::env::var(name).ok()?.trim().parse().ok()
-}
 
 #[tokio::main]
 async fn main() {
@@ -24,12 +20,25 @@ async fn main() {
     let web_dir = std::env::var("CHESSY_WEB_DIR").unwrap_or_else(|_| "web/dist".to_string());
 
     let mut config = HubConfig::default();
-    if let Some(days) = env_number("CHESSY_SESSION_TTL_DAYS") {
+    if let Some(days) = env_number::<u64>("CHESSY_SESSION_TTL_DAYS") {
         config.session_ttl = Duration::from_secs(days * 24 * 3600);
     }
-    if let Some(secs) = env_number("CHESSY_SESSION_PURGE_SECS") {
+    if let Some(secs) = env_number::<u64>("CHESSY_SESSION_PURGE_SECS") {
         config.session_purge_interval = Duration::from_secs(secs.max(1));
     }
+
+    // 0 = unlimited. The per-IP cap is off unless asked for.
+    if let Some(n) = env_number::<usize>("CHESSY_MAX_CONNECTIONS") {
+        config.max_connections = n;
+    }
+    if let Some(n) = env_number::<usize>("CHESSY_MAX_CONNECTIONS_PER_IP") {
+        config.max_connections_per_ip = n;
+    }
+    // Behind a reverse proxy that sets X-Forwarded-For itself (`1` or `true`).
+    config.trust_proxy = matches!(
+        std::env::var("CHESSY_TRUST_PROXY").as_deref(),
+        Ok("1" | "true")
+    );
 
     let store = Store::open(&db_path).expect("open database");
     spawn_session_purge(
@@ -50,5 +59,23 @@ async fn main() {
         .await
         .expect("bind address");
     tracing::info!("chessy-server listening on http://{addr} (db: {db_path})");
-    axum::serve(listener, app).await.expect("server error");
+    // Connect info gives the WebSocket handler the peer address for the per-IP cap.
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .expect("server error");
+}
+
+/// A non-negative integer from the environment; unset or unreadable is `None`.
+fn env_number<T: std::str::FromStr>(name: &str) -> Option<T> {
+    let raw = std::env::var(name).ok()?;
+    match raw.trim().parse() {
+        Ok(n) => Some(n),
+        Err(_) => {
+            tracing::warn!("ignoring {name}={raw:?}: not a number");
+            None
+        }
+    }
 }

@@ -1,6 +1,7 @@
 //! Shares the [`Hub`] across connections and runs its timers.
 
 use std::collections::HashMap;
+use std::net::IpAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -9,6 +10,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::bot;
 use crate::hub::{ForgeJob, Hub, HubConfig, Timer};
+use crate::limits::{ConnSlot, ConnectionLimiter, Refusal};
 use crate::protocol::{ClientMsg, PlayerId, RewardChoice, ServerMsg};
 use crate::store::{Store, StoreError};
 
@@ -24,6 +26,8 @@ pub struct App {
     store: Store,
     /// Recent failed logins per lower-cased username: (count, window start).
     login_failures: Mutex<HashMap<String, (u32, Instant)>>,
+    /// Open WebSocket connections, against `max_connections[_per_ip]`.
+    connections: Arc<ConnectionLimiter>,
 }
 
 impl App {
@@ -34,7 +38,22 @@ impl App {
             max_hold_ns: AtomicU64::new(0),
             store,
             login_failures: Mutex::new(HashMap::new()),
+            connections: ConnectionLimiter::new(
+                config.max_connections,
+                config.max_connections_per_ip,
+            ),
         })
+    }
+
+    /// Reserves a place for a new WebSocket connection (`ip` is the client
+    /// address when known). The place is given back when the guard drops.
+    pub fn admit_connection(&self, ip: Option<IpAddr>) -> Result<ConnSlot, Refusal> {
+        self.connections.try_acquire(ip)
+    }
+
+    /// WebSocket connections open right now (counted from the upgrade).
+    pub fn open_connections(&self) -> usize {
+        self.connections.open()
     }
 
     /// Whether `username` has failed too many logins recently.

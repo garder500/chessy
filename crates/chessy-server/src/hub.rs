@@ -104,6 +104,18 @@ pub struct HubConfig {
     pub session_touch_interval: Duration,
     /// How often the purge task deletes expired sessions (see `spawn_session_purge`).
     pub session_purge_interval: Duration,
+    /// Most WebSocket connections open at once; a further upgrade is refused
+    /// with `503` before any hub state is allocated. `0` = unlimited.
+    pub max_connections: usize,
+    /// Most WebSocket connections open at once from one client address (an
+    /// IPv6 address counts as its /64). `0` = unlimited, which is the default:
+    /// behind a reverse proxy every peer is the proxy, so a cap would lump all
+    /// users together unless `trust_proxy` is set.
+    pub max_connections_per_ip: usize,
+    /// Take the client address from the right-most `X-Forwarded-For` entry
+    /// instead of the TCP peer. Only turn this on behind a proxy that sets the
+    /// header itself; otherwise any client can pick its own address.
+    pub trust_proxy: bool,
 }
 
 impl Default for HubConfig {
@@ -141,6 +153,9 @@ impl Default for HubConfig {
             session_ttl: Duration::from_secs(30 * 24 * 3600),
             session_touch_interval: Duration::from_secs(3600),
             session_purge_interval: Duration::from_secs(3600),
+            max_connections: 5000,
+            max_connections_per_ip: 0,
+            trust_proxy: false,
         }
     }
 }
