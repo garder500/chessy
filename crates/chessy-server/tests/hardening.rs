@@ -313,7 +313,11 @@ async fn a_reward_cannot_be_claimed_twice_and_expires() {
 
 #[tokio::test]
 async fn rated_rematches_between_the_same_pair_stop_counting_after_three() {
-    let (app, store) = new_app(HubConfig::default());
+    // Le plafond fixe, sans l'élargissement quand peu de comptes sont en ligne.
+    let (app, store) = new_app(HubConfig {
+        rated_pair_scale: 1,
+        ..HubConfig::default()
+    });
     let mut a = account(&app, &store, "alice");
     let mut b = account(&app, &store, "bob");
     a.send(ClientMsg::QueueJoin {
@@ -347,9 +351,44 @@ async fn rated_rematches_between_the_same_pair_stop_counting_after_three() {
 }
 
 #[tokio::test]
+async fn the_pair_cap_widens_when_few_accounts_are_online() {
+    // Deux comptes seuls en ligne : le plafond est de 3 × 10 = 30 parties, pas de 3.
+    let (app, store) = new_app(HubConfig::default());
+    let mut a = account(&app, &store, "alice");
+    let mut b = account(&app, &store, "bob");
+    a.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    b.send(ClientMsg::QueueJoin {
+        ranked: None,
+        time: None,
+    });
+    for game in 1..=5 {
+        assert!(start(&mut a, &mut b), "game {game} is still rated");
+        short_game(&mut a, &mut b);
+        if game < 5 {
+            a.send(ClientMsg::RematchRequest);
+            b.send(ClientMsg::RematchRequest);
+        }
+    }
+    // Du monde en ligne : le plafond redescend à 3 (11 comptes autour), déjà dépassé.
+    let _others: Vec<_> = (0..10)
+        .map(|i| account(&app, &store, &format!("extra{i}")))
+        .collect();
+    a.send(ClientMsg::RematchRequest);
+    b.send(ClientMsg::RematchRequest);
+    assert!(
+        !start(&mut a, &mut b),
+        "with a crowd online the cap is back to three"
+    );
+}
+
+#[tokio::test]
 async fn the_ranked_queue_does_not_pair_a_capped_pair_again() {
     let (app, store) = new_app(HubConfig {
         rated_pair_max: 1,
+        rated_pair_scale: 1,
         ..HubConfig::default()
     });
     let mut a = account(&app, &store, "alice");
@@ -396,6 +435,7 @@ async fn a_capped_pair_alone_in_the_queue_is_paired_anyway_for_an_unrated_game()
     // With only two players around, waiting for a third would be waiting for ever.
     let (app, store) = new_app(HubConfig {
         rated_pair_max: 1,
+        rated_pair_scale: 1,
         capped_pair_wait: Duration::from_millis(150),
         queue_sweep_interval: Duration::from_millis(30),
         ..HubConfig::default()
@@ -444,6 +484,7 @@ async fn games_older_than_the_window_do_not_count() {
         store.clone(),
         HubConfig {
             rated_pair_max: 1,
+            rated_pair_scale: 1,
             ..HubConfig::default()
         },
     );

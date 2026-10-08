@@ -4,18 +4,21 @@
 .sr-back { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; color: var(--text); cursor: pointer; }
 .sr-h1 { margin: 0; font-size: 22px; letter-spacing: 0.06em; }
 .sr-mid { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px 20px; text-align: center; }
-.sr-radar { position: relative; width: 170px; height: 170px; display: grid; place-items: center; }
-.sr-ping { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--accent); animation: sr-ping 2.2s ease-out infinite; }
-.sr-ring { position: absolute; inset: 22px; border-radius: 50%; border: 1px solid var(--line-3); }
-.sr-piece { height: 96px; width: auto; position: relative; }
+.sr-radar { position: relative; width: 220px; height: 220px; display: grid; place-items: center; overflow: hidden; border-radius: 50%; isolation: isolate; }
+/* Ondes : même cercle, jamais agrandi au-delà de la boîte (pas de bord coupé), décalées pour un rythme continu. */
+.sr-ping { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; transform: scale(0.55); transform-origin: 50% 50%; will-change: transform, opacity; animation: sr-ping 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; }
+.sr-ping-2 { animation-delay: 1.2s; }
+.sr-ring { position: absolute; inset: 26px; border-radius: 50%; border: 1.5px solid var(--line-3); background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.sr-piece { position: relative; z-index: 1; height: 128px; width: auto; }
+.sr-piece.pl-piece-3d { width: 150px; height: 150px; }
 .sr-timer { margin: 0; font-size: 56px; line-height: 1; }
 .sr-title { margin: 0; font-size: 26px; letter-spacing: 0.08em; }
 .sr-sub { margin: 0; color: var(--muted); }
 .sr-fine { font-size: 14px; color: var(--faint); }
-.sr-tip { display: flex; gap: 10px; align-items: flex-start; text-align: left; margin-top: 10px; max-width: 420px; font-size: 15px; }
+.sr-tip { display: flex; gap: 12px; align-items: flex-start; text-align: left; margin-top: 14px; max-width: 420px; font-size: 15px; padding: 14px 18px; line-height: 1.45; }
 .sr-tip-hex { width: 22px; height: 25px; margin-top: 2px; }
 .sr-act { position: relative; z-index: 1; width: min(420px, 100%); align-self: center; padding: 16px; }
 :root .sr .lb-code { font-size: 40px; font-weight: 800; letter-spacing: 0.3em; padding: 12px 10px 12px 22px; }
-@keyframes sr-ping { 0% { transform: scale(0.6); opacity: 0.8; } 100% { transform: scale(1.6); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .sr-ping { animation: none; opacity: 0.4; } }
-:root[data-motion="reduce"] .sr-ping { animation: none; opacity: 0.4; }
+@keyframes sr-ping { 0% { transform: scale(0.55); opacity: 0.85; } 100% { transform: scale(1); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sr-ping { animation: none; opacity: 0.4; transform: scale(1); } }
+:root[data-motion="reduce"] .sr-ping { animation: none; opacity: 0.4; transform: scale(1); }

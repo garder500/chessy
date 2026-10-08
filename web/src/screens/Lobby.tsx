@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, type CSSProperties } from "react";
 import { hrefFor } from "../router";
 import { skillInfo } from "../skills";
 import { store, type AppState } from "../store";
@@ -7,6 +7,7 @@ import { HeroPiece } from "../ui/HeroPiece";
 import { ChallengeSheet } from "../ui/ChallengeSheet";
 import { Sheet } from "../ui/Sheet";
 import { initialOf } from "../ui/NavBar";
+import { SkillArt } from "../ui/SkillArt";
 import { sortFriends } from "../ui/social";
 import { tileRarity } from "../ui/tileRarity";
 import { setTime, timeText, TIMES, useTime } from "../time";
@@ -113,20 +114,26 @@ export function Lobby({ state }: { state: AppState }) {
         </div>
 
         {isAccount ? (
-          <div className="jp-friends" aria-label="Amis en ligne">
-            {online.slice(0, 3).map((f) => (
-              <button key={f.username} type="button" className="jp-friend" aria-label={`Défier ${f.username}`} onClick={() => setSheet({ friend: f.username })}>
-                <span className="avatar jp-av">
-                  {initialOf(f.username)}
-                  <span className={`presence ${f.presence}`} aria-hidden="true" />
-                </span>
-                <span className="jp-friend-name">{f.username}</span>
-              </button>
-            ))}
-            <span className="jp-friends-hint">{online.length === 0 ? "Aucun ami en ligne" : "Touchez un ami pour le défier"}</span>
-            <a className="link" href={hrefFor({ name: "friends" })}>
-              {online.length === 0 && friends.friends.length === 0 ? "Ajouter" : "Tous"}
-            </a>
+          <div className="jp-friends" role="group" aria-label="Amis en ligne">
+            <div className="jp-friends-head">
+              <span className="jp-friends-hint">{online.length === 0 ? "Aucun ami en ligne" : "Touchez un ami pour le défier"}</span>
+              <a className="link" href={hrefFor({ name: "friends" })}>
+                {online.length === 0 && friends.friends.length === 0 ? "Ajouter" : "Tous"}
+              </a>
+            </div>
+            {online.length > 0 && (
+              <div className="jp-friends-row">
+                {online.slice(0, 6).map((f) => (
+                  <button key={f.username} type="button" className="jp-friend" aria-label={`Défier ${f.username}`} onClick={() => setSheet({ friend: f.username })}>
+                    <span className="avatar jp-av">
+                      {initialOf(f.username)}
+                      <span className={`presence ${f.presence}`} aria-hidden="true" />
+                    </span>
+                    <span className="jp-friend-name">{f.username}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <p className="jp-guest">
@@ -154,7 +161,13 @@ export function Lobby({ state }: { state: AppState }) {
           <span className="jp-deck-hex" aria-hidden="true">
             {Array.from({ length: DECK_SLOTS }, (_, i) => {
               const id = deck[i];
-              return <span key={i} className="hex" style={{ background: id ? `var(--rar-${tileRarity(id)})` : "var(--line-2)" }} />;
+              if (!id) return <span key={i} className="hex jp-deck-empty" />;
+              const info = skillInfo(id);
+              return (
+                <span key={id} className="jp-deck-slot" data-rar={tileRarity(id)} style={{ "--fam": `var(--fam-${info.family})` } as CSSProperties} title={info.name}>
+                  <SkillArt id={id} size={22} />
+                </span>
+              );
             })}
           </span>
           <span className="jp-deck-txt">

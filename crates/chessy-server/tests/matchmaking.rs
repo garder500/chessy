@@ -298,6 +298,9 @@ async fn the_clock_starts_at_the_requested_length() {
     // L'horloge des blancs tourne déjà : quelques millisecondes ont pu s'écouler.
     let full = 15 * 60 * 1000;
     let white = state["clock"]["white_ms"].as_i64().unwrap();
-    assert!((full - 2_000..=full).contains(&white), "white clock: {white}");
+    assert!(
+        (full - 2_000..=full).contains(&white),
+        "white clock: {white}"
+    );
     assert_eq!(state["clock"]["black_ms"], full);
 }
