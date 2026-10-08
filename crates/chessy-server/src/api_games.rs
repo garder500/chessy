@@ -89,7 +89,14 @@ fn bearer(headers: &HeaderMap) -> Option<&str> {
 /// The caller, if they sent a known token.
 fn viewer(app: &App, headers: &HeaderMap) -> ApiResult<Option<String>> {
     match bearer(headers) {
-        Some(token) => Ok(app.store().player_by_token(token)?),
+        Some(token) => {
+            let config = app.config();
+            Ok(app.store().session_player(
+                token,
+                config.session_ttl,
+                config.session_touch_interval,
+            )?)
+        }
         None => Ok(None),
     }
 }

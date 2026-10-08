@@ -10,7 +10,7 @@ ce document décrit **ce qui change ou s'ajoute**. Tout est en JSON, tags `snake
 - `players` gagne : `username TEXT NULL`, `username_lower TEXT NULL UNIQUE`, `password_hash TEXT NULL`
   (argon2id, chaîne PHC), `elo INTEGER NOT NULL DEFAULT 1200`, `peak_elo`, `games`, `wins`, `losses`,
   `draws` (compteurs de parties **classées**), `last_seen TEXT`.
-- Nouvelle table `sessions(token TEXT PRIMARY KEY, player_id, created_at)`. Un jeton de session
+- Nouvelle table `sessions(token TEXT PRIMARY KEY, player_id, created_at, last_used)` (`last_used` : voir spec-v4, « Sessions »). Un jeton de session
   identifie un joueur. Les anciens `players.token` sont migrés vers `sessions`.
 - **Invité** = joueur sans `username`. Créé comme aujourd'hui quand `hello` n'a pas de jeton valide.
 - Migrations : `PRAGMA user_version`, idempotentes, sans casser une base existante.
@@ -23,6 +23,7 @@ Authentification : en-tête `Authorization: Bearer <token>`.
 | `POST /api/auth/register` | `{username, password, guest_token?}` → `200 {token, player: Me}`. Avec `guest_token` valide, l'invité est **promu** (même id, même deck). Erreurs `400 {error}` : `invalid_username`, `weak_password` ; `409 {error:"username_taken"}`. |
 | `POST /api/auth/login` | `{username, password}` → `200 {token, player: Me}` (nouvelle session). `401 {error:"bad_credentials"}` (même message pour pseudo inconnu ou mauvais mot de passe). |
 | `POST /api/auth/logout` | Bearer → `204`, supprime la session. |
+| `POST /api/auth/logout-all` | Bearer → `204`, supprime **toutes** les sessions du compte (autres appareils compris) et coupe les WebSocket ouvertes avec l'une d'elles (`session_revoked`). `401` sans Bearer valide. |
 | `GET /api/me` | Bearer → `Me`. `401` sinon. |
 | `GET /api/leaderboard?limit=50&offset=0` | `{total, entries:[{rank, username, elo, games, wins, draws, losses}]}` — comptes enregistrés uniquement, tri `elo DESC, wins DESC, username`. `limit` ≤ 100. |
 | `GET /api/players/{username}` | `PublicProfile` (insensible à la casse) ou `404`. |
@@ -118,7 +119,7 @@ Précisions et écarts par rapport au contrat ci-dessus, tels que livrés dans `
 ### Comptes et sessions
 - `register` avec un `guest_token` valide **réutilise ce même jeton** (la session de l'invité devient celle du compte) ; sans lui, une nouvelle session est créée. Un `guest_token` inconnu, ou déjà rattaché à un compte, est ignoré (un nouveau compte est créé, rien n'est promu). Un échec (`username_taken`…) laisse l'invité intact.
 - Après une promotion, le serveur pousse `friends` à la connexion WS déjà ouverte de l'invité, mais **ne renvoie pas `welcome`** : le client rafraîchit `account` via `GET /api/me`. Les messages sociaux sont vérifiés en base à chaque message, donc ils fonctionnent aussitôt.
-- `logout` supprime la session mais ne coupe pas une WebSocket déjà ouverte avec ce jeton.
+- `logout` supprime la session mais ne coupe pas une WebSocket déjà ouverte avec ce jeton (corrigé en v4 : voir spec-v4, « Sessions »).
 - Erreurs REST : toutes en `{error}` ; en plus du contrat, `400 bad_request` (JSON invalide, paramètre de requête invalide), `413 payload_too_large` (corps > 4 Kio), `401 unauthorized` (Bearer absent/inconnu), `404 not_found` (profil). Mot de passe : 8 à 128 **caractères**. Hash argon2id (crate `argon2` 0.6, paramètres par défaut), calculé hors des workers async ; un pseudo inconnu vérifie un hash factice (même durée, même réponse).
 - Horodatages : ISO 8601 UTC avec `Z` (`2026-10-06T20:12:07Z`) partout (`created_at`, `history[].at`, `recent[].at`, `last_seen`).
 - Classement : départage `elo DESC, wins DESC`, puis pseudo en minuscules. `streak` ne compte que les parties **classées** ; une nulle le remet à 0. `history` : les 30 derniers points ; le point initial 1200 n'est présent que s'il y a moins de 30 points. `recent` contient toutes les parties (classées ou non), `elo_delta` est `null` hors classé, `opponent` est `null` si l'adversaire était invité.

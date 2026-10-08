@@ -147,6 +147,16 @@ function ProfileSettings() {
         >
           Se déconnecter
         </button>
+        <button
+          type="button"
+          className="btn block"
+          onClick={() => {
+            void store.logout(true);
+            navigate({ name: "home" });
+          }}
+        >
+          Se déconnecter partout
+        </button>
       </div>
     </section>
   );

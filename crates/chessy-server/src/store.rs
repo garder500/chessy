@@ -3,6 +3,7 @@
 //! [`crate::social`].
 
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use chessy_engine::{Action, Color, Outcome, SkillId, SkillKind};
 use rand::seq::IndexedRandom;
@@ -29,6 +30,12 @@ pub type StoreResult<T> = Result<T, StoreError>;
 
 /// Timestamps are written and read as ISO 8601 UTC (`2026-01-02T03:04:05Z`).
 pub(crate) const ISO_NOW: &str = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')";
+const ISO_FORMAT: &str = "%Y-%m-%dT%H:%M:%SZ";
+
+/// A SQLite time modifier for "`d` ago", to pass to `strftime(.., 'now', ?)`.
+fn seconds_ago(d: Duration) -> String {
+    format!("-{} seconds", d.as_secs())
+}
 
 fn skill_name(skill: SkillId) -> String {
     serde_json::to_value(skill)
@@ -348,6 +355,25 @@ const MIGRATIONS: &[&str] = &[
                 strftime('%Y-%m-%dT%H:%M:%SZ', p.created_at)
          FROM player_skills ps JOIN players p ON p.id = ps.player_id
          ORDER BY ps.rowid;",
+    // Sessions expire after a period of inactivity (docs/spec-v4.md, Sessions):
+    // `last_used` is ISO 8601 UTC like every other timestamp compared in SQL.
+    // Existing sessions are backfilled with the migration time, so a deploy
+    // neither logs everybody out nor leaves old sessions immortal. The table is
+    // rebuilt rather than altered (SQLite has no ADD COLUMN IF NOT EXISTS), so the
+    // step still runs if a test rewinds `user_version` over a newer schema.
+    "CREATE TABLE sessions_v2 (
+         token TEXT PRIMARY KEY,
+         player_id TEXT NOT NULL REFERENCES players(id),
+         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+         last_used TEXT NOT NULL
+     );
+     INSERT INTO sessions_v2 (token, player_id, created_at, last_used)
+         SELECT token, player_id, created_at, strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+         FROM sessions;
+     DROP TABLE sessions;
+     ALTER TABLE sessions_v2 RENAME TO sessions;
+     CREATE INDEX sessions_player ON sessions(player_id);
+     CREATE INDEX sessions_last_used ON sessions(last_used);",
 ];
 
 fn migrate(conn: &mut Connection) -> StoreResult<()> {
@@ -403,6 +429,63 @@ impl Store {
         let conn = self.conn.lock().unwrap();
         conn.execute("DELETE FROM sessions WHERE token = ?1", params![token])?;
         Ok(())
+    }
+
+    /// Deletes every session of `player` and returns their tokens (so the
+    /// caller can close the WebSockets that used them).
+    pub fn delete_sessions_of(&self, player: &str) -> StoreResult<Vec<String>> {
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        let tokens = {
+            let mut stmt = tx.prepare("SELECT token FROM sessions WHERE player_id = ?1")?;
+            let rows = stmt.query_map(params![player], |r| r.get::<_, String>(0))?;
+            rows.collect::<Result<Vec<_>, _>>()?
+        };
+        tx.execute("DELETE FROM sessions WHERE player_id = ?1", params![player])?;
+        tx.commit()?;
+        Ok(tokens)
+    }
+
+    /// Like [`Self::player_by_token`], but a session unused for more than `ttl`
+    /// is expired and does not resolve. A live one has its `last_used`
+    /// refreshed, at most once per `touch_interval` (no write otherwise).
+    pub fn session_player(
+        &self,
+        token: &str,
+        ttl: Duration,
+        touch_interval: Duration,
+    ) -> StoreResult<Option<PlayerId>> {
+        let conn = self.conn.lock().unwrap();
+        let found: Option<(PlayerId, bool)> = conn
+            .query_row(
+                &format!(
+                    "SELECT player_id, last_used < strftime('{ISO_FORMAT}', 'now', ?3)
+                     FROM sessions
+                     WHERE token = ?1 AND last_used >= strftime('{ISO_FORMAT}', 'now', ?2)"
+                ),
+                params![token, seconds_ago(ttl), seconds_ago(touch_interval)],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        let Some((player, stale)) = found else {
+            return Ok(None);
+        };
+        if stale {
+            conn.execute(
+                &format!("UPDATE sessions SET last_used = {ISO_NOW} WHERE token = ?1"),
+                params![token],
+            )?;
+        }
+        Ok(Some(player))
+    }
+
+    /// Deletes the sessions unused for more than `ttl`; returns how many.
+    pub fn purge_expired_sessions(&self, ttl: Duration) -> StoreResult<usize> {
+        let conn = self.conn.lock().unwrap();
+        Ok(conn.execute(
+            &format!("DELETE FROM sessions WHERE last_used < strftime('{ISO_FORMAT}', 'now', ?1)"),
+            params![seconds_ago(ttl)],
+        )?)
     }
 
     pub fn player_by_token(&self, token: &str) -> StoreResult<Option<PlayerId>> {
@@ -874,7 +957,7 @@ fn deck_of(conn: &Connection, player: &str) -> StoreResult<Vec<SkillId>> {
 fn insert_session(conn: &Connection, player: &str) -> StoreResult<String> {
     let token = random_hex(16);
     conn.execute(
-        "INSERT INTO sessions (token, player_id) VALUES (?1, ?2)",
+        &format!("INSERT INTO sessions (token, player_id, last_used) VALUES (?1, ?2, {ISO_NOW})"),
         params![token, player],
     )?;
     Ok(token)
