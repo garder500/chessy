@@ -240,3 +240,11 @@
 @media (pointer: coarse) {
   :root .tag { font-size: 13px; }
 }
+
+/* ---------- Petits composants de la charte v2 ---------- */
+:root .link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 8px; border: 0; background: none; color: var(--accent-ink); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+:root .link:hover:not(:disabled) { text-decoration: underline; }
+:root .link:disabled { opacity: 0.5; cursor: default; }
+:root .hex { flex: none; display: inline-block; clip-path: polygon(50% 0, 96% 25%, 96% 75%, 50% 100%, 4% 75%, 4% 25%); }
+:root .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 2px 8px; background: var(--chip); color: var(--muted); border-radius: 3px; white-space: nowrap; }
+:root .num { font-family: var(--font-display); font-weight: 800; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }

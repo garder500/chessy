@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
-import { useRoute } from "./router";
-import { Auth } from "./screens/Auth";
+import { navigate, useRoute } from "./router";
+import { Auth, needsWelcome } from "./screens/Auth";
 import { Collection } from "./screens/Collection";
 import { DeckSelect } from "./screens/DeckSelect";
 import { Friends } from "./screens/Friends";
@@ -34,6 +34,12 @@ export function App() {
     return () => store.disconnect();
   }, []);
   useEffect(() => installUiClicks(), []);
+  // Première visite sans compte ni invité : l'écran de bienvenue ouvre le parcours.
+  useEffect(() => {
+    if (route.name === "home" && needsWelcome()) navigate({ name: "auth" });
+    // Une seule fois au chargement.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Un nouvel écran s'ouvre en haut de page (sinon un onglet de la barre du bas garde le défilement du précédent).
   useEffect(() => {
     window.scrollTo(0, 0); // renvoie une Promise sur les Chrome récents : ne pas la retourner comme nettoyage
@@ -112,7 +118,7 @@ export function App() {
           Connexion perdue, nouvelle tentative…
         </div>
       )}
-      {!inGame && state.connection !== "replaced" && <NavBar state={state} route={route.name} />}
+      {!inGame && state.connection !== "replaced" && route.name !== "auth" && <NavBar state={state} route={route.name} />}
       {screen}
       {reward && <RewardModal offer={reward} />}
       {state.incomingChallenge && <ChallengeModal challenge={state.incomingChallenge} />}
