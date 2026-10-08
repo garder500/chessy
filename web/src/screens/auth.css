@@ -2,6 +2,7 @@
 .wl { position: relative; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 0 20px calc(20px + env(safe-area-inset-bottom)); overflow: hidden; }
 .wl-mid { position: relative; z-index: 1; flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 12px; padding-top: 24px; }
 .wl-piece { height: 150px; width: auto; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.35)); }
+.wl-piece.pl-piece-3d { width: 220px; height: 220px; margin: -10px 0 -10px; filter: none; }
 .wl-title { margin: 8px 0 0; font-size: 64px; letter-spacing: 0.08em; line-height: 1; }
 .wl-lead { margin: 0; color: var(--muted); font-size: 18px; }
 .wl-args { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; text-align: left; }
@@ -30,5 +31,6 @@
 
 @media (min-width: 900px) {
   .wl-piece { height: 190px; }
+  .wl-piece.pl-piece-3d { width: 280px; height: 280px; }
   .wl-title { font-size: 84px; }
 }

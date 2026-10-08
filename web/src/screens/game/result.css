@@ -6,6 +6,7 @@
 .rs-hero { position: relative; z-index: 1; flex: none; height: 290px; display: grid; place-items: end center; }
 .rs.loss .rs-hero { height: 120px; }
 .rs-piece { height: 250px; width: auto; filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.35)); animation: rs-rise 0.8s 0.1s cubic-bezier(0.2, 1, 0.3, 1) both; }
+.rs-piece.pl-piece-3d { width: 300px; height: 280px; animation: none; filter: none; }
 .rs-main { position: relative; z-index: 1; flex: 1; width: min(520px, 100%); margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 16px calc(16px + env(safe-area-inset-bottom)); text-align: center; }
 .rs-title { margin: 0; font-size: 60px; letter-spacing: 0.06em; line-height: 1; outline: none; animation: skin-slam 0.7s 0.15s cubic-bezier(0.2, 1.4, 0.3, 1) both; }
 .rs.win .rs-title { color: var(--text); }
@@ -30,11 +31,13 @@
 @media (min-width: 900px) {
   .rs-hero { height: 360px; }
   .rs-piece { height: 320px; }
+  .rs-piece.pl-piece-3d { width: 380px; height: 360px; }
   .rs-title { font-size: 96px; }
 }
 @media (max-height: 640px) {
   .rs-hero { height: 190px; }
   .rs-piece { height: 160px; }
+  .rs-piece.pl-piece-3d { width: 200px; height: 190px; }
   .rs-title { font-size: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .rs, .rs-piece, .rs-title { animation: none; } }

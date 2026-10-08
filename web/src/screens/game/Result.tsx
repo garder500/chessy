@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import type { Color, EloChange, Outcome } from "../../protocol";
 import { formatDelta, resultFor, resultHeadline } from "../../outcome";
 import { navigate } from "../../router";
@@ -8,6 +8,8 @@ import { Confetti } from "../../ui/Confetti";
 import { CountUp } from "../../ui/CountUp";
 import { HeroPiece } from "../../ui/HeroPiece";
 import "./result.css";
+
+const HeroPiece3D = lazy(() => import("../../ui/HeroPiece3D"));
 
 interface Props {
   outcome: Outcome;
@@ -54,7 +56,11 @@ export function Result({ outcome, you, rated, solo = false, elo, rematch, reward
         <span className="lab rs-cad">{cadence}</span>
       </header>
 
-      <div className="rs-hero">{result !== "loss" && <HeroPiece kind={result === "win" ? "king" : "pawn"} className="rs-piece" />}</div>
+      <div className="rs-hero">{result !== "loss" && (
+          <Suspense fallback={<HeroPiece kind={result === "win" ? "king" : "pawn"} className="rs-piece" />}>
+            <HeroPiece3D kind={result === "win" ? "king" : "pawn"} className="rs-piece" />
+          </Suspense>
+        )}</div>
 
       <main className="rs-main">
         <h1 id="rs-title" className="rs-title" tabIndex={-1} ref={first as React.RefObject<HTMLHeadingElement>}>
