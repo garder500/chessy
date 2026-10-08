@@ -8,6 +8,7 @@ import "./ui/shell.css";
 import "./ui/skill.css";
 import "./styles/color.css";
 import "./styles/skin.css";
+import "./styles/v2.css";
 
 initTheme();
 
