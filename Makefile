@@ -1,6 +1,15 @@
-.PHONY: dev-server dev-web build serve tunnel share test check
+.PHONY: dev dev-server dev-web build serve tunnel share test check
 
-# Development: run these two in separate terminals, then open http://localhost:5173
+# Development, everything in one terminal: the server (:3000) and Vite (:5173) together.
+# Open http://localhost:5173. Ctrl-C stops both. The server logs and Vite's output share the terminal.
+dev:
+	@[ -d web/node_modules ] || npm ci --prefix web
+	cargo build -p chessy-server
+	@trap 'kill $$SERVER 2>/dev/null' EXIT INT TERM; \
+	target/debug/chessy-server & SERVER=$$!; \
+	npm run dev --prefix web
+
+# Or run these two in separate terminals
 dev-server:
 	cargo run -p chessy-server
 

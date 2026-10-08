@@ -36,7 +36,13 @@ actions légales, et n'exécute aucune règle.
 
 ## Lancer en développement
 
-Deux terminaux :
+Un seul terminal (serveur sur :3000 et Vite sur :5173, Ctrl-C arrête les deux) :
+
+```bash
+make dev
+```
+
+Ou deux terminaux séparés :
 
 ```bash
 make dev-server   # serveur sur :3000 (base SQLite : ./chessy.sqlite)
