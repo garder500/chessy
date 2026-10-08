@@ -4,7 +4,8 @@
 .rs-x { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; color: var(--text); cursor: pointer; }
 .rs-cad { flex: 1; text-align: center; margin: 0 44px 0 0; font-size: 14px; font-weight: 600; color: var(--muted); }
 .rs-hero { position: relative; z-index: 1; flex: none; height: 290px; display: grid; place-items: end center; }
-.rs.loss .rs-hero { height: 120px; }
+/* Défaite : le roi grisé, penché (design M2Defaite). */
+.rs.loss .rs-piece { filter: grayscale(1) brightness(0.85); opacity: 0.9; transform: rotate(-12deg); animation: none; }
 .rs-piece { height: 250px; width: auto; filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.35)); animation: rs-rise 0.8s 0.1s cubic-bezier(0.2, 1, 0.3, 1) both; }
 .rs-piece.pl-piece-3d { width: 300px; height: 280px; animation: none; filter: none; }
 .rs-main { position: relative; z-index: 1; flex: 1; width: min(520px, 100%); margin: 0 auto; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 16px calc(16px + env(safe-area-inset-bottom)); text-align: center; }
@@ -43,7 +44,7 @@
 @media (prefers-reduced-motion: reduce) { .rs, .rs-piece, .rs-title { animation: none; } }
 :root[data-motion="reduce"] :is(.rs, .rs-piece, .rs-title) { animation: none; }
 
-.rs-home, .rs-home-sep { display: none; }
+:root .rs-home, :root .rs-home-sep { display: none; }
 /* Ordinateur : la pièce à gauche, le résultat et les actions à droite (design D2Victoire) ; plus de croix perdue dans le coin. */
 @media (min-width: 1100px) {
   .rs { display: grid; grid-template-columns: minmax(0, 1fr) 520px; align-items: center; column-gap: 32px; padding: 0 96px; }
@@ -59,7 +60,7 @@
   .rs-act { margin-top: 12px; padding-top: 0; }
   .rs-act > .btn.pri { min-height: 60px; font-size: 20px; }
   .rs-links { justify-content: center; flex-wrap: wrap; }
-  .rs-home, .rs-home-sep { display: inline-flex; }
+  :root .rs-home, :root .rs-home-sep { display: inline-flex; }
   .rs-piece.pl-piece-3d { width: 460px; height: 520px; }
   /* Le faisceau tombe sur la pièce (colonne de gauche), pas au milieu de l'écran. */
   .rs > .beam { left: calc(96px + (100% - 192px - 552px) / 2); width: 900px; height: 800px; max-width: none; }
