@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReportReason } from "../protocol";
 import { store, useAppState } from "../store";
 import { Sheet } from "./Sheet";
@@ -25,8 +25,12 @@ interface Props {
 export function ModerationActions({ username, gameId, excerpt }: Props) {
   const { account, blocked, connection } = useAppState();
   const [report, setReport] = useState(false);
-  if (!account || account.guest || sameUser(account.username, username)) return null;
   const online = connection === "open";
+  const member = !!account && !account.guest;
+  useEffect(() => {
+    if (member && online) store.loadBlocks();
+  }, [member, online, account?.player_id]);
+  if (!account || account.guest || sameUser(account.username, username)) return null;
   const isBlocked = blocked.some((b) => sameUser(b, username));
 
   return (

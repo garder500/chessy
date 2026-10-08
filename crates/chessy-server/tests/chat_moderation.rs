@@ -260,6 +260,9 @@ async fn a_blocked_friend_request_looks_like_any_other_to_its_sender() {
     alice.say(json!({"type": "friends_list"}));
     assert_eq!(alice.next("friends")["incoming"], json!([]));
     assert!(carol.has_notice("friend_request_received"));
+    // Nor does a search offer to accept it.
+    alice.say(json!({"type": "user_search", "query": "bob"}));
+    assert_eq!(alice.next("user_results")["users"][0]["relation"], "none");
 
     // They cannot accept it by name either, nor ask the one they blocked.
     alice.say(json!({"type": "friend_respond", "username": "bob", "accept": true}));

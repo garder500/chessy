@@ -82,6 +82,10 @@ fn relation(conn: &Connection, me: &str, other: &str) -> StoreResult<Relation> {
     if me == other {
         return Ok(Relation::SelfUser);
     }
+    // A request from somebody `me` blocked is stored but hidden from them.
+    if is_blocked(conn, me, other)? {
+        return Ok(Relation::None);
+    }
     Ok(match status(conn, me, other)? {
         None => Relation::None,
         Some((s, _)) if s == "accepted" => Relation::Friend,

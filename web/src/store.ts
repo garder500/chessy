@@ -58,7 +58,7 @@ export interface AppState {
   /** L'écran « Votre récompense » est ouvert (il suit l'écran de victoire). */
   rewardOpen: boolean;
   friends: FriendsSnapshot;
-  /** Pseudos bloqués par le compte (chargés à la connexion, voir `blocks_list`). */
+  /** Pseudos bloqués par le compte (demandés par `loadBlocks`, voir `blocks_list`). */
   blocked: string[];
   userResults: { query: string; users: UserResult[] } | null;
   incomingChallenge: { username: string; elo: number } | null;
@@ -209,6 +209,7 @@ export class Store {
   private stopped = false;
   private challengeTimer: ReturnType<typeof setTimeout> | null = null;
   private soloTimer: ReturnType<typeof setTimeout> | null = null;
+  private blocksAsked = false;
 
   constructor() {
     onForgedChange(() => this.set({ forged: forgedVersion() }));
@@ -331,6 +332,13 @@ export class Store {
 
   // ---- modération (voir docs/spec-v2.md §4) -----------------------------------
 
+  /** Demande la liste des joueurs bloqués, une fois par connexion (le serveur ne la pousse pas). */
+  loadBlocks() {
+    if (this.blocksAsked) return;
+    this.blocksAsked = true;
+    this.send({ type: "blocks_list" });
+  }
+
   blockUser(username: string) {
     this.send({ type: "block_user", username });
     this.notify(`${username} est bloqué : ses messages ne vous parviendront plus.`);
@@ -437,6 +445,8 @@ export class Store {
       case "welcome":
         // Un jeton invalide est remplacé par un nouveau : on le garde pour la prochaine visite.
         writeToken(msg.token);
+        // Nouvelle connexion : la liste des joueurs bloqués sera redemandée (voir `loadBlocks`).
+        this.blocksAsked = false;
         this.set({
           connection: "open",
           playerId: msg.player_id,
@@ -444,8 +454,6 @@ export class Store {
           deck: msg.deck,
           pendingReward: msg.pending_reward,
         });
-        // La liste des joueurs bloqués n'est envoyée que sur demande.
-        if (msg.account && !msg.account.guest) this.send({ type: "blocks_list" });
         // Après une reconnexion, le serveur a oublié le spectateur : on se réinscrit.
         if (isLive(this.state.spectating)) this.send({ type: "spectate", game_id: this.state.spectating!.gameId });
         break;

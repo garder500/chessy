@@ -1,4 +1,4 @@
-import { useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useSyncExternalStore, type CSSProperties } from "react";
 import { CATALOG, FAMILY_LABEL } from "../catalog";
 import { sfx, skillSfx, type SfxName } from "../sound";
 import { store, useAppState } from "../store";
@@ -319,8 +319,12 @@ export function SettingsBody() {
 /** Chat : couper tous les messages reçus, et la liste des joueurs bloqués (comptes seulement). */
 function ChatSettings() {
   const { account, blocked, connection } = useAppState();
-  if (!account || account.guest) return null;
   const online = connection === "open";
+  const member = !!account && !account.guest;
+  useEffect(() => {
+    if (member && online) store.loadBlocks();
+  }, [member, online, account?.player_id]);
+  if (!account || account.guest) return null;
   return (
     <section className="card st-card" aria-labelledby="st-chat">
       <h2 id="st-chat" className="st-h">Messages</h2>
