@@ -1,16 +1,16 @@
-import { readTime } from "../time";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { hrefFor, navigate } from "../router";
-import { sfx } from "../sound";
 import { store, useAppState } from "../store";
-import { BOARD_THEMES, setTheme, useTheme, type ColorMode } from "../theme";
+import { ChallengeSheet } from "../ui/ChallengeSheet";
 import { EloChart } from "../ui/EloChart";
 import { RecentGames } from "../ui/RecentGames";
 import { StatTile } from "../ui/StatTile";
 import { initialOf, memberSince, sameUser, winRate } from "../ui/social";
 import { tierOf } from "../ui/tier";
 import { useProfile } from "../ui/useProfile";
+import { SettingsBody } from "./Settings";
 import "./profile.css";
+import "./settings.css";
 
 interface Props {
   username: string;
@@ -30,6 +30,7 @@ function streakHint(streak: number): string | undefined {
 export function Profile({ username }: Props) {
   const { state, reload } = useProfile(username);
   const { account } = useAppState();
+  const isMe = !!account && !account.guest && sameUser(account.username, username);
 
   if (state.status === "loading") {
     return (
@@ -62,6 +63,7 @@ export function Profile({ username }: Props) {
             Réessayer
           </button>
         </div>
+        {isMe && <ProfileSettings />}
       </main>
     );
   }
@@ -114,65 +116,25 @@ export function Profile({ username }: Props) {
         </section>
       </div>
 
-      {mine && <QuickSettings />}
+      {mine && <ProfileSettings />}
     </main>
   );
 }
 
-const MODES: { id: ColorMode; label: string }[] = [
-  { id: "system", label: "Système" },
-  { id: "light", label: "Clair" },
-  { id: "dark", label: "Sombre" },
-];
-
-/** Réglages du quotidien, à portée de l'avatar : apparence, plateau, sons, déconnexion. Le reste vit dans « Réglages ». */
-function QuickSettings() {
-  const theme = useTheme();
-  const snd = useSyncExternalStore(sfx.subscribe, sfx.getSettings);
+/** Réglages du compte, dans le profil : apparence, sons et jeu, puis mes parties et déconnexion. */
+function ProfileSettings() {
+  // `#/settings` ouvre le profil directement sur cette section.
+  useEffect(() => {
+    if (location.hash.startsWith("#/settings")) document.getElementById("reglages")?.scrollIntoView();
+  }, []);
   return (
-    <section className="card pf-card pf-quick" aria-labelledby="pf-quick-h">
-      <h2 id="pf-quick-h" className="pf-h">
+    <section id="reglages" className="pf-settings" aria-labelledby="pf-set-h">
+      <h2 id="pf-set-h" className="pf-h pf-set-h">
         Réglages
       </h2>
-      <div className="pf-q-row">
-        <span className="pf-q-l">Thème</span>
-        <div className="segs pf-q-segs" role="radiogroup" aria-label="Apparence">
-          {MODES.map((m) => (
-            <button key={m.id} type="button" role="radio" aria-checked={theme.mode === m.id} className={`sg${theme.mode === m.id ? " on" : ""}`} onClick={() => setTheme({ mode: m.id })}>
-              {m.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="pf-q-row">
-        <span className="pf-q-l">Plateau</span>
-        <div className="pf-boards" role="radiogroup" aria-label="Plateau">
-          {BOARD_THEMES.map((b) => (
-            <button
-              key={b.id}
-              type="button"
-              role="radio"
-              aria-checked={theme.board === b.id}
-              aria-label={b.label}
-              title={b.label}
-              className={`pf-board${theme.board === b.id ? " on" : ""}`}
-              style={{ background: `repeating-conic-gradient(${b.dark} 0 25%, ${b.light} 0 50%) 0 0 / 50% 50%` }}
-              onClick={() => setTheme({ board: b.id })}
-            />
-          ))}
-        </div>
-      </div>
-      <div className="pf-q-row">
-        <span className="pf-q-l">Sons</span>
-        <button type="button" role="switch" aria-checked={snd.enabled} aria-label="Sons activés" className="st-switch" data-sfx="off" onClick={() => sfx.setSettings({ enabled: !snd.enabled })}>
-          <span />
-        </button>
-      </div>
-      <div className="pf-q-foot">
-        <a className="link" href={hrefFor({ name: "settings" })}>
-          Tous les réglages
-        </a>
-        <a className="link" href={hrefFor({ name: "games" })}>
+      <SettingsBody />
+      <div className="card pf-card pf-q-foot">
+        <a className="btn block" href={hrefFor({ name: "games" })}>
           Mes parties
         </a>
         <button
@@ -194,6 +156,7 @@ function QuickSettings() {
 function Relation({ username }: { username: string }) {
   const { account, friends, outgoingChallenge, connection } = useAppState();
   const [requested, setRequested] = useState(false);
+  const [sheet, setSheet] = useState(false);
   const online = connection === "open";
 
   if (!account) return null;
@@ -232,9 +195,12 @@ function Relation({ username }: { username: string }) {
             </button>
           </>
         ) : (
-          <button type="button" className="btn pri" disabled={!can} onClick={() => store.send({ type: "challenge", username: friend.username, time: readTime() })}>
-            Défier
-          </button>
+          <>
+            <button type="button" className="btn pri" disabled={!can} onClick={() => setSheet(true)}>
+              Défier
+            </button>
+            <ChallengeSheet friend={sheet ? friend : null} onClose={() => setSheet(false)} />
+          </>
         )}
         {reason && !pending && <span className="muted pf-reason">{reason}</span>}
       </div>

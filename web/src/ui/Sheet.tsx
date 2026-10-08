@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import "./sheet.css";
 
 const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
@@ -51,7 +52,8 @@ export function Sheet({ open, title, onClose, children, hideTitle }: Props) {
   }, [open]);
 
   if (!open) return null;
-  return (
+  // Hors de l'arbre : une carte à coins coupés (clip-path) découperait aussi un panneau fixe qu'elle contient.
+  return createPortal(
     <div
       className="sheet-scrim"
       onMouseDown={(e) => {
@@ -72,6 +74,7 @@ export function Sheet({ open, title, onClose, children, hideTitle }: Props) {
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

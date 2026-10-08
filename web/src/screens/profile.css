@@ -28,14 +28,7 @@
   .pf-head { padding: 20px; }
 }
 
-/* Réglages rapides (son propre profil) */
-.pf-quick { display: flex; flex-direction: column; gap: 14px; }
-.pf-q-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.pf-q-l { font-weight: 600; }
-.pf-q-segs { min-width: 240px; flex: 1; max-width: 360px; }
-.pf-q-segs .sg { min-height: 40px; font-size: 15px; letter-spacing: 0.06em; }
-.pf-boards { display: flex; gap: 8px; flex-wrap: wrap; }
-.pf-board { width: 44px; height: 44px; border: 0; padding: 0; cursor: pointer; box-shadow: 0 0 0 1px var(--line-3); }
-.pf-board.on { box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--bg); }
-.pf-q-foot { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
-.pf-q-foot .link { justify-content: flex-start; }
+/* Réglages dans le profil */
+.pf-settings { display: grid; gap: 18px; scroll-margin-top: 16px; }
+:root .pf-set-h { margin: 8px 0 -6px; font-size: 22px; letter-spacing: 0.08em; font-family: var(--font-display); font-weight: 800; text-transform: uppercase; color: var(--text); }
+.pf-q-foot { display: flex; flex-direction: column; gap: 8px; }

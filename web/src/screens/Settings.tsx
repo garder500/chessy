@@ -98,16 +98,25 @@ const GROUPS: { title: string; items: [SfxName, string][] }[] = [
   },
 ];
 
+/** Page Réglages d'un invité (un compte les trouve dans son profil, voir `Profile`). */
 export function Settings() {
+  return (
+    <main className="st-page">
+      <p className="eyebrow">Préférences</p>
+      <h1 className="st-title">Réglages</h1>
+      <SettingsBody />
+    </main>
+  );
+}
+
+/** Apparence, sons et jeu : les sections de réglages, sans titre de page. */
+export function SettingsBody() {
   const snd = useSoundSettings();
   const theme = useTheme();
   const off = !snd.enabled;
 
   return (
-    <main className="st-page">
-      <p className="eyebrow">Préférences</p>
-      <h1 className="st-title">Réglages</h1>
-
+    <>
       <section className="card st-card st-look" aria-labelledby="st-look">
         <div className="st-look-opts">
           <h2 id="st-look" className="st-h">Apparence</h2>
@@ -299,6 +308,6 @@ export function Settings() {
           hint="Plateau et interface presque instantanés, sans secousses."
         />
       </section>
-    </main>
+    </>
   );
 }

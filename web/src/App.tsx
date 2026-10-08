@@ -84,7 +84,8 @@ export function App() {
         screen = <Collection />;
         break;
       case "settings":
-        screen = <Settings />;
+        // Un compte retrouve ses réglages dans son profil ; l'invité garde la page seule.
+        screen = state.account && !state.account.guest && state.account.username ? <Profile username={state.account.username} /> : <Settings />;
         break;
       case "live":
         screen = <Live />;

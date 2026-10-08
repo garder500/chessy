@@ -4,6 +4,7 @@ import { skillInfo } from "../skills";
 import { store, type AppState } from "../store";
 import { Beam } from "../ui/Beam";
 import { HeroPiece } from "../ui/HeroPiece";
+import { ChallengeSheet } from "../ui/ChallengeSheet";
 import { Sheet } from "../ui/Sheet";
 import { initialOf } from "../ui/NavBar";
 import { sortFriends } from "../ui/social";
@@ -37,7 +38,7 @@ function readMode(): PlayMode | null {
 }
 
 export function Lobby({ state }: { state: AppState }) {
-  const { lobby, deck, account, friends, outgoingChallenge } = state;
+  const { lobby, deck, account, friends } = state;
   const isAccount = !!account && !account.guest;
   const [picked, setPicked] = useState<PlayMode | null>(readMode);
   // Un invité ne peut pas jouer en classée : son mode par défaut est l'amicale.
@@ -64,7 +65,6 @@ export function Lobby({ state }: { state: AppState }) {
   const elo = account?.elo ?? 1200;
   const online = sortFriends(friends.friends.filter((f) => f.presence !== "offline"));
   const challenged = typeof sheet === "object" && sheet ? friends.friends.find((f) => f.username === sheet.friend) : undefined;
-  const sent = !!challenged && outgoingChallenge?.toLowerCase() === challenged.username.toLowerCase();
   const closeSheet = () => setSheet(null);
 
   return (
@@ -176,39 +176,7 @@ export function Lobby({ state }: { state: AppState }) {
         </div>
       </div>
 
-      <Sheet open={typeof sheet === "object" && !!sheet} title={`Défier ${challenged?.username ?? ""}`} onClose={closeSheet}>
-        {challenged && (
-          <>
-            <p className="sheet-sub">
-              {challenged.presence === "in_game" ? "En partie" : "En ligne"} · {challenged.elo} Elo · partie amicale
-            </p>
-            <div className="segs" role="radiogroup" aria-label="Durée">
-              {TIMES.map((t) => (
-                <button key={t.id} type="button" role="radio" aria-checked={time === t.id} className={`sg${time === t.id ? " on" : ""}`} onClick={() => setTime(t.id)}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            {challenged.presence === "in_game" && challenged.game_id ? (
-              <a className="btn pri block" href={hrefFor({ name: "watch", param: challenged.game_id })}>
-                Regarder la partie
-              </a>
-            ) : (
-              <button
-                type="button"
-                className="btn pri block"
-                disabled={!connected || sent || (outgoingChallenge !== null && !sent)}
-                onClick={() => {
-                  store.send({ type: "challenge", username: challenged.username, time });
-                  closeSheet();
-                }}
-              >
-                {sent ? "Défi envoyé" : "Envoyer le défi"}
-              </button>
-            )}
-          </>
-        )}
-      </Sheet>
+      <ChallengeSheet friend={challenged ?? null} onClose={closeSheet} />
 
       <Sheet open={sheet === "room"} title="Salle privée" onClose={closeSheet}>
         <p className="sheet-sub">Jouez avec un ami grâce à un code.</p>
