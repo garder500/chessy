@@ -55,7 +55,7 @@ Réglages (persistés dans `localStorage`, clé `chessy.sound`) : `{enabled: boo
 
 ### Couleurs
 Page `#/settings` (route `settings`, lien dans le menu utilisateur) : thème de plateau, jeu de pièces, couleur d'accent, sons, mode de déplacement. Persisté dans `localStorage` (`chessy.theme`), appliqué partout via variables CSS (`--accent`, `--board-light`, `--board-dark`, …) et lu par Phaser.
-Thèmes de plateau (id : clair / foncé) : `glacier` #e4eaf6/#7f96c2 (défaut : cases plates, repères dans les cases, cadre à filet cyan), `graphite` #cdd1d9/#69727f, `emerald` #eeeed2/#769656, `walnut` #f0d9b5/#b58863, `ocean` #dce6f2/#5b7fa6, `amethyst` #e3d8f1/#8467b3, `coral` #fbe3d4/#d9805f.
+Thèmes de plateau (id : clair / foncé) : `jade` #e3ece7/#6f948a (défaut depuis la charte v2 : cases plates, bord à bord, dernier coup teinté d'accent, coups possibles en points d'encre, captures en anneau intérieur), `glacier` #e4eaf6/#7f96c2 (cases plates), `graphite` #cdd1d9/#69727f, `emerald` #eeeed2/#769656, `walnut` #f0d9b5/#b58863, `ocean` #dce6f2/#5b7fa6, `amethyst` #e3d8f1/#8467b3, `coral` #fbe3d4/#d9805f.
 Jeux de pièces : `classic` (ivoire/ébène actuel), `neon` (cyan #5ce1e6 / magenta #ff5fc8), `gold` (or #f2c94c / argent #aab4c3), `ember` (rouge #ff6b5a / azur #5aa9ff).
 Accents : `blue` #8fb4ff (défaut), `violet` #b79cff, `coral` #ee8272, `amber` #eec06a, `mint` #5fd0a0, `rose` #f08fc0. Davantage de couleur dans l'interface : l'accent teinte le dernier coup, le camp au trait, les boutons au survol, l'onglet actif, les liserés ; le vert/rouge d'Elo (gain/perte) devient lisible (gain `--fam-defense`, perte `--danger`) ; les cartes de compétence prennent plus nettement la teinte de leur famille.
 

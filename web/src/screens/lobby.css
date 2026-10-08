@@ -68,3 +68,4 @@
 @keyframes jp-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @media (prefers-reduced-motion: reduce) { .jp-piece { animation: none; } }
 :root[data-motion="reduce"] .jp-piece { animation: none; }
+.jp-guest .link { display: inline; min-height: 0; padding: 0; }
