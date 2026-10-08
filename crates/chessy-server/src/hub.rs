@@ -83,6 +83,11 @@ pub struct HubConfig {
     /// `rated_pair_window`; further games between them are unrated.
     pub rated_pair_max: u32,
     pub rated_pair_window: Duration,
+    /// The cap above is for a busy server. With few accounts online it widens in
+    /// proportion: `rated_pair_max * rated_pair_scale / (accounts online - 1)`, never
+    /// below `rated_pair_max`. Two players alone get `rated_pair_max * rated_pair_scale`
+    /// games, and `1` turns the scaling off.
+    pub rated_pair_scale: u32,
     /// A pair that reached `rated_pair_max` is left waiting for someone else in
     /// the ranked queue, but not for ever: with only two players around, after
     /// this wait they are paired anyway, and the game does not count.
@@ -122,6 +127,7 @@ impl Default for HubConfig {
             reward_ttl: Duration::from_secs(6 * 3600),
             rated_pair_max: 3,
             rated_pair_window: Duration::from_secs(3600),
+            rated_pair_scale: 10,
             capped_pair_wait: Duration::from_secs(20),
             blocked_attempt_cost: Duration::from_secs(10),
         }
@@ -1652,13 +1658,32 @@ impl Hub {
         }
     }
 
+    /// Accounts (not guests) connected right now: the people a ranked player can really meet.
+    fn accounts_online(&self) -> u32 {
+        let n = self
+            .conns
+            .keys()
+            .filter(|p| matches!(self.store.player_row(p), Ok(Some(row)) if row.username.is_some()))
+            .count();
+        u32::try_from(n).unwrap_or(u32::MAX)
+    }
+
+    /// Rated games two accounts may play against each other in the window: the
+    /// fewer other people there are to play, the more they may play each other.
+    fn pair_cap(&self) -> u32 {
+        let base = self.config.rated_pair_max;
+        let others = self.accounts_online().saturating_sub(1).max(1);
+        let scaled = u64::from(base) * u64::from(self.config.rated_pair_scale) / u64::from(others);
+        u32::try_from(scaled).unwrap_or(u32::MAX).max(base)
+    }
+
     /// Whether `a` and `b` have already played `rated_pair_max` rated games
     /// against each other within `rated_pair_window` (anti Elo boosting).
     /// A store error counts as not capped: it must not block play.
     fn pair_capped(&self, a: &str, b: &str) -> bool {
         let window = self.config.rated_pair_window.as_secs();
         match self.store.rated_games_between(a, b, window) {
-            Ok(n) => n >= self.config.rated_pair_max,
+            Ok(n) => n >= self.pair_cap(),
             Err(e) => {
                 tracing::error!("pair cap lookup failed: {e}");
                 false
