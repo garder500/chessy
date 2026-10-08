@@ -2,7 +2,7 @@
 //! ownership, ratings and a log of finished games. Friendships live in
 //! [`crate::social`].
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 use chessy_engine::{Action, Color, Outcome, SkillId, SkillKind};
@@ -434,6 +434,14 @@ fn migrate(conn: &mut Connection) -> StoreResult<()> {
 }
 
 impl Store {
+    /// The database connection. A panic in another thread while it held the lock
+    /// poisons the mutex; rather than turn every later request into a panic, take
+    /// the guard back (same policy as the hub's mutex in `app.rs`). A transaction
+    /// that was in flight rolls back when its guard drops, so the connection stays usable.
+    pub(crate) fn db(&self) -> MutexGuard<'_, Connection> {
+        self.conn.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     /// Opens (creating if needed) the database at `path`; `":memory:"` works for tests.
     pub fn open(path: &str) -> StoreResult<Self> {
         let mut conn = Connection::open(path)?;
@@ -448,7 +456,7 @@ impl Store {
     /// Creates a guest holding a starter deck of random classic skills,
     /// with a first session. Returns the player id and the session token.
     pub fn create_player(&self) -> StoreResult<(PlayerId, String)> {
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.db();
         let tx = conn.transaction()?;
         let created = insert_guest(&tx)?;
         tx.commit()?;
@@ -457,12 +465,12 @@ impl Store {
 
     /// Opens a new session for an existing player.
     pub fn create_session(&self, player: &str) -> StoreResult<String> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         insert_session(&conn, player)
     }
 
     pub fn delete_session(&self, token: &str) -> StoreResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         conn.execute("DELETE FROM sessions WHERE token = ?1", params![token])?;
         Ok(())
     }
@@ -470,7 +478,7 @@ impl Store {
     /// Deletes every session of `player` and returns their tokens (so the
     /// caller can close the WebSockets that used them).
     pub fn delete_sessions_of(&self, player: &str) -> StoreResult<Vec<String>> {
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.db();
         let tx = conn.transaction()?;
         let tokens = {
             let mut stmt = tx.prepare("SELECT token FROM sessions WHERE player_id = ?1")?;
@@ -491,7 +499,7 @@ impl Store {
         ttl: Duration,
         touch_interval: Duration,
     ) -> StoreResult<Option<PlayerId>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let found: Option<(PlayerId, bool)> = conn
             .query_row(
                 &format!(
@@ -517,7 +525,7 @@ impl Store {
 
     /// Deletes the sessions unused for more than `ttl`; returns how many.
     pub fn purge_expired_sessions(&self, ttl: Duration) -> StoreResult<usize> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         Ok(conn.execute(
             &format!("DELETE FROM sessions WHERE last_used < strftime('{ISO_FORMAT}', 'now', ?1)"),
             params![seconds_ago(ttl)],
@@ -525,7 +533,7 @@ impl Store {
     }
 
     pub fn player_by_token(&self, token: &str) -> StoreResult<Option<PlayerId>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         Ok(conn
             .query_row(
                 "SELECT player_id FROM sessions WHERE token = ?1",
@@ -557,7 +565,7 @@ impl Store {
         guest_token: Option<&str>,
         recovery_hash: Option<&str>,
     ) -> Result<(PlayerId, String), RegisterError> {
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.db();
         let tx = conn.transaction().map_err(|_| RegisterError::Db)?;
         let lower = username.to_ascii_lowercase();
         let taken: bool = tx
@@ -611,7 +619,7 @@ impl Store {
 
     /// The id and password hash of the account named `username` (any case).
     pub fn credentials(&self, username: &str) -> StoreResult<Option<(PlayerId, String)>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         Ok(conn
             .query_row(
                 "SELECT id, password_hash FROM players
@@ -624,7 +632,7 @@ impl Store {
 
     /// The password hash of `player`; `None` for a guest (or an unknown id).
     pub fn password_hash_of(&self, player: &str) -> StoreResult<Option<String>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         Ok(conn
             .query_row(
                 "SELECT password_hash FROM players WHERE id = ?1",
@@ -641,7 +649,7 @@ impl Store {
         &self,
         username: &str,
     ) -> StoreResult<Option<(PlayerId, Option<String>)>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         Ok(conn
             .query_row(
                 "SELECT p.id, r.code_hash FROM players p
@@ -655,7 +663,7 @@ impl Store {
 
     /// Creates or replaces the recovery code hash of `player`.
     pub fn set_recovery_hash(&self, player: &str, code_hash: &str) -> StoreResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         put_recovery_hash(&conn, player, code_hash)
     }
 
@@ -671,7 +679,7 @@ impl Store {
         new_code_hash: &str,
         new_password_hash: &str,
     ) -> StoreResult<Option<Vec<String>>> {
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.db();
         let tx = conn.transaction()?;
         let swapped = tx.execute(
             &format!(
@@ -698,18 +706,18 @@ impl Store {
     }
 
     pub fn player_row(&self, player: &str) -> StoreResult<Option<PlayerRow>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         player_row(&conn, "id", player)
     }
 
     /// The account named `username` (any case), if there is one.
     pub fn account_by_name(&self, username: &str) -> StoreResult<Option<PlayerRow>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         player_row(&conn, "username_lower", &username.to_ascii_lowercase())
     }
 
     pub fn me(&self, player: &str) -> StoreResult<Option<Me>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let Some(row) = player_row(&conn, "id", player)? else {
             return Ok(None);
         };
@@ -730,7 +738,7 @@ impl Store {
     }
 
     pub fn touch_last_seen(&self, player: &str) -> StoreResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         conn.execute(
             &format!("UPDATE players SET last_seen = {ISO_NOW} WHERE id = ?1"),
             params![player],
@@ -740,7 +748,7 @@ impl Store {
 
     /// Registered accounts only, best first.
     pub fn leaderboard(&self, limit: u32, offset: u32) -> StoreResult<Leaderboard> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let total: u32 = conn.query_row(
             "SELECT COUNT(*) FROM players WHERE username IS NOT NULL",
             [],
@@ -773,7 +781,7 @@ impl Store {
     }
 
     pub fn public_profile(&self, username: &str) -> StoreResult<Option<PublicProfile>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let Some(row) = player_row(&conn, "username_lower", &username.to_ascii_lowercase())? else {
             return Ok(None);
         };
@@ -847,12 +855,12 @@ impl Store {
     }
 
     pub fn deck(&self, player: &str) -> StoreResult<Vec<SkillId>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         deck_of(&conn, player)
     }
 
     pub fn unique_owner(&self, skill: SkillId) -> StoreResult<Option<PlayerId>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         Ok(conn
             .query_row(
                 "SELECT player_id FROM unique_skill_owner WHERE skill = ?1",
@@ -867,7 +875,7 @@ impl Store {
     /// loadouts and actions so it can be replayed; a Solo game has one seat
     /// that is the bot (stored as NULL).
     pub fn record_game(&self, rec: &GameRecord) -> StoreResult<Option<EloChange>> {
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.db();
         let tx = conn.transaction()?;
         let change = if rec.rated {
             Some(settle_ratings(&tx, rec)?)
@@ -929,7 +937,7 @@ impl Store {
     /// How many rated games `a` and `b` finished against each other (either
     /// colour) within the last `window_secs` seconds.
     pub fn rated_games_between(&self, a: &str, b: &str, window_secs: u64) -> StoreResult<u32> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         Ok(conn.query_row(
             "SELECT COUNT(*) FROM games
              WHERE rated = 1
@@ -952,7 +960,7 @@ impl Store {
         loser_loses: Option<SkillId>,
         winner_drops: Option<SkillId>,
     ) -> StoreResult<()> {
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.db();
         let tx = conn.transaction()?;
         let remove = |player: &str, skill: SkillId| -> StoreResult<()> {
             let name = skill_name(skill);
@@ -1022,7 +1030,7 @@ impl Store {
     /// Replaces a player's whole deck. Fails, changing nothing, if a unique
     /// skill in `skills` belongs to someone else.
     pub fn set_deck(&self, player: &str, skills: &[SkillId]) -> StoreResult<()> {
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.db();
         let tx = conn.transaction()?;
         tx.execute(
             "DELETE FROM player_skills WHERE player_id = ?1",
@@ -1051,7 +1059,7 @@ impl Store {
 
     /// A player left with no skills gets one random classic skill.
     pub fn refill_if_empty(&self, player: &str) -> StoreResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         if !deck_of(&conn, player)?.is_empty() {
             return Ok(());
         }
@@ -1274,4 +1282,25 @@ fn player_games(
         });
     }
     Ok(games)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A panic while another thread holds the connection poisons the mutex. Later
+    /// requests must keep working (the guard is taken back), not panic in turn.
+    #[test]
+    fn a_poisoned_connection_lock_does_not_break_later_requests() {
+        let store = Store::open(":memory:").expect("open in-memory database");
+        let held = store.clone();
+        let result = std::thread::spawn(move || {
+            let _guard = held.conn.lock().unwrap();
+            panic!("simulated panic while holding the connection");
+        })
+        .join();
+        assert!(result.is_err(), "the helper thread must have panicked");
+        assert!(store.conn.is_poisoned(), "the mutex must be poisoned");
+        assert_eq!(store.player_by_token("no-such-token").unwrap(), None);
+    }
 }

@@ -241,7 +241,7 @@ fn load(conn: &Connection, id: &str) -> StoreResult<Option<StoredGame>> {
 impl Store {
     /// A player's games of every kind (Solo included), newest first.
     pub fn games_of(&self, player: &str, limit: u32, offset: u32) -> StoreResult<GameList> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let total: u32 = conn.query_row(
             "SELECT COUNT(*) FROM games WHERE white = ?1 OR black = ?1",
             params![player],
@@ -262,13 +262,13 @@ impl Store {
 
     /// One recorded game by id.
     pub fn stored_game(&self, id: &str) -> StoreResult<Option<StoredGame>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         load(&conn, id)
     }
 
     /// The cached analysis (its JSON body) of a game at a depth.
     pub fn analysis_get(&self, game_id: &str, depth: u32) -> StoreResult<Option<String>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         Ok(conn
             .query_row(
                 "SELECT result FROM game_analysis WHERE game_id = ?1 AND depth = ?2",
@@ -279,7 +279,7 @@ impl Store {
     }
 
     pub fn analysis_put(&self, game_id: &str, depth: u32, body: &str) -> StoreResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         conn.execute(
             "INSERT OR REPLACE INTO game_analysis (game_id, depth, result) VALUES (?1, ?2, ?3)",
             params![game_id, depth, body],

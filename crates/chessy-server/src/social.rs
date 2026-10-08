@@ -96,7 +96,7 @@ fn relation(conn: &Connection, me: &str, other: &str) -> StoreResult<Relation> {
 
 impl Store {
     pub fn friend_request(&self, me: &str, username: &str) -> StoreResult<RequestOutcome> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let Some(target) = account_id(&conn, username)? else {
             return Ok(RequestOutcome::UserNotFound);
         };
@@ -143,7 +143,7 @@ impl Store {
         username: &str,
         accept: bool,
     ) -> StoreResult<RespondOutcome> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let Some(other) = account_id(&conn, username)? else {
             return Ok(RespondOutcome::NoRequest);
         };
@@ -172,7 +172,7 @@ impl Store {
 
     /// Ends a friendship, or withdraws a request `me` sent.
     pub fn friend_remove(&self, me: &str, username: &str) -> StoreResult<RemoveOutcome> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let Some(other) = account_id(&conn, username)? else {
             return Ok(RemoveOutcome::NotFound);
         };
@@ -190,12 +190,12 @@ impl Store {
     }
 
     pub fn are_friends(&self, a: &str, b: &str) -> StoreResult<bool> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         Ok(matches!(status(&conn, a, b)?, Some((s, _)) if s == "accepted"))
     }
 
     pub fn friend_ids(&self, me: &str) -> StoreResult<Vec<PlayerId>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let mut stmt = conn.prepare(
             "SELECT CASE WHEN user_a = ?1 THEN user_b ELSE user_a END FROM friendships
              WHERE (user_a = ?1 OR user_b = ?1) AND status = 'accepted'",
@@ -205,7 +205,7 @@ impl Store {
     }
 
     pub fn friends_snapshot(&self, me: &str) -> StoreResult<Snapshot> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let mut stmt = conn.prepare(
             "SELECT p.id, p.username, p.elo, p.last_seen, f.status, f.requester
              FROM friendships f
@@ -251,7 +251,7 @@ impl Store {
         prefix: &str,
         limit: u32,
     ) -> StoreResult<Vec<SearchResult>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let prefix = prefix.to_ascii_lowercase();
         let mut stmt = conn.prepare(
             "SELECT id, username, elo FROM players

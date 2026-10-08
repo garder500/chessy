@@ -80,7 +80,7 @@ impl Store {
     /// Blocks `username` for `me`; removes any friendship or request between
     /// them. Blocking someone already blocked changes nothing.
     pub fn block_user(&self, me: &str, username: &str) -> StoreResult<BlockOutcome> {
-        let mut conn = self.conn.lock().unwrap();
+        let mut conn = self.db();
         let Some(other) = account_id(&conn, username)? else {
             return Ok(BlockOutcome::UserNotFound);
         };
@@ -128,7 +128,7 @@ impl Store {
     /// Lifts a block. `None` when no such account exists; lifting a block
     /// that was not there is not an error.
     pub fn unblock_user(&self, me: &str, username: &str) -> StoreResult<Option<()>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let Some(other) = account_id(&conn, username)? else {
             return Ok(None);
         };
@@ -141,7 +141,7 @@ impl Store {
 
     /// The usernames `me` blocked, alphabetical.
     pub fn blocked_names(&self, me: &str) -> StoreResult<Vec<String>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let mut stmt = conn.prepare(
             "SELECT p.username FROM blocks b JOIN players p ON p.id = b.blocked
              WHERE b.blocker = ?1 AND p.username IS NOT NULL
@@ -152,7 +152,7 @@ impl Store {
     }
 
     pub fn set_chat_muted(&self, player: &str, muted: bool) -> StoreResult<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         conn.execute(
             "INSERT INTO chat_settings (player_id, chat_muted) VALUES (?1, ?2)
              ON CONFLICT(player_id) DO UPDATE SET chat_muted = excluded.chat_muted",
@@ -164,7 +164,7 @@ impl Store {
     /// Whether a chat message from `sender` must not reach `recipient`: the
     /// recipient muted all chat, or blocked the sender.
     pub fn drops_chat(&self, recipient: &str, sender: &str) -> StoreResult<bool> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         Ok(chat_muted(&conn, recipient)? || is_blocked(&conn, recipient, sender)?)
     }
 
@@ -177,7 +177,7 @@ impl Store {
         window_secs: u64,
         max: u32,
     ) -> StoreResult<ReportOutcome> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let since = format!("-{window_secs} seconds");
         let same: u32 = conn.query_row(
             "SELECT COUNT(*) FROM reports WHERE reporter = ?1 AND target = ?2

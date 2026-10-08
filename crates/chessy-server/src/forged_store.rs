@@ -91,7 +91,7 @@ impl Store {
         let json = serde_json::to_string(&def).expect("a definition serializes");
         let fingerprint = fingerprint_hex(&def);
         let id = {
-            let conn = self.conn.lock().unwrap();
+            let conn = self.db();
             let existing = |conn: &rusqlite::Connection| {
                 conn.query_row(
                     "SELECT id FROM forged_skill WHERE fingerprint = ?1",
@@ -157,14 +157,14 @@ impl Store {
     /// The signatures of every forged skill, redundant or not: what a new
     /// skill must not duplicate to stay out of Common.
     pub fn forged_signatures(&self) -> StoreResult<HashSet<String>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let mut stmt = conn.prepare("SELECT signature FROM forged_skill")?;
         let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
     fn forged_rows(&self, ids: &[u32]) -> StoreResult<Vec<Row>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let mut out = Vec::new();
         for id in ids {
             let row = conn
@@ -191,7 +191,7 @@ impl Store {
     /// the database is opened, before any deck is read.
     pub(crate) fn load_forged(&self) -> StoreResult<()> {
         let rows = {
-            let conn = self.conn.lock().unwrap();
+            let conn = self.db();
             let mut stmt =
                 conn.prepare(&format!("SELECT {COLUMNS} FROM forged_skill ORDER BY id"))?;
             let rows = stmt.query_map([], read_row)?;

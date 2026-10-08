@@ -107,7 +107,7 @@ pub(crate) fn username_of(conn: &Connection, player: &str) -> Option<String> {
 impl Store {
     /// The newest entries first.
     pub fn skill_history(&self, player: &str) -> StoreResult<Vec<HistoryEntry>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.db();
         let mut stmt = conn.prepare(
             "SELECT id, skill, change, source, other, at FROM skill_history
              WHERE player_id = ?1 ORDER BY id DESC LIMIT ?2",
