@@ -2,7 +2,7 @@
 // Persisté dans `chessy.theme`, appliqué à la racine du document via des variables CSS et lu par Phaser.
 import { useSyncExternalStore } from "react";
 
-export type BoardThemeId = "glacier" | "graphite" | "emerald" | "walnut" | "ocean" | "amethyst" | "coral";
+export type BoardThemeId = "jade" | "glacier" | "graphite" | "emerald" | "walnut" | "ocean" | "amethyst" | "coral";
 export type PieceSetId = "cburnett" | "classic" | "neon" | "gold" | "ember";
 export type AccentId = "jade" | "cyan" | "gold" | "blue" | "violet" | "coral" | "amber" | "mint" | "rose";
 export type MoveMode = "drag" | "click";
@@ -10,6 +10,7 @@ export type MoveMode = "drag" | "click";
 export type ColorMode = "system" | "light" | "dark";
 
 export const BOARD_THEMES: { id: BoardThemeId; label: string; light: string; dark: string; flat?: boolean }[] = [
+  { id: "jade", label: "Jade", light: "#e3ece7", dark: "#6f948a", flat: true },
   { id: "glacier", label: "Glacier", light: "#e4eaf6", dark: "#7f96c2", flat: true },
   { id: "graphite", label: "Graphite", light: "#cdd1d9", dark: "#69727f" },
   { id: "emerald", label: "Émeraude", light: "#eeeed2", dark: "#769656" },
@@ -52,12 +53,12 @@ export interface ThemeSettings {
 }
 
 export const THEME_KEY = "chessy.theme";
-/** Réglages enregistrés avant l'interface « Jade » : le décor par défaut change une fois, puis le choix du joueur reprend. */
+/** Réglages enregistrés avant l'interface « Jade v2 » : le plateau par défaut change une fois, puis le choix du joueur reprend. */
 const THEME_SKIN_KEY = "chessy.theme.skin";
-const THEME_SKIN = "jade";
+const THEME_SKIN = "jade2";
 
 export const THEME_DEFAULTS: ThemeSettings = {
-  board: "glacier",
+  board: "jade",
   pieces: "cburnett",
   accent: "jade",
   mode: "system",

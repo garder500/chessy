@@ -4,6 +4,7 @@ import { FRAME, SIZE, TILE } from "./textures";
 import {
   MIN_TOUCH_TILE,
   TOUCH_DRAG_THRESHOLD,
+  TOUCH_SLOP,
   dragLift,
   dragScale,
   dragThreshold,
@@ -32,7 +33,7 @@ describe("réglages tactiles", () => {
 
   it("la marge du cadre ne compte qu'au doigt", () => {
     expect(touchSlop(false)).toBe(0);
-    expect(touchSlop(true)).toBe(FRAME);
+    expect(touchSlop(true)).toBe(TOUCH_SLOP);
   });
 });
 

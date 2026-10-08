@@ -48,6 +48,8 @@ let ACCENT = 0x8fb4ff;
 let PREMOVE = hexToNum(premoveColor("blue"));
 const TEXT = 0xe9ebef;
 const DANGER = 0xee8272;
+/** Encre foncée des repères de coups possibles sur le plateau Jade. */
+const INK = 0x0b2822;
 
 type Sprite = Phaser.GameObjects.Image;
 
@@ -667,8 +669,7 @@ export class BoardScene extends Phaser.Scene {
     for (const e of view.events) {
       for (const square of touchedSquares(e)) {
         const { x, y } = this.cell(square);
-        g.fillStyle(ACCENT, 0.3).fillRect(x, y, TILE, TILE);
-        g.lineStyle(2, ACCENT, 0.7).strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+        g.fillStyle(ACCENT, 0.45).fillRect(x, y, TILE, TILE);
       }
     }
     if (view.in_check) {
@@ -706,11 +707,13 @@ export class BoardScene extends Phaser.Scene {
     for (const square of this.highlight.targets) {
       const { x, y } = this.center(square);
       if (view.board[square]) {
-        g.lineStyle(6, DANGER, 0.9).strokeCircle(x, y, TILE / 2 - 5);
+        // Capture : anneau intérieur d'accent (charte v2), les coins du plateau restent lisibles sous la pièce.
+        const w = 6.5 * Math.min(boost, 1.4);
+        const c = this.cell(square);
+        g.lineStyle(w, ACCENT, 1).strokeRect(c.x + w / 2, c.y + w / 2, TILE - w, TILE - w);
       } else {
-        g.fillStyle(0x0e0f12, 0.6).fillCircle(x, y, 13 * boost);
-        g.lineStyle(2.5 * boost, TEXT, 0.95).strokeCircle(x, y, 13 * boost);
-        g.fillStyle(TEXT, 0.95).fillCircle(x, y, 4 * boost);
+        // Coup possible : point d'encre foncée au centre de la case (26 % de la case).
+        g.fillStyle(INK, 0.38).fillCircle(x, y, TILE * 0.13 * Math.min(boost, 1.3));
       }
     }
     const hover = this.drag?.hover;
