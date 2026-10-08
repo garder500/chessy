@@ -52,7 +52,8 @@ Les routes de l'API REST (`/api/...`) et la WebSocket (`/ws`) sont proxifiées p
 
 Variables d'environnement du serveur : `CHESSY_ADDR` (défaut `127.0.0.1:3000`),
 `CHESSY_DB` (défaut `chessy.sqlite`), `CHESSY_WEB_DIR` (défaut `web/dist`, servi s'il existe),
-`CHESSY_MAX_CONNECTIONS` (défaut `5000`, `0` = illimité), `CHESSY_MAX_CONNECTIONS_PER_IP` (défaut `0` = illimité),
+`CHESSY_SESSION_TTL_DAYS` (inactivité au bout de laquelle une session expire, défaut `30`), `CHESSY_SESSION_PURGE_SECS`
+(période de la purge des sessions expirées, défaut `3600`), `CHESSY_MAX_CONNECTIONS` (défaut `5000`, `0` = illimité), `CHESSY_MAX_CONNECTIONS_PER_IP` (défaut `0` = illimité),
 `CHESSY_RECOVERY_MAX_FAILURES_PER_IP` (échecs de récupération de compte par adresse et par 15 min, défaut `0` = désactivé)
 et `CHESSY_TRUST_PROXY` (`1` : lire l'adresse client dans le `X-Forwarded-For` d'un reverse proxy, voir `docs/spec-v4.md`).
 

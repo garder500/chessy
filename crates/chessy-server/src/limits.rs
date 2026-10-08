@@ -238,6 +238,26 @@ impl<K: std::hash::Hash + Eq> FailureWindow<K> {
 mod tests {
     use super::*;
 
+    /// Unknown usernames are counted too, so an anonymous caller can fill the map with
+    /// distinct keys. Expired ones must be swept once the map is large, or it only grows.
+    #[test]
+    fn many_distinct_keys_are_swept_once_their_window_is_over() {
+        let t0 = Instant::now();
+        let w = FailureWindow::new(3, Duration::from_secs(60));
+        let n = FailureWindow::<String>::SWEEP_ABOVE + 50;
+        for i in 0..n {
+            w.record_at(format!("nobody_{i}"), t0);
+        }
+        let len = |w: &FailureWindow<String>| w.failures.lock().unwrap().len();
+        assert_eq!(len(&w), n, "nothing expires inside the window");
+        w.record_at("late".to_string(), t0 + Duration::from_secs(61));
+        assert_eq!(
+            len(&w),
+            1,
+            "the expired keys were swept, only the new one is left"
+        );
+    }
+
     #[test]
     fn failures_block_a_key_until_its_window_is_over() {
         let t0 = Instant::now();
