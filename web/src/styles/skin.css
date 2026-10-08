@@ -248,3 +248,10 @@
 :root .hex { flex: none; display: inline-block; clip-path: polygon(50% 0, 96% 25%, 96% 75%, 50% 100%, 4% 75%, 4% 25%); }
 :root .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 2px 8px; background: var(--chip); color: var(--muted); border-radius: 3px; white-space: nowrap; }
 :root .num { font-family: var(--font-display); font-weight: 800; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+
+/* Contrôle segmenté de la charte v2 (mode, filtres, cadence) */
+:root .segs { display: flex; gap: 4px; padding: 4px; background: var(--surface-2); border: 1px solid var(--line-2); }
+:root .sg { flex: 1; min-height: 46px; border: 0; background: none; color: var(--muted); font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer; }
+:root .sg.on { background: var(--surface); color: var(--text); box-shadow: inset 0 -3px 0 var(--accent), var(--shadow); }
+
+:root .meta { font-size: 13.5px; color: var(--faint); }

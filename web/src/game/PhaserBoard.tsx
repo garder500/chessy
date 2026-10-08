@@ -18,6 +18,8 @@ interface Props {
   /** File de premoves, dessinée sur le plateau (numérotée dans l'ordre). */
   premove?: PremoveMark[] | null;
   onCancelPremove?: () => void;
+  /** Plateau retourné (vue de l'adversaire). */
+  flipped?: boolean;
 }
 
 /** Phaser ouvre un contexte WebGL1 et exige ANGLE_instanced_arrays ; sans cela on bascule en Canvas. */
@@ -31,12 +33,12 @@ function webglUsable(): boolean {
   }
 }
 
-export function PhaserBoard({ view, highlights, onSquare, interactive = true, canDrag, onDragStart, onDrop, premove = null, onCancelPremove }: Props) {
+export function PhaserBoard({ view, highlights, onSquare, interactive = true, canDrag, onDragStart, onDrop, premove = null, onCancelPremove, flipped = false }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<BoardScene | null>(null);
   // Latest props, readable from the deferred game setup and from scene callbacks.
-  const latest = useRef({ view, highlights, onSquare, interactive, canDrag, onDragStart, onDrop, premove, onCancelPremove });
-  latest.current = { view, highlights, onSquare, interactive, canDrag, onDragStart, onDrop, premove, onCancelPremove };
+  const latest = useRef({ view, highlights, onSquare, interactive, canDrag, onDragStart, onDrop, premove, onCancelPremove, flipped });
+  latest.current = { view, highlights, onSquare, interactive, canDrag, onDragStart, onDrop, premove, onCancelPremove, flipped };
   const theme = useTheme();
 
   useEffect(() => {
@@ -57,6 +59,7 @@ export function PhaserBoard({ view, highlights, onSquare, interactive = true, ca
       boardScene.onCancelPremove = () => latest.current.onCancelPremove?.();
       boardScene.setTheme(getTheme());
       boardScene.setPremove(latest.current.premove);
+      boardScene.setFlipped(latest.current.flipped);
       boardScene.setView(latest.current.view);
       boardScene.setHighlights(latest.current.highlights);
       scene.current = boardScene;
@@ -90,6 +93,9 @@ export function PhaserBoard({ view, highlights, onSquare, interactive = true, ca
     };
   }, []);
 
+  useEffect(() => {
+    scene.current?.setFlipped(flipped);
+  }, [flipped]);
   useEffect(() => {
     scene.current?.setView(view);
   }, [view]);

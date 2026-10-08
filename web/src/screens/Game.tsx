@@ -37,9 +37,11 @@ import { sfx } from "../sound";
 import { store, useAppState } from "../store";
 import { useTheme } from "../theme";
 import { Wordmark } from "../ui/NavBar";
+import { Sheet } from "../ui/Sheet";
+import { useCompact } from "../ui/useCompact";
 import { LaunchCard, PromotionPicker, ResultPanel, SpawnPicker } from "./game/Overlays";
 import { EvalBar, Plate } from "./game/Plate";
-import { Actions, BenchPanel, Chat, Journal, SkillList, TrainingNote } from "./game/SidePanels";
+import { Actions, BenchPanel, Chat, DrawBanner, GameNav, Journal, Options, SkillList, TrainingNote } from "./game/SidePanels";
 import { useGameSounds } from "./game/useGameSounds";
 import "./game.css";
 
@@ -68,6 +70,10 @@ export function Game({ view }: { view: StateView }) {
   const [premoveSel, setPremoveSel] = useState<Square | null>(null);
   const [premovePromo, setPremovePromo] = useState<PendingPromotion | null>(null);
   const theme = useTheme();
+  const compact = useCompact();
+  const [panel, setPanel] = useState<"moves" | "chat" | "more" | null>(null);
+  const [flipped, setFlipped] = useState(false);
+  const [seenChat, setSeenChat] = useState(0);
 
   // Instant de réception de la position : base de l'interpolation des horloges.
   const stamp = useMemo(() => performance.now(), [view.clock]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -81,6 +87,9 @@ export function Game({ view }: { view: StateView }) {
   // Nouvelle partie : on repart du haut de la page (sur téléphone, la page défile et garde la position de l'écran précédent).
   useEffect(() => {
     window.scrollTo(0, 0);
+    setFlipped(false);
+    setPanel(null);
+    setSeenChat(0);
   }, [view.game_id]);
 
   // A new position invalidates whatever was half-selected.
@@ -378,7 +387,7 @@ export function Game({ view }: { view: StateView }) {
   }
 
   return (
-    <div className="gm">
+    <div className={`gm${compact ? " gm-compact" : ""}`}>
       <header className="gm-top">
         <Wordmark />
         <div className="gm-top-mid">
@@ -461,6 +470,7 @@ export function Game({ view }: { view: StateView }) {
                 onDrop={onDrop}
                 premove={marks}
                 onCancelPremove={cancelPremove}
+                flipped={flipped}
               />
               {launch && <LaunchCard key={launch.key} skill={launch.skill} mine={launch.mine} />}
               {promotion && (
@@ -516,12 +526,42 @@ export function Game({ view }: { view: StateView }) {
           />
         </section>
 
-        <aside className="gm-right">
-          <Actions view={view} over={over_} />
-          <Journal log={log} you={view.you} />
-          {isBot ? <TrainingNote /> : <Chat lines={chat} />}
-        </aside>
+        {compact ? (
+          <DrawBanner view={view} />
+        ) : (
+          <aside className="gm-right">
+            <Actions view={view} over={over_} />
+            <Journal log={log} you={view.you} />
+            {isBot ? <TrainingNote /> : <Chat lines={chat} />}
+          </aside>
+        )}
       </main>
+
+      {compact && (
+        <>
+          <GameNav
+            onMoves={() => setPanel("moves")}
+            onChat={() => {
+              setPanel("chat");
+              setSeenChat(chat.length);
+            }}
+            onFlip={() => setFlipped((f) => !f)}
+            onMore={() => setPanel("more")}
+            flipped={flipped}
+            unread={isBot ? 0 : Math.max(0, chat.filter((l) => !l.mine).length - chat.slice(0, seenChat).filter((l) => !l.mine).length)}
+            over={over_}
+          />
+          <Sheet open={panel === "moves"} title="Coups" onClose={() => setPanel(null)}>
+            <Journal log={log} you={view.you} flat />
+          </Sheet>
+          <Sheet open={panel === "chat"} title="Messages" onClose={() => setPanel(null)}>
+            {isBot ? <TrainingNote /> : <Chat lines={chat} flat />}
+          </Sheet>
+          <Sheet open={panel === "more" && !over_} title="Options" onClose={() => setPanel(null)}>
+            <Options view={view} onClose={() => setPanel(null)} />
+          </Sheet>
+        </>
+      )}
     </div>
   );
 }

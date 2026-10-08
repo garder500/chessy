@@ -1,0 +1,21 @@
+/* Recherche d'un adversaire : radar autour de la pièce, chrono, conseil, annulation en bas. */
+.sr { position: relative; min-height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+.sr-top { position: relative; z-index: 2; flex: none; height: 56px; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 4px; background: var(--surface); border-bottom: 1px solid var(--line-2); }
+.sr-back { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; color: var(--text); cursor: pointer; }
+.sr-h1 { margin: 0; font-size: 22px; letter-spacing: 0.06em; }
+.sr-mid { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px 20px; text-align: center; }
+.sr-radar { position: relative; width: 170px; height: 170px; display: grid; place-items: center; }
+.sr-ping { position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--accent); animation: sr-ping 2.2s ease-out infinite; }
+.sr-ring { position: absolute; inset: 22px; border-radius: 50%; border: 1px solid var(--line-3); }
+.sr-piece { height: 96px; width: auto; position: relative; }
+.sr-timer { margin: 0; font-size: 56px; line-height: 1; }
+.sr-title { margin: 0; font-size: 26px; letter-spacing: 0.08em; }
+.sr-sub { margin: 0; color: var(--muted); }
+.sr-fine { font-size: 14px; color: var(--faint); }
+.sr-tip { display: flex; gap: 10px; align-items: flex-start; text-align: left; margin-top: 10px; max-width: 420px; font-size: 15px; }
+.sr-tip-hex { width: 22px; height: 25px; margin-top: 2px; }
+.sr-act { position: relative; z-index: 1; width: min(420px, 100%); align-self: center; padding: 16px; }
+:root .sr .lb-code { font-size: 40px; font-weight: 800; letter-spacing: 0.3em; padding: 12px 10px 12px 22px; }
+@keyframes sr-ping { 0% { transform: scale(0.6); opacity: 0.8; } 100% { transform: scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sr-ping { animation: none; opacity: 0.4; } }
+:root[data-motion="reduce"] .sr-ping { animation: none; opacity: 0.4; }

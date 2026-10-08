@@ -179,6 +179,8 @@ export class BoardScene extends Phaser.Scene {
   private ready = false;
 
   private orientation: Color = "white";
+  /** « Retourner » : le plateau est vu du côté de l'adversaire. */
+  private flipped = false;
   private gameId: string | null = null;
   private lastKey: string | null = null;
   private boardImage: Phaser.GameObjects.Image | null = null;
@@ -262,6 +264,12 @@ export class BoardScene extends Phaser.Scene {
 
   setView(view: StateView | null) {
     this.view = view;
+    if (this.ready) this.render();
+  }
+
+  setFlipped(flipped: boolean) {
+    if (this.flipped === flipped) return;
+    this.flipped = flipped;
     if (this.ready) this.render();
   }
 
@@ -609,11 +617,12 @@ export class BoardScene extends Phaser.Scene {
       this.bestLayer.clear();
       return;
     }
-    const fresh = view.game_id !== this.gameId || view.you !== this.orientation;
+    const side: Color = this.flipped ? (view.you === "white" ? "black" : "white") : view.you;
+    const fresh = view.game_id !== this.gameId || side !== this.orientation;
     if (fresh) {
       this.clearPieces();
       this.gameId = view.game_id;
-      this.orientation = view.you;
+      this.orientation = side;
       this.lastKey = null;
       this.best = null;
       this.drawBoard();

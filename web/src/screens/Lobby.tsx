@@ -1,14 +1,14 @@
-import { lazy, Suspense, useEffect, useState, type CSSProperties } from "react";
-import { FAMILY_LABEL } from "../catalog";
+import { lazy, Suspense, useState } from "react";
 import { hrefFor } from "../router";
 import { skillInfo } from "../skills";
 import { store, type AppState } from "../store";
-import { HeroPiece, ModeIcon, type HeroKind } from "../ui/HeroPiece";
+import { Beam } from "../ui/Beam";
+import { HeroPiece } from "../ui/HeroPiece";
+import { Sheet } from "../ui/Sheet";
 import { initialOf } from "../ui/NavBar";
-import { SkillArt } from "../ui/SkillArt";
 import { sortFriends } from "../ui/social";
 import { tileRarity } from "../ui/tileRarity";
-import { UniqueBadge } from "../ui/UniqueBadge";
+import { Search } from "./Search";
 import { SoloPanel } from "./SoloPanel";
 import "./lobby.css";
 
@@ -17,13 +17,11 @@ const HeroPiece3D = lazy(() => import("../ui/HeroPiece3D"));
 
 const DECK_SLOTS = 7;
 
-export type PlayMode = "ranked" | "friendly" | "private" | "ai";
+export type PlayMode = "ranked" | "friendly";
 
-const MODES: { id: PlayMode; label: string; piece: HeroKind }[] = [
-  { id: "ranked", label: "Classée", piece: "king" },
-  { id: "friendly", label: "Amicale", piece: "pawn" },
-  { id: "private", label: "Salle privée", piece: "rook" },
-  { id: "ai", label: "Contre l'IA", piece: "knight" },
+const MODES: { id: PlayMode; label: string; sub: string; glow: string; piece: "king" | "pawn" }[] = [
+  { id: "ranked", label: "Classée", sub: "Elo et compétences en jeu", glow: "var(--accent)", piece: "king" },
+  { id: "friendly", label: "Amicale", sub: "Pour le plaisir, rien à perdre", glow: "var(--rar-rare)", piece: "pawn" },
 ];
 
 const MODE_KEY = "chessy.playMode";
@@ -37,40 +35,16 @@ function readMode(): PlayMode | null {
   }
 }
 
-/** Secondes écoulées depuis que `active` est devenu vrai. */
-function useElapsed(active: boolean): number {
-  const [seconds, setSeconds] = useState(0);
-  useEffect(() => {
-    if (!active) return;
-    setSeconds(0);
-    const timer = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(timer);
-  }, [active]);
-  return seconds;
-}
-
-export function formatElapsed(seconds: number): string {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
-/** Statut affiché sous le pseudo dans « Votre groupe ». */
-export function groupStatus(lobby: AppState["lobby"]): string {
-  if (lobby.type === "queued") return "En recherche";
-  if (lobby.type === "room_waiting") return "Salle ouverte";
-  return "Prêt";
-}
-
 export function Lobby({ state }: { state: AppState }) {
   const { lobby, deck, account, friends, outgoingChallenge } = state;
   const isAccount = !!account && !account.guest;
   const [picked, setPicked] = useState<PlayMode | null>(readMode);
   // Un invité ne peut pas jouer en classée : son mode par défaut est l'amicale.
   const mode: PlayMode = picked ?? (isAccount ? "ranked" : "friendly");
+  const [sheet, setSheet] = useState<"room" | "solo" | { friend: string } | null>(null);
   const [code, setCode] = useState("");
-  const [copied, setCopied] = useState(false);
-  const waiting = lobby.type !== "idle";
-  const elapsed = useElapsed(waiting);
   const connected = state.connection === "open";
+  const waiting = lobby.type !== "idle";
 
   const choose = (m: PlayMode) => {
     setPicked(m);
@@ -81,296 +55,186 @@ export function Lobby({ state }: { state: AppState }) {
     }
   };
 
-  const copy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    } catch {
-      // Presse-papiers indisponible : le code reste lisible à l'écran.
-    }
-  };
+  // Une file ou une salle ouverte prend tout l'écran : le parcours continue sur « Recherche ».
+  if (waiting) return <Search lobby={lobby} />;
 
-  // En attente, la pièce et le titre suivent la file réellement rejointe, pas l'onglet.
-  const shown: PlayMode =
-    lobby.type === "queued" ? (lobby.ranked ? "ranked" : "friendly") : lobby.type === "room_waiting" ? "private" : mode;
-  const piece = MODES.find((m) => m.id === shown)!.piece;
+  const current = MODES.find((m) => m.id === mode)!;
   const elo = account?.elo ?? 1200;
-
   const online = sortFriends(friends.friends.filter((f) => f.presence !== "offline"));
+  const challenged = typeof sheet === "object" && sheet ? friends.friends.find((f) => f.username === sheet.friend) : undefined;
+  const sent = !!challenged && outgoingChallenge?.toLowerCase() === challenged.username.toLowerCase();
+  const closeSheet = () => setSheet(null);
 
   return (
-    <main className="pl" data-mode={shown}>
-      <div className="pl-modes" role="tablist" aria-label="Type de partie">
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            role="tab"
-            aria-selected={shown === m.id}
-            className="pl-mode"
-            disabled={waiting && shown !== m.id}
-            onClick={() => choose(m.id)}
-          >
-            <ModeIcon kind={m.piece} />
-            {m.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="pl-grid">
-        <aside className="pl-side pl-left" aria-label="Votre groupe">
-          <h2 className="pl-label">Votre groupe</h2>
-          <div className="pl-me card">
-            <span className="avatar pl-av">{initialOf(isAccount ? account?.username : "Invité")}</span>
-            <span className="pl-me-txt">
-              <strong>{isAccount ? account?.username : "Invité"}</strong>
-              <span className="muted">
-                {isAccount ? `Elo ${elo} · ` : ""}
-                {groupStatus(lobby)}
-              </span>
-            </span>
+    <main className="jp" data-mode={mode}>
+      <section className="jp-stage" aria-labelledby="jp-title">
+        <Beam width={560} height={400} glow={current.glow} />
+        {isAccount && (
+          <span className="chip jp-elo">
+            <span className="num">{elo}</span> Elo
+          </span>
+        )}
+        <div className="jp-hero">
+          <div className="jp-floor" aria-hidden="true">
+            <i />
+            <i />
           </div>
-          {isAccount ? (
-            <a className="pl-invite" href={hrefFor({ name: "friends" })}>
-              <span className="pl-plus" aria-hidden="true">
-                +
-              </span>
-              Inviter un ami
+          <Suspense fallback={<HeroPiece kind={current.piece} className="jp-piece" />}>
+            <HeroPiece3D kind={current.piece} className="jp-piece" />
+          </Suspense>
+        </div>
+        <div className="jp-head">
+          <h1 id="jp-title" className="jp-title">
+            {current.label}
+          </h1>
+          <p className="jp-sub">{current.sub} · 10 min + 3 s</p>
+        </div>
+      </section>
+
+      <div className="jp-panel">
+        <h2 className="jp-panel-title">Nouvelle partie</h2>
+        <div className="segs" role="radiogroup" aria-label="Mode">
+          {MODES.map((m) => (
+            <button key={m.id} type="button" role="radio" aria-checked={mode === m.id} className={`sg${mode === m.id ? " on" : ""}`} onClick={() => choose(m.id)}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+
+        {isAccount ? (
+          <div className="jp-friends" aria-label="Amis en ligne">
+            {online.slice(0, 3).map((f) => (
+              <button key={f.username} type="button" className="jp-friend" aria-label={`Défier ${f.username}`} onClick={() => setSheet({ friend: f.username })}>
+                <span className="avatar jp-av">
+                  {initialOf(f.username)}
+                  <span className={`presence ${f.presence}`} aria-hidden="true" />
+                </span>
+                <span className="jp-friend-name">{f.username}</span>
+              </button>
+            ))}
+            <span className="jp-friends-hint">{online.length === 0 ? "Aucun ami en ligne" : "Touchez un ami pour le défier"}</span>
+            <a className="link" href={hrefFor({ name: "friends" })}>
+              {online.length === 0 && friends.friends.length === 0 ? "Ajouter" : "Tous"}
             </a>
-          ) : (
-            <a className="pl-invite" href={hrefFor({ name: "auth" })}>
-              <span className="pl-plus" aria-hidden="true">
-                +
-              </span>
+          </div>
+        ) : (
+          <p className="jp-guest">
+            <a className="link" href={hrefFor({ name: "auth" })}>
+              Créez un compte
+            </a>{" "}
+            pour jouer en classée et défier des amis.
+          </p>
+        )}
+
+        <div className="jp-act">
+          {mode === "ranked" && !isAccount ? (
+            <a className="btn pri block jp-cta" href={hrefFor({ name: "auth" })}>
               Créer un compte
             </a>
+          ) : (
+            <button type="button" className="btn pri block jp-cta" disabled={!connected} onClick={() => store.send({ type: "queue_join", ranked: mode === "ranked" })}>
+              Trouver une partie
+            </button>
           )}
+          <p className="jp-note">{mode === "ranked" ? `Votre Elo (${elo}) et une compétence sont en jeu` : "Sans enjeu : ni Elo ni compétence à gagner"}</p>
+        </div>
 
-          <div className="pl-deck-head">
-            <h2 className="pl-label">Votre deck</h2>
-            <span className="pl-count">
-              {deck.length}/{DECK_SLOTS}
-            </span>
-          </div>
-          <ul className="pl-deck">
+        <a className="jp-deck" href={hrefFor({ name: "collection" })} aria-label="Votre deck">
+          <span className="jp-deck-hex" aria-hidden="true">
             {Array.from({ length: DECK_SLOTS }, (_, i) => {
               const id = deck[i];
-              if (!id) {
-                return (
-                  <li key={`empty-${i}`} className="slot empty">
-                    Emplacement libre
-                  </li>
-                );
-              }
-              const info = skillInfo(id);
-              return (
-                <li key={id} className={`slot${info.unique ? " foil" : ""}`} style={{ "--fam": `var(--fam-${info.family})` } as CSSProperties} title={info.description}>
-                  <span className="slot-art" data-rar={tileRarity(id)}>
-                    <SkillArt id={id} size={40} />
-                    {info.unique && <UniqueBadge />}
-                  </span>
-                  <span className="pl-slot-txt">
-                    <span className="slot-name">{info.name}</span>
-                    <span className="eyebrow">{info.unique ? "Unique" : FAMILY_LABEL[info.family]}</span>
-                  </span>
-                </li>
-              );
+              return <span key={i} className="hex" data-rar={id ? tileRarity(id) : undefined} style={{ background: id ? `var(--rar-${tileRarity(id)})` : "var(--line-2)" }} />;
             })}
-          </ul>
-          <p className="muted pl-small">
-            Avant chaque partie, choisissez trois compétences de ce deck. Gagnez une partie classée pour prendre une compétence à votre adversaire ou en
-            forger une nouvelle.
-          </p>
-        </aside>
+          </span>
+          <span className="jp-deck-txt">
+            <strong>Votre deck</strong>
+            <span className="muted">
+              {deck.length}/{DECK_SLOTS} · {deck.slice(0, 3).map((id) => skillInfo(id).name).join(", ")}
+            </span>
+          </span>
+        </a>
 
-        <section className="pl-stage" aria-labelledby="pl-title">
-          <div className="pl-beam" aria-hidden="true" />
-          <div className="pl-head">
-            <h1 id="pl-title" className="pl-title">
-              {lobby.type === "queued" ? "Recherche…" : lobby.type === "room_waiting" ? "Salle privée" : MODES.find((m) => m.id === mode)!.label}
-            </h1>
-            <p className="pl-sub">
-              {lobby.type === "queued"
-                ? lobby.ranked
-                  ? "File classée · adversaire de force proche"
-                  : "File amicale"
-                : lobby.type === "room_waiting"
-                  ? "Partagez ce code avec votre adversaire"
-                  : SUBTITLE[mode]}
-            </p>
-          </div>
-
-          <div className="pl-hero">
-            <Suspense fallback={<HeroPiece kind={piece} className="pl-piece" />}>
-              <HeroPiece3D kind={piece} className="pl-piece" fast={waiting} />
-            </Suspense>
-            <div className="pl-floor" aria-hidden="true">
-              <i />
-              <i />
-            </div>
-          </div>
-
-          <div className="pl-act">
-            {lobby.type === "queued" && (
-              <div className="pl-wait" role="status">
-                <p className="pl-timer" aria-label={`Temps d'attente : ${elapsed} secondes`}>
-                  {formatElapsed(elapsed)}
-                </p>
-                <div className="lb-bar" aria-hidden="true">
-                  <i />
-                </div>
-                {lobby.ranked && <p className="muted pl-note">La plage d'Elo s'élargit peu à peu pendant l'attente.</p>}
-                <button type="button" className="btn" onClick={() => store.send({ type: "leave_lobby" })}>
-                  Annuler la recherche
-                </button>
-              </div>
-            )}
-
-            {lobby.type === "room_waiting" && (
-              <div className="pl-wait" role="status">
-                <p className="lb-code" data-testid="room-code" aria-label={`Code de salle ${lobby.code.split("").join(" ")}`}>
-                  {lobby.code}
-                </p>
-                <div className="pl-row">
-                  <button type="button" className="btn sm" onClick={() => copy(lobby.code)}>
-                    {copied ? "Code copié" : "Copier le code"}
-                  </button>
-                  <button type="button" className="btn sm ghost" onClick={() => store.send({ type: "leave_lobby" })}>
-                    Fermer la salle
-                  </button>
-                </div>
-                <p className="pl-timer small">{formatElapsed(elapsed)}</p>
-              </div>
-            )}
-
-            {lobby.type === "idle" && mode === "ranked" && !isAccount && (
-              <>
-                <a className="btn pri lb-main pl-cta" href={hrefFor({ name: "auth" })}>
-                  Créer un compte
-                </a>
-                <p className="muted pl-note">Un compte est nécessaire pour jouer en classée, grimper au classement et défier vos amis.</p>
-              </>
-            )}
-
-            {lobby.type === "idle" && mode === "ranked" && isAccount && (
-              <>
-                <button type="button" className="btn pri lb-main pl-cta" onClick={() => store.send({ type: "queue_join", ranked: true })}>
-                  Trouver une partie
-                </button>
-                <p className="muted pl-note">Votre Elo ({elo}) et une compétence sont en jeu</p>
-              </>
-            )}
-
-            {lobby.type === "idle" && mode === "friendly" && (
-              <>
-                <button type="button" className="btn pri lb-main pl-cta" onClick={() => store.send({ type: "queue_join", ranked: false })}>
-                  Trouver une partie
-                </button>
-                <p className="muted pl-note">Sans enjeu : ni Elo ni compétence à gagner</p>
-              </>
-            )}
-
-            {lobby.type === "idle" && mode === "private" && (
-              <>
-                <button type="button" className="btn pri lb-main pl-cta" onClick={() => store.send({ type: "create_room" })}>
-                  Créer une salle
-                </button>
-                <form
-                  className="pl-join"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (code.trim()) store.send({ type: "join_room", code: code.trim() });
-                  }}
-                >
-                  <label className="sr-only" htmlFor="room-code">
-                    Code de salle
-                  </label>
-                  <input
-                    id="room-code"
-                    className="input"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    placeholder="Code de salle"
-                    maxLength={8}
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                  <button type="submit" className="btn" disabled={!code.trim()}>
-                    Rejoindre
-                  </button>
-                </form>
-              </>
-            )}
-
-            {lobby.type === "idle" && mode === "ai" && <SoloPanel state={state} />}
-          </div>
-        </section>
-
-        <aside className="pl-side pl-right" aria-labelledby="pl-friends">
-          <h2 id="pl-friends" className="pl-label">
-            Amis en ligne
-          </h2>
-          {!isAccount ? (
-            <p className="muted pl-small">
-              <a href={hrefFor({ name: "auth" })}>Créez un compte</a> pour ajouter des amis et les défier.
-            </p>
-          ) : online.length === 0 ? (
-            <div className="pl-empty">
-              <p className="muted pl-small">Aucun ami en ligne pour l'instant.</p>
-              <a className="btn sm line" href={hrefFor({ name: "friends" })}>
-                {friends.friends.length ? "Voir vos amis" : "Ajouter des amis"}
-              </a>
-            </div>
-          ) : (
-            <ul className="pl-friends">
-              {online.map((f) => {
-                const sent = outgoingChallenge?.toLowerCase() === f.username.toLowerCase();
-                return (
-                  <li key={f.username} className="pl-friend">
-                    <span className={`presence ${f.presence}`} aria-hidden="true" />
-                    <a className="pl-friend-name" href={hrefFor({ name: "profile", param: f.username })}>
-                      {f.username}
-                      <span className="sr-only">, {f.presence === "online" ? "en ligne" : "en partie"}</span>
-                    </a>
-                    <span className="pl-friend-elo muted">{f.elo}</span>
-                    {f.presence === "in_game" ? (
-                      f.game_id ? (
-                        <a className="btn sm line" href={hrefFor({ name: "watch", param: f.game_id })}>
-                          Regarder
-                        </a>
-                      ) : (
-                        <span className="pl-busy muted">En partie</span>
-                      )
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn sm line"
-                        disabled={!connected || waiting || (outgoingChallenge !== null && !sent) || sent}
-                        onClick={() => store.send({ type: "challenge", username: f.username })}
-                      >
-                        {sent ? "Envoyé" : "Inviter"}
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {friends.incoming.length > 0 && (
-            <a className="pl-requests" href={hrefFor({ name: "friends" })}>
-              {friends.incoming.length} demande{friends.incoming.length > 1 ? "s" : ""} d'ami en attente
-            </a>
-          )}
-        </aside>
+        <div className="jp-links">
+          <button type="button" className="link" onClick={() => setSheet("room")}>
+            Salle privée
+          </button>
+          <span aria-hidden="true">·</span>
+          <button type="button" className="link" onClick={() => setSheet("solo")}>
+            Contre l'IA
+          </button>
+        </div>
       </div>
+
+      <Sheet open={typeof sheet === "object" && !!sheet} title={`Défier ${challenged?.username ?? ""}`} onClose={closeSheet}>
+        {challenged && (
+          <>
+            <p className="sheet-sub">
+              {challenged.presence === "in_game" ? "En partie" : "En ligne"} · {challenged.elo} Elo · partie amicale
+            </p>
+            {challenged.presence === "in_game" && challenged.game_id ? (
+              <a className="btn pri block" href={hrefFor({ name: "watch", param: challenged.game_id })}>
+                Regarder la partie
+              </a>
+            ) : (
+              <button
+                type="button"
+                className="btn pri block"
+                disabled={!connected || sent || (outgoingChallenge !== null && !sent)}
+                onClick={() => {
+                  store.send({ type: "challenge", username: challenged.username });
+                  closeSheet();
+                }}
+              >
+                {sent ? "Défi envoyé" : "Envoyer le défi"}
+              </button>
+            )}
+          </>
+        )}
+      </Sheet>
+
+      <Sheet open={sheet === "room"} title="Salle privée" onClose={closeSheet}>
+        <p className="sheet-sub">Jouez avec un ami grâce à un code.</p>
+        <button
+          type="button"
+          className="btn pri block"
+          disabled={!connected}
+          onClick={() => {
+            store.send({ type: "create_room" });
+            closeSheet();
+          }}
+        >
+          Créer une salle
+        </button>
+        <form
+          className="jp-join"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (code.trim()) {
+              store.send({ type: "join_room", code: code.trim() });
+              closeSheet();
+            }
+          }}
+        >
+          <label className="sr-only" htmlFor="room-code">
+            Code de salle
+          </label>
+          <input id="room-code" className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="Code de salle" maxLength={8} autoComplete="off" spellCheck={false} />
+          <button type="submit" className="btn" disabled={!code.trim() || !connected}>
+            Rejoindre
+          </button>
+        </form>
+      </Sheet>
+
+      <Sheet open={sheet === "solo"} title="Contre l'IA" onClose={closeSheet}>
+        <SoloPanel state={state} />
+      </Sheet>
     </main>
   );
 }
 
-const SUBTITLE: Record<PlayMode, string> = {
-  ranked: "Adversaire de force proche",
-  friendly: "Une partie sans enjeu",
-  private: "Jouez avec un ami grâce à un code",
-  ai: "Entraînement contre Sage",
-};
+/** Statut affiché sous le pseudo dans « Votre groupe ». */
+export function groupStatus(l: AppState["lobby"]): string {
+  if (l.type === "queued") return "En recherche";
+  if (l.type === "room_waiting") return "Salle ouverte";
+  return "Prêt";
+}
