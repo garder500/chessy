@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CATALOG } from "../catalog";
 import type { LobbyStatus } from "../protocol";
 import { store } from "../store";
+import { timeText, useTime } from "../time";
 import { Beam } from "../ui/Beam";
 import { HeroPiece } from "../ui/HeroPiece";
 import "./search.css";
@@ -25,6 +26,7 @@ export function formatElapsed(seconds: number): string {
 /** Recherche d'un adversaire (file classée ou amicale) ou salle privée en attente : un seul écran, une seule décision (annuler). */
 export function Search({ lobby }: { lobby: Exclude<LobbyStatus, { type: "idle" }> }) {
   const elapsed = useElapsed(true);
+  const time = useTime();
   const [copied, setCopied] = useState(false);
   // Un conseil tiré une fois par recherche : la description d'une compétence du catalogue.
   const tip = useMemo(() => CATALOG[Math.floor(Math.random() * CATALOG.length)], []);
@@ -76,7 +78,7 @@ export function Search({ lobby }: { lobby: Exclude<LobbyStatus, { type: "idle" }
               {formatElapsed(elapsed)}
             </p>
             <h2 className="sr-title">Recherche d'un adversaire</h2>
-            <p className="sr-sub">{lobby.ranked ? "Classée · adversaire de force proche · 10 min + 3 s" : "Amicale · 10 min + 3 s"}</p>
+            <p className="sr-sub">{lobby.ranked ? `Classée · adversaire de force proche · ${timeText(time)}` : `Amicale · ${timeText(time)}`}</p>
             {lobby.ranked && <p className="sr-sub sr-fine">La plage d'Elo s'élargit peu à peu pendant l'attente.</p>}
           </>
         )}

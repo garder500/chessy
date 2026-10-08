@@ -8,6 +8,7 @@ import { Sheet } from "../ui/Sheet";
 import { initialOf } from "../ui/NavBar";
 import { sortFriends } from "../ui/social";
 import { tileRarity } from "../ui/tileRarity";
+import { setTime, timeText, TIMES, useTime } from "../time";
 import { Search } from "./Search";
 import { SoloPanel } from "./SoloPanel";
 import "./lobby.css";
@@ -43,6 +44,7 @@ export function Lobby({ state }: { state: AppState }) {
   const mode: PlayMode = picked ?? (isAccount ? "ranked" : "friendly");
   const [sheet, setSheet] = useState<"room" | "solo" | { friend: string } | null>(null);
   const [code, setCode] = useState("");
+  const time = useTime();
   const connected = state.connection === "open";
   const waiting = lobby.type !== "idle";
 
@@ -87,7 +89,7 @@ export function Lobby({ state }: { state: AppState }) {
           <h1 id="jp-title" className="jp-title">
             {current.label}
           </h1>
-          <p className="jp-sub">{current.sub} · 10 min + 3 s</p>
+          <p className="jp-sub">{current.sub} · {timeText(time)}</p>
         </div>
       </section>
 
@@ -97,6 +99,15 @@ export function Lobby({ state }: { state: AppState }) {
           {MODES.map((m) => (
             <button key={m.id} type="button" role="radio" aria-checked={mode === m.id} className={`sg${mode === m.id ? " on" : ""}`} onClick={() => choose(m.id)}>
               {m.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="jp-times" role="radiogroup" aria-label="Durée de partie">
+          {TIMES.map((t) => (
+            <button key={t.id} type="button" role="radio" aria-checked={time === t.id} className={`sel${time === t.id ? " on" : ""}`} onClick={() => setTime(t.id)}>
+              <strong className="jp-time-l">{t.label}</strong>
+              <span className="meta">{t.id === "short" ? "Blitz · 5 min" : `${t.minutes} min`}</span>
             </button>
           ))}
         </div>
@@ -132,8 +143,8 @@ export function Lobby({ state }: { state: AppState }) {
               Créer un compte
             </a>
           ) : (
-            <button type="button" className="btn pri block jp-cta" disabled={!connected} onClick={() => store.send({ type: "queue_join", ranked: mode === "ranked" })}>
-              Trouver une partie
+            <button type="button" className="btn pri block jp-cta" disabled={!connected} onClick={() => store.send({ type: "queue_join", ranked: mode === "ranked", time })}>
+              Jouer · {TIMES.find((t) => t.id === time)!.short}
             </button>
           )}
           <p className="jp-note">{mode === "ranked" ? `Votre Elo (${elo}) et une compétence sont en jeu` : "Sans enjeu : ni Elo ni compétence à gagner"}</p>
@@ -171,6 +182,13 @@ export function Lobby({ state }: { state: AppState }) {
             <p className="sheet-sub">
               {challenged.presence === "in_game" ? "En partie" : "En ligne"} · {challenged.elo} Elo · partie amicale
             </p>
+            <div className="segs" role="radiogroup" aria-label="Durée">
+              {TIMES.map((t) => (
+                <button key={t.id} type="button" role="radio" aria-checked={time === t.id} className={`sg${time === t.id ? " on" : ""}`} onClick={() => setTime(t.id)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
             {challenged.presence === "in_game" && challenged.game_id ? (
               <a className="btn pri block" href={hrefFor({ name: "watch", param: challenged.game_id })}>
                 Regarder la partie
@@ -181,7 +199,7 @@ export function Lobby({ state }: { state: AppState }) {
                 className="btn pri block"
                 disabled={!connected || sent || (outgoingChallenge !== null && !sent)}
                 onClick={() => {
-                  store.send({ type: "challenge", username: challenged.username });
+                  store.send({ type: "challenge", username: challenged.username, time });
                   closeSheet();
                 }}
               >
@@ -194,12 +212,20 @@ export function Lobby({ state }: { state: AppState }) {
 
       <Sheet open={sheet === "room"} title="Salle privée" onClose={closeSheet}>
         <p className="sheet-sub">Jouez avec un ami grâce à un code.</p>
+        <div className="segs" role="radiogroup" aria-label="Durée">
+              {TIMES.map((t) => (
+                <button key={t.id} type="button" role="radio" aria-checked={time === t.id} className={`sg${time === t.id ? " on" : ""}`} onClick={() => setTime(t.id)}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
         <button
           type="button"
           className="btn pri block"
           disabled={!connected}
           onClick={() => {
-            store.send({ type: "create_room" });
+            store.send({ type: "create_room", time });
             closeSheet();
           }}
         >

@@ -69,3 +69,11 @@
 @media (prefers-reduced-motion: reduce) { .jp-piece { animation: none; } }
 :root[data-motion="reduce"] .jp-piece { animation: none; }
 .jp-guest .link { display: inline; min-height: 0; padding: 0; }
+
+/* Durée de partie : trois choix de même largeur */
+.jp-times { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.jp-times .sel { min-height: 62px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.jp-time-l { font-family: var(--font-display); font-weight: 700; font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase; }
+:root .sel { border: 1px solid var(--line-2); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; clip-path: polygon(var(--cut-s) 0, 100% 0, 100% calc(100% - var(--cut-s)), calc(100% - var(--cut-s)) 100%, 0 100%, 0 var(--cut-s)); }
+:root .sel.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.sheet .segs { margin: 2px 0; }

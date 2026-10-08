@@ -1,3 +1,4 @@
+import { readTime } from "../time";
 import { useState, useSyncExternalStore } from "react";
 import { hrefFor, navigate } from "../router";
 import { sfx } from "../sound";
@@ -231,7 +232,7 @@ function Relation({ username }: { username: string }) {
             </button>
           </>
         ) : (
-          <button type="button" className="btn pri" disabled={!can} onClick={() => store.send({ type: "challenge", username: friend.username })}>
+          <button type="button" className="btn pri" disabled={!can} onClick={() => store.send({ type: "challenge", username: friend.username, time: readTime() })}>
             Défier
           </button>
         )}

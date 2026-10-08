@@ -1,3 +1,4 @@
+import { readTime } from "../time";
 import { useEffect, useMemo, useState } from "react";
 import type { FriendInfo, UserResult } from "../protocol";
 import { hrefFor } from "../router";
@@ -305,7 +306,7 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
             </>
           ) : (
             <>
-              <button type="button" className="btn pri" disabled={!canChallenge} onClick={() => store.send({ type: "challenge", username: friend.username })}>
+              <button type="button" className="btn pri" disabled={!canChallenge} onClick={() => store.send({ type: "challenge", username: friend.username, time: readTime() })}>
                 Défier
               </button>
               {friend.presence === "in_game" && friend.game_id && (

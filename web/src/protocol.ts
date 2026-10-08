@@ -386,11 +386,14 @@ export type RewardChoice =
   | { kind: "random"; replace?: SkillId }
   | { kind: "skip" };
 
+/** Durée de partie demandée (absente : valeur par défaut du serveur). */
+export type TimeControl = "short" | "medium" | "long";
+
 export type ClientMsg =
   | { type: "hello"; token?: string }
-  | { type: "queue_join"; ranked?: boolean }
+  | { type: "queue_join"; ranked?: boolean; time?: TimeControl }
   | { type: "solo_start"; elo: number; color: SoloColor }
-  | { type: "create_room" }
+  | { type: "create_room"; time?: TimeControl }
   | { type: "join_room"; code: string }
   | { type: "leave_lobby" }
   | { type: "leave_deck_select" }
@@ -403,7 +406,7 @@ export type ClientMsg =
   | { type: "friend_remove"; username: string }
   | { type: "friends_list" }
   | { type: "user_search"; query: string }
-  | { type: "challenge"; username: string }
+  | { type: "challenge"; username: string; time?: TimeControl }
   | { type: "challenge_respond"; username: string; accept: boolean }
   | { type: "challenge_cancel" }
   | { type: "offer_draw" }
