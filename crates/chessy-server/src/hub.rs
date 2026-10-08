@@ -116,6 +116,13 @@ pub struct HubConfig {
     /// instead of the TCP peer. Only turn this on behind a proxy that sets the
     /// header itself; otherwise any client can pick its own address.
     pub trust_proxy: bool,
+    /// Failed account-recovery attempts allowed from one client address (an
+    /// IPv6 address counts as its /64) per 15 minutes. `0` = no per-address
+    /// count, which is the default for the same reason as
+    /// `max_connections_per_ip`: behind a reverse proxy every peer is the proxy,
+    /// so 20 failures from anybody would lock recovery for everybody unless
+    /// `trust_proxy` is set. The per-username count always applies.
+    pub recovery_max_failures_per_ip: u32,
 }
 
 impl Default for HubConfig {
@@ -156,6 +163,7 @@ impl Default for HubConfig {
             max_connections: 5000,
             max_connections_per_ip: 0,
             trust_proxy: false,
+            recovery_max_failures_per_ip: 0,
         }
     }
 }

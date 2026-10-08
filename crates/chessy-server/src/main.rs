@@ -34,6 +34,10 @@ async fn main() {
     if let Some(n) = env_number::<usize>("CHESSY_MAX_CONNECTIONS_PER_IP") {
         config.max_connections_per_ip = n;
     }
+    // 0 = no per-address count of failed recovery attempts (the default).
+    if let Some(n) = env_number::<u32>("CHESSY_RECOVERY_MAX_FAILURES_PER_IP") {
+        config.recovery_max_failures_per_ip = n;
+    }
     // Behind a reverse proxy that sets X-Forwarded-For itself (`1` or `true`).
     config.trust_proxy = matches!(
         std::env::var("CHESSY_TRUST_PROXY").as_deref(),

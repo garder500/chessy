@@ -16,6 +16,19 @@ import type {
 export interface AuthResponse {
   token: string;
   player: Me;
+  /** Code de récupération, montré une seule fois : à l'inscription et après une récupération. */
+  recovery_code?: string;
+}
+
+/** Réponse de `POST /api/auth/recover` : nouvelle session et nouveau code. */
+export interface RecoverResponse extends AuthResponse {
+  recovery_code: string;
+}
+
+export interface RecoverInput {
+  username: string;
+  recovery_code: string;
+  new_password: string;
 }
 
 export interface Credentials {
@@ -46,6 +59,7 @@ const ERROR_TEXT: Record<string, string> = {
   network: "Impossible de joindre le serveur. Vérifiez votre connexion.",
   rate_limited: "Trop de tentatives. Réessayez dans un instant.",
   too_many_attempts: "Trop d'échecs de connexion. Réessayez dans quelques minutes.",
+  bad_recovery: "Pseudo ou code de récupération incorrect.",
 };
 
 /** Message français pour une erreur API (ou quelconque). */
@@ -120,6 +134,14 @@ export const api = {
   /** Termine toutes les sessions du compte (tous les appareils). */
   logoutAll(token: string) {
     return request<void>("/auth/logout-all", { method: "POST", token });
+  },
+  /** Nouveau mot de passe à partir du code de récupération ; ferme toutes les anciennes sessions. */
+  recover(input: RecoverInput, signal?: AbortSignal) {
+    return request<RecoverResponse>("/auth/recover", { method: "POST", body: input, signal });
+  },
+  /** Génère (ou remplace) le code de récupération du compte ; le mot de passe actuel est exigé. */
+  recoveryCode(token: string, password: string, signal?: AbortSignal) {
+    return request<{ recovery_code: string }>("/me/recovery-code", { method: "POST", body: { password }, token, signal });
   },
   me(token: string, signal?: AbortSignal) {
     return request<Me>("/me", { token, signal });

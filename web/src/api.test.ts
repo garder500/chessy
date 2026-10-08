@@ -54,6 +54,32 @@ describe("api", () => {
   });
 });
 
+describe("récupération de compte", () => {
+  it("envoie le code et le nouveau mot de passe, sans jeton", async () => {
+    const fn = mockFetch({ status: 200, body: { token: "t", player: { username: "a" }, recovery_code: "NEW" } });
+    const res = await api.recover({ username: "a", recovery_code: "K7QF2-M9XWB-3HNRA-TD8LC", new_password: "pppppppp" });
+    expect(res.recovery_code).toBe("NEW");
+    const [url, init] = fn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/auth/recover");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ username: "a", recovery_code: "K7QF2-M9XWB-3HNRA-TD8LC", new_password: "pppppppp" });
+    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+  });
+
+  it("génère un code avec le jeton et le mot de passe actuel", async () => {
+    const fn = mockFetch({ status: 200, body: { recovery_code: "NEW" } });
+    await expect(api.recoveryCode("abc", "pppppppp")).resolves.toEqual({ recovery_code: "NEW" });
+    const [url, init] = fn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/me/recovery-code");
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer abc");
+    expect(JSON.parse(init.body as string)).toEqual({ password: "pppppppp" });
+  });
+
+  it("traduit l'échec de récupération", () => {
+    expect(apiErrorText(new ApiError("bad_recovery", 401))).toBe("Pseudo ou code de récupération incorrect.");
+  });
+});
+
 describe("apiErrorText", () => {
   it("traduit en français", () => {
     expect(apiErrorText(new ApiError("bad_credentials", 401))).toBe("Pseudo ou mot de passe incorrect.");

@@ -88,3 +88,66 @@ export function mapAuthError(code: string): MappedAuthError {
       return { field: "form", message: "Une erreur est survenue. Réessayez dans un instant." };
   }
 }
+
+// ---- Code de récupération (docs/spec-v2.md §1) ----
+
+/** 4 groupes de 5 symboles, sans tirets : ce que le serveur compare. */
+export const RECOVERY_CODE_LENGTH = 20;
+const RECOVERY_GROUP = 5;
+
+/** Majuscules, sans tirets ni espaces : la forme que le serveur hache. */
+export function normalizeRecoveryCode(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+/** Remet un code saisi ou collé en `XXXXX-XXXXX-XXXXX-XXXXX` (tronqué à 20 symboles). */
+export function formatRecoveryCode(value: string): string {
+  const groups = normalizeRecoveryCode(value).slice(0, RECOVERY_CODE_LENGTH).match(/.{1,5}/g);
+  return groups ? groups.join("-") : "";
+}
+
+export function validateRecoveryCode(value: string): string | null {
+  const n = normalizeRecoveryCode(value);
+  if (!n) return "Saisissez votre code de récupération.";
+  if (n.length !== RECOVERY_CODE_LENGTH) return `Le code compte ${RECOVERY_CODE_LENGTH} caractères (4 groupes de ${RECOVERY_GROUP}).`;
+  return null;
+}
+
+export interface RecoverErrors {
+  username: string | null;
+  code: string | null;
+  password: string | null;
+  confirm: string | null;
+}
+
+export function validateRecovery(v: { username: string; code: string; password: string; confirm: string }): RecoverErrors {
+  return {
+    username: v.username ? null : "Saisissez votre pseudo.",
+    code: validateRecoveryCode(v.code),
+    // Le nouveau mot de passe suit les règles d'inscription.
+    password: validatePassword(v.password, "register"),
+    confirm: validateConfirm(v.password, v.confirm),
+  };
+}
+
+export function hasRecoverErrors(e: RecoverErrors): boolean {
+  return !!(e.username || e.code || e.password || e.confirm);
+}
+
+/** Traduit une erreur des routes de récupération (mot de passe oublié, génération du code). */
+export function mapRecoveryError(code: string): MappedAuthError {
+  switch (code) {
+    case "bad_recovery":
+      return { field: "form", message: "Pseudo ou code de récupération incorrect." };
+    case "bad_credentials":
+      return { field: "password", message: "Mot de passe incorrect." };
+    case "too_many_attempts":
+      return { field: "form", message: "Trop d'essais. Réessayez dans quelques minutes." };
+    case "weak_password":
+      return { field: "password", message: "Mot de passe trop faible : 8 à 128 caractères." };
+    case "unauthorized":
+      return { field: "form", message: "Votre session a expiré. Reconnectez-vous." };
+    default:
+      return mapAuthError(code);
+  }
+}

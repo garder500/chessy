@@ -374,6 +374,15 @@ const MIGRATIONS: &[&str] = &[
      ALTER TABLE sessions_v2 RENAME TO sessions;
      CREATE INDEX sessions_player ON sessions(player_id);
      CREATE INDEX sessions_last_used ON sessions(last_used);",
+    // Account recovery (docs/spec-v2.md, section 1): one recovery code per account,
+    // stored only as an argon2id hash. A new table rather than a column on `players`,
+    // so the step is idempotent if a test rewinds `user_version`. Accounts created
+    // before this step simply have no row until they ask for a code.
+    "CREATE TABLE IF NOT EXISTS recovery_codes (
+         player_id TEXT PRIMARY KEY REFERENCES players(id),
+         code_hash TEXT NOT NULL,
+         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+     );",
 ];
 
 fn migrate(conn: &mut Connection) -> StoreResult<()> {
@@ -509,6 +518,18 @@ impl Store {
         password_hash: &str,
         guest_token: Option<&str>,
     ) -> Result<(PlayerId, String), RegisterError> {
+        self.register_with_recovery(username, password_hash, guest_token, None)
+    }
+
+    /// Like [`Self::register`], and stores the hash of the account's recovery
+    /// code in the same transaction.
+    pub fn register_with_recovery(
+        &self,
+        username: &str,
+        password_hash: &str,
+        guest_token: Option<&str>,
+        recovery_hash: Option<&str>,
+    ) -> Result<(PlayerId, String), RegisterError> {
         let mut conn = self.conn.lock().unwrap();
         let tx = conn.transaction().map_err(|_| RegisterError::Db)?;
         let lower = username.to_ascii_lowercase();
@@ -554,6 +575,9 @@ impl Store {
             }
             _ => RegisterError::Db,
         })?;
+        if let Some(hash) = recovery_hash {
+            put_recovery_hash(&tx, &id, hash).map_err(|_| RegisterError::Db)?;
+        }
         tx.commit().map_err(|_| RegisterError::Db)?;
         Ok((id, token))
     }
@@ -569,6 +593,81 @@ impl Store {
                 |r| Ok((r.get(0)?, r.get(1)?)),
             )
             .optional()?)
+    }
+
+    /// The password hash of `player`; `None` for a guest (or an unknown id).
+    pub fn password_hash_of(&self, player: &str) -> StoreResult<Option<String>> {
+        let conn = self.conn.lock().unwrap();
+        Ok(conn
+            .query_row(
+                "SELECT password_hash FROM players WHERE id = ?1",
+                params![player],
+                |r| r.get::<_, Option<String>>(0),
+            )
+            .optional()?
+            .flatten())
+    }
+
+    /// The registered account named `username` (any case) with the hash of its
+    /// recovery code, which is `None` for an account that never asked for one.
+    pub fn recovery_credentials(
+        &self,
+        username: &str,
+    ) -> StoreResult<Option<(PlayerId, Option<String>)>> {
+        let conn = self.conn.lock().unwrap();
+        Ok(conn
+            .query_row(
+                "SELECT p.id, r.code_hash FROM players p
+                 LEFT JOIN recovery_codes r ON r.player_id = p.id
+                 WHERE p.username_lower = ?1 AND p.password_hash IS NOT NULL",
+                params![username.to_ascii_lowercase()],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?)
+    }
+
+    /// Creates or replaces the recovery code hash of `player`.
+    pub fn set_recovery_hash(&self, player: &str, code_hash: &str) -> StoreResult<()> {
+        let conn = self.conn.lock().unwrap();
+        put_recovery_hash(&conn, player, code_hash)
+    }
+
+    /// Redeems a recovery code: in one transaction, swaps its hash for
+    /// `new_code_hash` (only if it still is `old_code_hash`, so two concurrent
+    /// requests cannot both redeem one code), sets the new password hash and
+    /// deletes every session of the account. Returns the deleted tokens, or
+    /// `None` if the code had already been replaced.
+    pub fn recover_account(
+        &self,
+        player: &str,
+        old_code_hash: &str,
+        new_code_hash: &str,
+        new_password_hash: &str,
+    ) -> StoreResult<Option<Vec<String>>> {
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        let swapped = tx.execute(
+            &format!(
+                "UPDATE recovery_codes SET code_hash = ?3, created_at = {ISO_NOW}
+                 WHERE player_id = ?1 AND code_hash = ?2"
+            ),
+            params![player, old_code_hash, new_code_hash],
+        )?;
+        if swapped != 1 {
+            return Ok(None);
+        }
+        tx.execute(
+            "UPDATE players SET password_hash = ?2 WHERE id = ?1",
+            params![player, new_password_hash],
+        )?;
+        let tokens = {
+            let mut stmt = tx.prepare("SELECT token FROM sessions WHERE player_id = ?1")?;
+            let rows = stmt.query_map(params![player], |r| r.get::<_, String>(0))?;
+            rows.collect::<Result<Vec<_>, _>>()?
+        };
+        tx.execute("DELETE FROM sessions WHERE player_id = ?1", params![player])?;
+        tx.commit()?;
+        Ok(Some(tokens))
     }
 
     pub fn player_row(&self, player: &str) -> StoreResult<Option<PlayerRow>> {
@@ -952,6 +1051,18 @@ fn deck_of(conn: &Connection, player: &str) -> StoreResult<Vec<SkillId>> {
         }
     }
     Ok(deck)
+}
+
+fn put_recovery_hash(conn: &Connection, player: &str, code_hash: &str) -> StoreResult<()> {
+    conn.execute(
+        &format!(
+            "INSERT INTO recovery_codes (player_id, code_hash) VALUES (?1, ?2)
+             ON CONFLICT(player_id) DO UPDATE
+             SET code_hash = excluded.code_hash, created_at = {ISO_NOW}"
+        ),
+        params![player, code_hash],
+    )?;
+    Ok(())
 }
 
 fn insert_session(conn: &Connection, player: &str) -> StoreResult<String> {

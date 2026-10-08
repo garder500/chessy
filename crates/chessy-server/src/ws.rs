@@ -39,7 +39,11 @@ const RETRY_AFTER_SECS: &str = "10";
 /// This assumes exactly one trusted proxy in front of the server. Without
 /// `trust_proxy`, or if the header is missing or unreadable, it is the TCP
 /// peer, which is `None` when the server was not started with connect info.
-fn client_ip(headers: &HeaderMap, peer: Option<IpAddr>, trust_proxy: bool) -> Option<IpAddr> {
+pub(crate) fn client_ip(
+    headers: &HeaderMap,
+    peer: Option<IpAddr>,
+    trust_proxy: bool,
+) -> Option<IpAddr> {
     if trust_proxy {
         // Several header lines count as one comma-joined list: the last line
         // holds the right-most entry.
