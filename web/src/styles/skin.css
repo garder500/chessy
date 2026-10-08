@@ -274,6 +274,7 @@
   :root .nav-user { flex-direction: column; gap: 8px; }
   :root .nav-chip { padding: 0 6px; }
   :root .nav-chip-name, :root .nav-chip-elo, :root .nav-chip svg:last-child, :root .nav-guest { display: none; }
+  :root .nav-user .btn.sm { width: 64px; min-height: 40px; padding: 0 2px; font-size: 11px; letter-spacing: 0.02em; line-height: 1.1; white-space: normal; text-align: center; }
   :root .nav-pop { left: calc(100% + 10px); right: auto; top: auto; bottom: 0; }
   body:has(.nav) { padding-left: 76px; }
   :root .toasts { left: calc(50% + 38px); }
