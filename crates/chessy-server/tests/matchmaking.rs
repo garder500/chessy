@@ -295,6 +295,9 @@ async fn the_clock_starts_at_the_requested_length() {
     a.send(ClientMsg::SelectDeck { skills: vec![] });
     b.send(ClientMsg::SelectDeck { skills: vec![] });
     let state = a.next("state");
-    assert_eq!(state["clock"]["white_ms"], 15 * 60 * 1000);
-    assert_eq!(state["clock"]["black_ms"], 15 * 60 * 1000);
+    // L'horloge des blancs tourne déjà : quelques millisecondes ont pu s'écouler.
+    let full = 15 * 60 * 1000;
+    let white = state["clock"]["white_ms"].as_i64().unwrap();
+    assert!((full - 2_000..=full).contains(&white), "white clock: {white}");
+    assert_eq!(state["clock"]["black_ms"], full);
 }
