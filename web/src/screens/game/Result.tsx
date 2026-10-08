@@ -56,11 +56,11 @@ export function Result({ outcome, you, rated, solo = false, elo, rematch, reward
         <span className="lab rs-cad">{cadence}</span>
       </header>
 
-      <div className="rs-hero">{result !== "loss" && (
-          <Suspense fallback={<HeroPiece kind={result === "win" ? "king" : "pawn"} className="rs-piece" />}>
-            <HeroPiece3D kind={result === "win" ? "king" : "pawn"} className="rs-piece" />
-          </Suspense>
-        )}</div>
+      <div className="rs-hero">
+        <Suspense fallback={<HeroPiece kind={result === "draw" ? "pawn" : "king"} className="rs-piece" />}>
+          <HeroPiece3D kind={result === "draw" ? "pawn" : "king"} className="rs-piece" />
+        </Suspense>
+      </div>
 
       <main className="rs-main">
         <h1 id="rs-title" className="rs-title" tabIndex={-1} ref={first as React.RefObject<HTMLHeadingElement>}>
