@@ -3,7 +3,7 @@ import { FAMILY_LABEL } from "../catalog";
 import { RARITIES, RARITY_LABEL } from "../forged";
 import { navigate } from "../router";
 import { skillInfo } from "../skills";
-import { store } from "../store";
+import { store, useAppState } from "../store";
 import { Confetti } from "./Confetti";
 import { SkillArt } from "./SkillArt";
 import { tileRarity } from "./tileRarity";
@@ -24,9 +24,14 @@ export function ForgeReveal({ skill }: { skill: string }) {
   useEffect(() => {
     ref.current?.focus();
   }, []);
+  const { over } = useAppState();
   const close = (toCollection: boolean) => {
     store.dismissReveal();
-    if (toCollection) navigate({ name: "collection" });
+    if (toCollection) {
+      // L'écran de victoire est encore ouvert sous la révélation : on le quitte pour montrer la collection.
+      if (over) store.leaveGame();
+      navigate({ name: "collection" });
+    }
   };
   const bursts = [1.0, 1.7, 2.4].flatMap((t, k) =>
     Array.from({ length: 14 }, (_, i) => ({ a: i * (360 / 14) + k * 9, r: 80 + ((i * 13 + k * 7) % 50), dl: t })),

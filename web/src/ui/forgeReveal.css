@@ -46,7 +46,7 @@
 .fr-stamp { position: absolute; right: -8px; top: 24px; z-index: 6; margin: 0; transform: rotate(9deg); border: 3px solid var(--danger); color: var(--danger); padding: 2px 12px; font-family: var(--font-display); font-weight: 900; font-size: 22px; letter-spacing: .1em; text-transform: uppercase; background: rgba(7, 10, 18, .75); animation: fr-stamp .35s 5.9s cubic-bezier(.2, 1.6, .3, 1) both; }
 .fr-fin { position: absolute; left: 22px; right: 22px; bottom: 24px; display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 10; animation: fr-up .5s 5.9s both; }
 .fr-go { width: 100%; min-height: 62px; font-size: 22px; }
-.fr-skip { position: absolute; right: 14px; top: 14px; z-index: 12; }
+:root .fr .fr-skip { position: absolute; right: 14px; top: calc(14px + env(safe-area-inset-top)); z-index: 12; min-height: 44px; }
 .fr .confetti { z-index: 7; }
 .fr.skip *, .fr.skip { animation-delay: 0s !important; animation-duration: .01s !important; }
 .fr.skip .fr-forge, .fr.skip .fr-rune, .fr.skip .fr-core, .fr.skip .fr-hammer, .fr.skip .fr-cap, .fr.skip .fr-rou, .fr.skip .fr-ring, .fr.skip .fr-hf, .fr.skip .fr-bursts { display: none; }
