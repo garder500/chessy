@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { CATALOG } from "../catalog";
 import type { LobbyStatus } from "../protocol";
 import { store } from "../store";
@@ -6,6 +6,9 @@ import { timeText, useTime } from "../time";
 import { Beam } from "../ui/Beam";
 import { HeroPiece } from "../ui/HeroPiece";
 import "./search.css";
+
+// three.js n'est chargé qu'avec l'écran Jouer ; la silhouette SVG sert d'attente.
+const HeroPiece3D = lazy(() => import("../ui/HeroPiece3D"));
 
 /** Secondes écoulées depuis que `active` est devenu vrai. */
 export function useElapsed(active: boolean): number {
@@ -58,8 +61,11 @@ export function Search({ lobby }: { lobby: Exclude<LobbyStatus, { type: "idle" }
       <div className="sr-mid" role="status">
         <div className="sr-radar" aria-hidden="true">
           <span className="sr-ping" />
+          <span className="sr-ping sr-ping-2" />
           <span className="sr-ring" />
-          <HeroPiece kind={room ? "rook" : "king"} className="sr-piece" />
+          <Suspense fallback={<HeroPiece kind={room ? "rook" : "king"} className="sr-piece" />}>
+            <HeroPiece3D kind={room ? "rook" : "king"} className="sr-piece" fast />
+          </Suspense>
         </div>
         {room ? (
           <>
