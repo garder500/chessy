@@ -24,7 +24,9 @@ impl Skill for Transposition {
         let mut out = Vec::new();
         for (i, &(a, pa)) in all.iter().enumerate() {
             for &(b, pb) in &all[i + 1..] {
-                if Position::can_stand(pa.color, pa.kind, b) && Position::can_stand(pb.color, pb.kind, a) {
+                if Position::can_stand(pa.color, pa.kind, b)
+                    && Position::can_stand(pb.color, pb.kind, a)
+                {
                     out.push(SkillTarget::Pair { a, b });
                 }
             }

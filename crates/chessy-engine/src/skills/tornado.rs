@@ -62,9 +62,9 @@ fn plan(pos: &Position) -> Option<Vec<(Square, Square)>> {
         if stands(i, dest[i]) {
             continue;
         }
-        let swap = (1..n).map(|d| (i + d) % n).find(|&j| {
-            stands(i, dest[j]) && stands(j, dest[i])
-        })?;
+        let swap = (1..n)
+            .map(|d| (i + d) % n)
+            .find(|&j| stands(i, dest[j]) && stands(j, dest[i]))?;
         dest.swap(i, swap);
     }
     Some(squares.into_iter().zip(dest).collect())

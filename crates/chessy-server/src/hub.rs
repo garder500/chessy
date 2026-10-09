@@ -30,6 +30,9 @@ pub const MAX_PICKS: usize = 3;
 /// A game shorter than this many plies is never rated.
 pub const MIN_RATED_PLIES: u32 = 4;
 
+/// The level assumed for a player who has no rating row (a guest).
+const DEFAULT_ELO: i32 = 1200;
+
 #[derive(Clone, Copy, Debug)]
 pub struct HubConfig {
     /// How long a disconnected player has to come back before forfeiting.
@@ -54,6 +57,14 @@ pub struct HubConfig {
     /// Solo: the bot waits a random time in this range before it starts to think.
     pub bot_delay_min: Duration,
     pub bot_delay_max: Duration,
+    /// Matchmaking bots (see `solo`): a player who waited this long in a queue
+    /// without finding anyone gets a bot that passes for a person...
+    pub bot_match_wait: Duration,
+    /// ...which takes a human-looking time to answer, in this range...
+    pub bot_human_delay_min: Duration,
+    pub bot_human_delay_max: Duration,
+    /// ...and plays at the player's Elo, give or take this much.
+    pub bot_elo_spread: i32,
     /// Solo: the longest the bot's search may run (its level asks for less at low Elo).
     pub bot_think_max: Duration,
     /// Solo: the bot accepts a draw offer only after this many actions...
@@ -145,6 +156,10 @@ impl Default for HubConfig {
             chat_interval: Duration::from_secs(1),
             bot_delay_min: Duration::from_millis(600),
             bot_delay_max: Duration::from_millis(1400),
+            bot_match_wait: Duration::from_secs(12),
+            bot_human_delay_min: Duration::from_millis(1500),
+            bot_human_delay_max: Duration::from_millis(7000),
+            bot_elo_spread: 100,
             bot_think_max: Duration::from_secs(3),
             bot_draw_min_plies: crate::bot::DRAW_MIN_PLIES,
             bot_draw_window: crate::bot::DRAW_WINDOW,
@@ -342,6 +357,13 @@ struct PendingReward {
     created: Instant,
 }
 
+struct CasualEntry {
+    player: PlayerId,
+    time: Option<TimeControl>,
+    elo: i32,
+    since: Instant,
+}
+
 struct QueueEntry {
     player: PlayerId,
     time: Option<TimeControl>,
@@ -357,7 +379,7 @@ pub struct Hub {
     next_game: u64,
     /// Oldest first.
     ranked_queue: Vec<QueueEntry>,
-    casual_queue: VecDeque<(PlayerId, Option<TimeControl>)>,
+    casual_queue: VecDeque<CasualEntry>,
     sweep_pending: bool,
     rooms: HashMap<String, (PlayerId, Option<TimeControl>)>,
     games: HashMap<String, Session>,
@@ -728,6 +750,7 @@ impl Hub {
             Timer::QueueSweep => {
                 self.sweep_pending = false;
                 self.match_ranked();
+                self.fill_with_bots();
                 self.ensure_sweep();
             }
             Timer::ChallengeExpire {
@@ -745,7 +768,7 @@ impl Hub {
         if self.ranked_queue.iter().any(|e| e.player == player) {
             return LobbyStatus::Queued { ranked: true };
         }
-        if self.casual_queue.iter().any(|(p, _)| p == player) {
+        if self.casual_queue.iter().any(|e| e.player == player) {
             return LobbyStatus::Queued { ranked: false };
         }
         match self.rooms.iter().find(|(_, (p, _))| p == player) {
@@ -756,7 +779,7 @@ impl Hub {
 
     fn leave_lobby_silently(&mut self, player: &str) {
         self.ranked_queue.retain(|e| e.player != player);
-        self.casual_queue.retain(|(p, _)| p != player);
+        self.casual_queue.retain(|e| e.player != player);
         self.rooms.retain(|_, (p, _)| p != player);
     }
 
@@ -779,33 +802,28 @@ impl Hub {
         if !self.enter_lobby(player) {
             return;
         }
-        let account = match self.store.player_row(player) {
-            Ok(Some(row)) if row.username.is_some() => Some(row),
-            Ok(_) => None,
+        let row = match self.store.player_row(player) {
+            Ok(row) => row,
             Err(e) => return self.internal_error(player, e),
         };
+        let elo = row.as_ref().map_or(DEFAULT_ELO, |r| r.elo);
+        let account = row.filter(|r| r.username.is_some());
         match account {
-            Some(row) if ranked.unwrap_or(true) => {
+            Some(_) if ranked.unwrap_or(true) => {
                 if self.ranked_queue.len() >= self.config.lobby_cap {
                     return self.fail(player, "queue_full", "the ranked queue is full: try again");
                 }
                 self.ranked_queue.push(QueueEntry {
                     player: player.to_string(),
                     time,
-                    elo: row.elo,
+                    elo,
                     since: Instant::now(),
                 });
                 self.match_ranked();
-                self.ensure_sweep();
             }
-            _ => match self.casual_queue.iter().position(|(_, t)| *t == time) {
-                Some(i) => {
-                    let (other, _) = self.casual_queue.remove(i).expect("position is valid");
-                    self.create_game(other, player.to_string(), false, GameKind::Duel, time)
-                }
-                None => self.casual_queue.push_back((player.to_string(), time)),
-            },
+            _ => self.casual_join(player, time, elo, false),
         }
+        self.ensure_sweep();
         if self.player_game.contains_key(player) {
             return; // matched straight away: deck_select is on its way
         }
@@ -869,12 +887,76 @@ impl Hub {
         }
     }
 
-    /// Keeps a sweep timer running while anyone waits in the ranked queue.
+    /// Keeps a sweep timer running while anyone waits in a queue.
     fn ensure_sweep(&mut self) {
-        if !self.sweep_pending && !self.ranked_queue.is_empty() {
+        if !self.sweep_pending && !(self.ranked_queue.is_empty() && self.casual_queue.is_empty()) {
             self.sweep_pending = true;
             self.timers
                 .push((self.config.queue_sweep_interval, Timer::QueueSweep));
+        }
+    }
+
+    /// Pairs `player` with the first friendly player waiting for the same
+    /// game length, or leaves them waiting (`front`: they have already waited).
+    fn casual_join(&mut self, player: &str, time: Option<TimeControl>, elo: i32, front: bool) {
+        match self.casual_queue.iter().position(|e| e.time == time) {
+            Some(i) => {
+                let other = self.casual_queue.remove(i).expect("position is valid");
+                self.create_game(
+                    other.player,
+                    player.to_string(),
+                    false,
+                    GameKind::Duel,
+                    time,
+                )
+            }
+            None => {
+                let entry = CasualEntry {
+                    player: player.to_string(),
+                    time,
+                    elo,
+                    since: Instant::now(),
+                };
+                if front {
+                    self.casual_queue.push_front(entry)
+                } else {
+                    self.casual_queue.push_back(entry)
+                }
+            }
+        }
+    }
+
+    /// Nobody found for `bot_match_wait`: the player gets a bot that looks like
+    /// a person, so they are never left alone (nor sent back to the one other
+    /// player online, over and over). Such a game is a Solo game, so no Elo.
+    fn fill_with_bots(&mut self) {
+        let now = Instant::now();
+        let wait = self.config.bot_match_wait;
+        let due = |since: Instant| now.saturating_duration_since(since) >= wait;
+        let mut waiting: Vec<(PlayerId, Option<TimeControl>, i32)> = Vec::new();
+        self.ranked_queue.retain(|e| {
+            let keep = !due(e.since);
+            if !keep {
+                waiting.push((e.player.clone(), e.time, e.elo));
+            }
+            keep
+        });
+        self.casual_queue.retain(|e| {
+            let keep = !due(e.since);
+            if !keep {
+                waiting.push((e.player.clone(), e.time, e.elo));
+            }
+            keep
+        });
+        for (player, time, elo) in waiting {
+            let spread = self.config.bot_elo_spread;
+            let level = crate::bot::match_elo(elo, spread);
+            let human = if rand::random_bool(0.5) {
+                Color::White
+            } else {
+                Color::Black
+            };
+            self.start_disguised(&player, level, human, time);
         }
     }
 
@@ -1011,7 +1093,7 @@ impl Hub {
             }
         }
         let info = |hub: &Hub, color: Color| match &seat_solo {
-            Some(s) if s.bot == color => crate::bot::info(s.elo),
+            Some(s) if s.bot == color => crate::bot::info(s.elo, s.disguise),
             _ => hub.opponent_info(&pair[color.index()]),
         };
         let connected = [
@@ -1249,13 +1331,14 @@ impl Hub {
                 self.match_ranked();
                 self.ensure_sweep();
             }
-            None => match self.casual_queue.iter().position(|(_, t)| *t == time) {
-                Some(i) => {
-                    let (other, _) = self.casual_queue.remove(i).expect("position is valid");
-                    self.create_game(other, player.to_string(), false, GameKind::Duel, time)
-                }
-                None => self.casual_queue.push_front((player.to_string(), time)),
-            },
+            None => {
+                let elo = match self.store.player_row(player) {
+                    Ok(Some(row)) => row.elo,
+                    _ => DEFAULT_ELO,
+                };
+                self.casual_join(player, time, elo, true);
+                self.ensure_sweep();
+            }
         }
         if !self.player_game.contains_key(player) {
             self.send(

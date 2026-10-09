@@ -191,7 +191,9 @@ impl Skill for Composite {
                 let mut out = Vec::new();
                 for (i, &(a, pa)) in pool.iter().enumerate() {
                     for &(b, pb) in &pool[i + 1..] {
-                        if Position::can_stand(pa.color, pa.kind, b) && Position::can_stand(pb.color, pb.kind, a) {
+                        if Position::can_stand(pa.color, pa.kind, b)
+                            && Position::can_stand(pb.color, pb.kind, a)
+                        {
                             out.push(SkillTarget::Pair { a, b });
                         }
                     }
@@ -371,11 +373,7 @@ impl Skill for Composite {
                 ));
             }
             (Effect::Ambush { plies }, SkillTarget::None) => {
-                ev.push(pos.add_global_effect(
-                    EffectKind::Domain,
-                    Some(color),
-                    u32::from(*plies),
-                ));
+                ev.push(pos.add_global_effect(EffectKind::Domain, Some(color), u32::from(*plies)));
             }
             (Effect::Mirror, SkillTarget::None) => {
                 let moves = pos.mirror_armies();

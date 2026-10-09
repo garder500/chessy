@@ -33,6 +33,9 @@ pub(super) struct Solo {
     pub bot: Color,
     /// The level the player chose (400..=2800).
     pub elo: i32,
+    /// Set for a matchmaking bot: the name of the "person" it passes for. It
+    /// is then shown as an ordinary player and answers with human latency.
+    pub disguise: Option<&'static str>,
 }
 
 /// What a rematch against the bot needs to remember.
@@ -41,6 +44,7 @@ pub(super) struct SoloSetup {
     pub elo: i32,
     /// The colour the human had in the game that just ended.
     pub human_color: Color,
+    pub disguise: Option<&'static str>,
 }
 
 impl Hub {
@@ -68,12 +72,31 @@ impl Hub {
                 }
             }
         };
-        self.start_solo(player, elo as i32, human);
+        self.start_solo(player, elo as i32, human, None, None);
+    }
+
+    /// A game against a bot that passes for a person, for a player the queue
+    /// could not pair with anyone (see `fill_with_bots`).
+    pub(super) fn start_disguised(
+        &mut self,
+        player: &str,
+        elo: i32,
+        human: Color,
+        time: Option<TimeControl>,
+    ) {
+        self.start_solo(player, elo, human, Some(bot::human_name()), time);
     }
 
     /// Opens deck selection against a bot of level `elo`; `human` is the
     /// player's colour.
-    fn start_solo(&mut self, player: &str, elo: i32, human: Color) {
+    fn start_solo(
+        &mut self,
+        player: &str,
+        elo: i32,
+        human: Color,
+        disguise: Option<&'static str>,
+        time: Option<TimeControl>,
+    ) {
         let (white, black) = match human {
             Color::White => (player.to_string(), String::new()),
             Color::Black => (String::new(), player.to_string()),
@@ -81,8 +104,9 @@ impl Hub {
         let seat = Solo {
             bot: human.opposite(),
             elo,
+            disguise,
         };
-        self.open_session(white, black, false, GameKind::Solo, Some(seat), None);
+        self.open_session(white, black, false, GameKind::Solo, Some(seat), time);
     }
 
     // ---- the bot's turn --------------------------------------------------
@@ -101,8 +125,16 @@ impl Hub {
             return;
         }
         let ply = game.pos.ply;
-        let min = self.config.bot_delay_min;
-        let span = self.config.bot_delay_max.saturating_sub(min).as_millis() as u64;
+        // A bot that passes for a person takes its time, like one.
+        let (min, max) = if solo.disguise.is_some() {
+            (
+                self.config.bot_human_delay_min,
+                self.config.bot_human_delay_max,
+            )
+        } else {
+            (self.config.bot_delay_min, self.config.bot_delay_max)
+        };
+        let span = max.saturating_sub(min).as_millis() as u64;
         let extra = if span == 0 {
             0
         } else {
@@ -230,6 +262,7 @@ impl Hub {
                 SoloSetup {
                     elo: solo.elo,
                     human_color,
+                    disguise: solo.disguise,
                 },
             ),
         );
@@ -241,6 +274,12 @@ impl Hub {
             self.rematches.remove(player);
             return self.fail(player, "no_rematch", "a rematch is not possible");
         }
-        self.start_solo(player, setup.elo, setup.human_color.opposite());
+        self.start_solo(
+            player,
+            setup.elo,
+            setup.human_color.opposite(),
+            setup.disguise,
+            None,
+        );
     }
 }

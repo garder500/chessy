@@ -304,3 +304,67 @@ async fn the_clock_starts_at_the_requested_length() {
     );
     assert_eq!(state["clock"]["black_ms"], full);
 }
+
+fn quick_bots() -> HubConfig {
+    HubConfig {
+        queue_sweep_interval: Duration::from_millis(20),
+        bot_match_wait: Duration::from_millis(100),
+        ..HubConfig::default()
+    }
+}
+
+#[tokio::test]
+async fn a_lone_ranked_player_gets_a_bot_that_looks_like_a_person() {
+    let (app, store, db) = world(quick_bots());
+    let mut me = rated_account(&app, &store, &db, "me", 1500);
+    me.send(ranked());
+    let deck = me.wait_for("deck_select").await;
+    let opp = &deck["opponent"];
+    assert_ne!(opp["username"], "Sage");
+    assert_eq!(opp["guest"], false);
+    assert!(opp.get("bot").is_none(), "the bot does not announce itself");
+    let elo = opp["elo"].as_i64().unwrap();
+    assert!((1400..=1600).contains(&elo), "level close to mine: {elo}");
+    assert_eq!(deck["rated"], false, "no Elo against a bot");
+}
+
+#[tokio::test]
+async fn a_lone_friendly_player_gets_a_bot_too() {
+    let (app, _store, _db) = world(quick_bots());
+    let mut me = guest(&app);
+    me.send(friendly());
+    let deck = me.wait_for("deck_select").await;
+    assert_eq!(deck["opponent"]["guest"], false);
+    assert!(deck["opponent"].get("bot").is_none());
+}
+
+#[tokio::test]
+async fn two_players_barred_from_each_other_by_the_pair_cap_get_bots() {
+    let (app, store, db) = world(HubConfig {
+        rated_pair_max: 0,
+        rated_pair_scale: 1,
+        capped_pair_wait: Duration::from_secs(3600),
+        ..quick_bots()
+    });
+    let mut a = rated_account(&app, &store, &db, "a", 1200);
+    let mut b = rated_account(&app, &store, &db, "b", 1200);
+    a.send(ranked());
+    b.send(ranked());
+    let da = a.wait_for("deck_select").await;
+    let db_ = b.wait_for("deck_select").await;
+    assert_ne!(da["opponent"]["username"], "b");
+    assert_ne!(db_["opponent"]["username"], "a");
+}
+
+#[tokio::test]
+async fn a_player_who_is_matched_in_time_never_meets_a_bot() {
+    let (app, store, db) = world(quick_bots());
+    let mut a = rated_account(&app, &store, &db, "a", 1200);
+    let mut b = rated_account(&app, &store, &db, "b", 1200);
+    a.send(ranked());
+    b.send(ranked());
+    let deck = a.next("deck_select");
+    assert_eq!(deck["opponent"]["username"], "b");
+    assert_eq!(deck["rated"], true);
+    assert!(b.try_next("deck_select").is_some());
+}
