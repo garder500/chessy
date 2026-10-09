@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, type CSSProperties } from "react";
+import { useT, t } from "../i18n";
 import { hrefFor } from "../router";
 import { skillInfo } from "../skills";
 import { store, type AppState } from "../store";
@@ -22,9 +23,10 @@ const DECK_SLOTS = 7;
 
 export type PlayMode = "ranked" | "friendly";
 
+// `label` et `sub` sont des clés de traduction (résolues au rendu).
 const MODES: { id: PlayMode; label: string; sub: string; glow: string; piece: "king" | "pawn" }[] = [
-  { id: "ranked", label: "Classée", sub: "Elo et compétences en jeu", glow: "var(--accent)", piece: "king" },
-  { id: "friendly", label: "Amicale", sub: "Pour le plaisir, rien à perdre", glow: "var(--rar-rare)", piece: "pawn" },
+  { id: "ranked", label: "lobby.mode_ranked", sub: "lobby.mode_ranked_sub", glow: "var(--accent)", piece: "king" },
+  { id: "friendly", label: "lobby.mode_friendly", sub: "lobby.mode_friendly_sub", glow: "var(--rar-rare)", piece: "pawn" },
 ];
 
 const MODE_KEY = "chessy.playMode";
@@ -39,6 +41,7 @@ function readMode(): PlayMode | null {
 }
 
 export function Lobby({ state }: { state: AppState }) {
+  const t = useT();
   const { lobby, deck, account, friends } = state;
   const isAccount = !!account && !account.guest;
   const [picked, setPicked] = useState<PlayMode | null>(readMode);
@@ -78,10 +81,10 @@ export function Lobby({ state }: { state: AppState }) {
         {isAccount && (
           <span className="chip jp-elo">
             {unplaced ? (
-              "Elo non évalué"
+              t("lobby.elo_unrated")
             ) : (
               <>
-                <span className="num">{elo}</span> Elo
+                <span className="num">{elo}</span> {t("lobby.elo_unit")}
               </>
             )}
           </span>
@@ -97,9 +100,9 @@ export function Lobby({ state }: { state: AppState }) {
         </div>
         <div className="jp-head">
           <h1 id="jp-title" className="jp-title">
-            {current.label}
+            {t(current.label)}
           </h1>
-          <p className="jp-sub">{current.sub} · {timeText(time)}</p>
+          <p className="jp-sub">{t(current.sub)} · {timeText(time)}</p>
         </div>
       </section>
 
@@ -107,46 +110,46 @@ export function Lobby({ state }: { state: AppState }) {
         {unplaced && placement && (
           <div className="jp-place card">
             <p>
-              <strong>Elo non évalué</strong> · {placement.done}/{placement.total} parties d'évaluation
+              <strong>{t("lobby.elo_unrated")}</strong> · {t("lobby.placement_progress", { done: placement.done, total: placement.total })}
             </p>
             <p className="muted">
-              Cinq parties contre des adversaires de niveau inconnu estiment votre vrai Elo (au lieu de 1200 par défaut).
+              {t("lobby.placement_blurb")}
             </p>
             <button type="button" className="btn pri" disabled={!connected || state.soloPending} onClick={() => store.startPlacement()}>
-              {placement.done === 0 ? "Commencer l'évaluation" : "Partie suivante"}
+              {placement.done === 0 ? t("lobby.placement_start") : t("lobby.placement_next")}
             </button>
           </div>
         )}
-        <h2 className="jp-panel-title">Nouvelle partie</h2>
-        <div className="segs" role="radiogroup" aria-label="Mode">
+        <h2 className="jp-panel-title">{t("lobby.new_game")}</h2>
+        <div className="segs" role="radiogroup" aria-label={t("lobby.mode_aria")}>
           {MODES.map((m) => (
             <button key={m.id} type="button" role="radio" aria-checked={mode === m.id} className={`sg${mode === m.id ? " on" : ""}`} onClick={() => choose(m.id)}>
-              {m.label}
+              {t(m.label)}
             </button>
           ))}
         </div>
 
-        <div className="jp-times" role="radiogroup" aria-label="Durée de partie">
-          {TIMES.map((t) => (
-            <button key={t.id} type="button" role="radio" aria-checked={time === t.id} className={`sel${time === t.id ? " on" : ""}`} onClick={() => setTime(t.id)}>
-              <strong className="jp-time-l">{t.label}</strong>
-              <span className="meta">{t.id === "short" ? "Blitz · 5 min" : `${t.minutes} min`}</span>
+        <div className="jp-times" role="radiogroup" aria-label={t("lobby.duration_aria")}>
+          {TIMES.map((tm) => (
+            <button key={tm.id} type="button" role="radio" aria-checked={time === tm.id} className={`sel${time === tm.id ? " on" : ""}`} onClick={() => setTime(tm.id)}>
+              <strong className="jp-time-l">{tm.label}</strong>
+              <span className="meta">{timeText(tm.id)}</span>
             </button>
           ))}
         </div>
 
         {isAccount ? (
-          <div className="jp-friends" role="group" aria-label="Amis en ligne">
+          <div className="jp-friends" role="group" aria-label={t("lobby.friends_online_aria")}>
             <div className="jp-friends-head">
-              <span className="jp-friends-hint">{online.length === 0 ? "Aucun ami en ligne" : "Touchez un ami pour le défier"}</span>
+              <span className="jp-friends-hint">{online.length === 0 ? t("lobby.friends_none") : t("lobby.friends_hint")}</span>
               <a className="link" href={hrefFor({ name: "friends" })}>
-                {online.length === 0 && friends.friends.length === 0 ? "Ajouter" : "Tous"}
+                {online.length === 0 && friends.friends.length === 0 ? t("lobby.friends_add") : t("lobby.friends_all")}
               </a>
             </div>
             {online.length > 0 && (
               <div className="jp-friends-row">
                 {online.slice(0, 6).map((f) => (
-                  <button key={f.username} type="button" className="jp-friend" aria-label={`Défier ${f.username}`} onClick={() => setSheet({ friend: f.username })}>
+                  <button key={f.username} type="button" className="jp-friend" aria-label={t("lobby.challenge_aria", { name: f.username })} onClick={() => setSheet({ friend: f.username })}>
                     <span className="avatar jp-av">
                       {initialOf(f.username)}
                       <span className={`presence ${f.presence}`} aria-hidden="true" />
@@ -160,26 +163,26 @@ export function Lobby({ state }: { state: AppState }) {
         ) : (
           <p className="jp-guest">
             <a className="link" href={hrefFor({ name: "auth" })}>
-              Créez un compte
+              {t("lobby.guest_create")}
             </a>{" "}
-            pour jouer en classée et défier des amis.
+            {t("lobby.guest_rest")}
           </p>
         )}
 
         <div className="jp-act">
           {mode === "ranked" && !isAccount ? (
             <a className="btn pri block jp-cta" href={hrefFor({ name: "auth" })}>
-              Créer un compte
+              {t("lobby.create_account")}
             </a>
           ) : (
             <button type="button" className="btn pri block jp-cta" disabled={!connected} onClick={() => store.send({ type: "queue_join", ranked: mode === "ranked", time })}>
-              Jouer · {TIMES.find((t) => t.id === time)!.short}
+              {t("lobby.play", { time: TIMES.find((tm) => tm.id === time)!.short })}
             </button>
           )}
-          <p className="jp-note">{mode === "ranked" ? `Votre Elo (${elo}) et une compétence sont en jeu` : "Sans enjeu : ni Elo ni compétence à gagner"}</p>
+          <p className="jp-note">{mode === "ranked" ? t("lobby.note_ranked", { elo }) : t("lobby.note_friendly")}</p>
         </div>
 
-        <a className="jp-deck" href={hrefFor({ name: "collection" })} aria-label="Votre deck">
+        <a className="jp-deck" href={hrefFor({ name: "collection" })} aria-label={t("lobby.deck_aria")}>
           <span className="jp-deck-hex" aria-hidden="true">
             {Array.from({ length: DECK_SLOTS }, (_, i) => {
               const id = deck[i];
@@ -193,7 +196,7 @@ export function Lobby({ state }: { state: AppState }) {
             })}
           </span>
           <span className="jp-deck-txt">
-            <strong>Votre deck</strong>
+            <strong>{t("lobby.deck_title")}</strong>
             <span className="muted">
               {deck.length}/{DECK_SLOTS} · {deck.slice(0, 3).map((id) => skillInfo(id).name).join(", ")}
             </span>
@@ -202,23 +205,23 @@ export function Lobby({ state }: { state: AppState }) {
 
         <div className="jp-links">
           <button type="button" className="link" onClick={() => setSheet("room")}>
-            Salle privée
+            {t("lobby.private_room")}
           </button>
           <span aria-hidden="true">·</span>
           <button type="button" className="link" onClick={() => setSheet("solo")}>
-            Contre l'IA
+            {t("lobby.vs_ai")}
           </button>
         </div>
       </div>
 
       <ChallengeSheet friend={challenged ?? null} onClose={closeSheet} />
 
-      <Sheet open={sheet === "room"} title="Salle privée" onClose={closeSheet}>
-        <p className="sheet-sub">Jouez avec un ami grâce à un code.</p>
-        <div className="segs" role="radiogroup" aria-label="Durée">
-              {TIMES.map((t) => (
-                <button key={t.id} type="button" role="radio" aria-checked={time === t.id} className={`sg${time === t.id ? " on" : ""}`} onClick={() => setTime(t.id)}>
-                  {t.label}
+      <Sheet open={sheet === "room"} title={t("lobby.private_room")} onClose={closeSheet}>
+        <p className="sheet-sub">{t("lobby.room_sub")}</p>
+        <div className="segs" role="radiogroup" aria-label={t("lobby.duration_short_aria")}>
+              {TIMES.map((tm) => (
+                <button key={tm.id} type="button" role="radio" aria-checked={time === tm.id} className={`sg${time === tm.id ? " on" : ""}`} onClick={() => setTime(tm.id)}>
+                  {tm.label}
                 </button>
               ))}
             </div>
@@ -232,7 +235,7 @@ export function Lobby({ state }: { state: AppState }) {
             closeSheet();
           }}
         >
-          Créer une salle
+          {t("lobby.room_create")}
         </button>
         <form
           className="jp-join"
@@ -245,16 +248,16 @@ export function Lobby({ state }: { state: AppState }) {
           }}
         >
           <label className="sr-only" htmlFor="room-code">
-            Code de salle
+            {t("lobby.room_code")}
           </label>
-          <input id="room-code" className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="Code de salle" maxLength={8} autoComplete="off" spellCheck={false} />
+          <input id="room-code" className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder={t("lobby.room_code")} maxLength={8} autoComplete="off" spellCheck={false} />
           <button type="submit" className="btn" disabled={!code.trim() || !connected}>
-            Rejoindre
+            {t("lobby.room_join")}
           </button>
         </form>
       </Sheet>
 
-      <Sheet open={sheet === "solo"} title="Contre l'IA" onClose={closeSheet}>
+      <Sheet open={sheet === "solo"} title={t("lobby.vs_ai")} onClose={closeSheet}>
         <SoloPanel state={state} />
       </Sheet>
     </main>
@@ -263,7 +266,7 @@ export function Lobby({ state }: { state: AppState }) {
 
 /** Statut affiché sous le pseudo dans « Votre groupe ». */
 export function groupStatus(l: AppState["lobby"]): string {
-  if (l.type === "queued") return "En recherche";
-  if (l.type === "room_waiting") return "Salle ouverte";
-  return "Prêt";
+  if (l.type === "queued") return t("lobby.status_searching");
+  if (l.type === "room_waiting") return t("lobby.status_room_open");
+  return t("lobby.status_ready");
 }

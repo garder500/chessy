@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "./i18n";
 import { describeOutcome, formatDelta, resultFor, resultHeadline } from "./outcome";
+
+beforeAll(() => setLang("fr"));
 
 describe("outcome", () => {
   it("describes the new endings from either side", () => {

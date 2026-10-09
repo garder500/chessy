@@ -1,0 +1,18 @@
+{
+  "forging_cta": "Forging…",
+  "forge_start": "Start the forge",
+  "take": "Take {name}",
+  "choose": "Choose",
+  "back_aria": "Back to the result",
+  "title": "Your reward",
+  "sub": "Take a skill from your opponent, or have a brand-new one forged.",
+  "take_label": "Take",
+  "empty": "Your opponent has nothing you don't already have: only the random draw is left.",
+  "luck": "Or try your luck",
+  "forge_name": "Forge a skill",
+  "forge_desc": "Brand new, from common to legendary. Your opponent loses one at random.",
+  "deck_full": "Your deck is full ({n}): choose the skill to replace",
+  "forging_hint": "The blacksmith is at work…",
+  "replace_hint": "Select the skill to replace to continue.",
+  "skip": "Skip"
+}

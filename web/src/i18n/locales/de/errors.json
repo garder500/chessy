@@ -1,0 +1,19 @@
+{
+  "not_your_turn": "Du bist nicht am Zug.",
+  "illegal_action": "Aktion nicht möglich.",
+  "no_such_room": "Dieser Raum existiert nicht.",
+  "own_room": "Du kannst deinem eigenen Raum nicht beitreten.",
+  "already_in_game": "Du bist bereits in einer Partie.",
+  "invalid_deck": "Ungültige Fähigkeitenauswahl.",
+  "replaced": "Dieses Konto hat sich in einem anderen Tab angemeldet.",
+  "session_revoked": "Deine Sitzung wurde beendet: Du bist wieder Gast.",
+  "flooded": "Verbindung getrennt: zu viele Nachrichten gesendet.",
+  "queue_full": "Die Ranglisten-Warteschlange ist voll, versuche es gleich noch einmal.",
+  "rooms_full": "Zu viele offene Räume, versuche es gleich noch einmal.",
+  "account_required": "Für diese Aktion ist ein Konto erforderlich.",
+  "spectate_full": "Diese Partie hat die maximale Zuschauerzahl erreicht.",
+  "no_such_game": "Diese Partie existiert nicht oder ist beendet.",
+  "invalid_target": "Aktion auf dem eigenen Konto nicht möglich.",
+  "blocked": "Du hast diesen Spieler blockiert: Hebe die Blockierung zuerst auf.",
+  "block_list_full": "Deine Liste blockierter Spieler ist voll."
+}

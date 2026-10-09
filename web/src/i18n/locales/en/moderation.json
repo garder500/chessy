@@ -1,0 +1,19 @@
+{
+  "reason_harassment": "Harassment or insults",
+  "reason_spam": "Spam",
+  "reason_cheating": "Cheating",
+  "reason_inappropriate_name": "Inappropriate username",
+  "reason_other": "Other",
+  "unblock": "Unblock",
+  "block": "Block",
+  "report": "Report",
+  "block_title": "Block {username}?",
+  "block_body": "Their messages, friend requests and challenges will no longer reach you, and they will be removed from your friends. You can still play against them. {username} is not notified, and you can unblock them at any time in Settings.",
+  "block_confirm": "Block {username}",
+  "cancel": "Cancel",
+  "report_title": "Report {username}",
+  "report_sub": "The report is sent to the moderators. {username} is not notified.",
+  "reason_aria": "Reason",
+  "attach": "Attach the latest messages from the game",
+  "send": "Send report"
+}

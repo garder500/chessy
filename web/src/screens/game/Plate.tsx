@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useT } from "../../i18n";
 import { capturedPieces, evalShare, formatClock, materialBalance, materialOf, remainingMs } from "../../game/logic";
 import type { Clock as ClockState, Color, Piece, SkillId, StateView } from "../../protocol";
 import { skillInfo } from "../../skills";
@@ -52,6 +53,7 @@ interface PlateProps {
 }
 
 export function Plate({ name, elo, color, board, ownBench, rivalBench, clock, stamp, active, used, remaining, disconnected, you, bot, clockEnabled = true, clockLabel }: PlateProps) {
+  const t = useT();
   // Les pièces que ce joueur a prises sont les pièces manquantes de l'autre camp.
   const taken = capturedPieces(board, color === "white" ? "black" : "white", rivalBench);
   const lead = materialOf(board, color, ownBench) - materialOf(board, color === "white" ? "black" : "white", rivalBench);
@@ -67,26 +69,26 @@ export function Plate({ name, elo, color, board, ownBench, rivalBench, clock, st
               {elo}
             </span>
           )}
-          {bot && <span className="tag">IA</span>}
-          {disconnected && <span className="tag">déconnecté</span>}
-          {active && <span className="tag gm-turn-tag">au trait</span>}
+          {bot && <span className="tag">{t("game.tag_ai")}</span>}
+          {disconnected && <span className="tag">{t("game.tag_disconnected")}</span>}
+          {active && <span className="tag gm-turn-tag">{t("game.tag_turn")}</span>}
         </div>
         <div className="gm-plate-sub">
-          <span className="gm-taken" aria-label={taken.length ? `${taken.length} pièces prises` : "Aucune pièce prise"}>
+          <span className="gm-taken" aria-label={taken.length ? t("game.taken", { count: taken.length }) : t("game.taken_none")}>
             {taken.map((kind, i) => (
               <PieceIcon key={i} kind={kind} size={15} />
             ))}
             {lead > 0 && <span className="mono gm-lead">+{lead}</span>}
           </span>
-          <span className="gm-used" aria-label="Compétences utilisées">
+          <span className="gm-used" aria-label={t("game.used_aria")}>
             {used.map((s) => (
-              <span key={s} className="gm-used-ico" title={`${skillInfo(s).name} (utilisée)`}>
+              <span key={s} className="gm-used-ico" title={t("game.used_title", { name: skillInfo(s).name })}>
                 <SkillArt id={s} size={20} />
               </span>
             ))}
             {remaining > 0 && (
               <span className="mono muted gm-remaining">
-                {remaining} restante{remaining > 1 ? "s" : ""}
+                {t("game.remaining", { count: remaining })}
               </span>
             )}
           </span>
@@ -99,11 +101,12 @@ export function Plate({ name, elo, color, board, ownBench, rivalBench, clock, st
 
 /** Barre d'évaluation matérielle, du point de vue du joueur (sa part en bas). */
 export function EvalBar({ view }: { view: StateView }) {
+  const t = useT();
   const balance = materialBalance(view.board, view.you, view.benched);
   const share = evalShare(balance);
-  const text = balance === 0 ? "égalité matérielle" : balance > 0 ? `avantage de ${balance} pour vous` : `avantage de ${-balance} pour l'adversaire`;
+  const text = balance === 0 ? t("game.eval_even") : balance > 0 ? t("game.eval_you", { n: balance }) : t("game.eval_opp", { n: -balance });
   return (
-    <div className="gm-eval" role="img" aria-label={`Évaluation matérielle : ${text}`} title={text}>
+    <div className="gm-eval" role="img" aria-label={t("game.eval_aria", { text })} title={text}>
       <i style={{ height: `${Math.round(share * 100)}%` }} className={view.you} />
     </div>
   );

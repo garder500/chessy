@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "../i18n";
 import { BASE_STEP_MS, clampIndex, initialNav, keyToNav, navReduce, shouldHandleKey, speedLabel, stepDelay } from "./nav";
+
+beforeAll(() => setLang("fr"));
 
 describe("navigation de replay", () => {
   it("borne l'indice", () => {

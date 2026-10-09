@@ -1,0 +1,18 @@
+{
+  "received": "Desafio recebido",
+  "challenges_you": "{name} desafia você",
+  "elo_friendly": "Elo · partida amistosa",
+  "decline": "Recusar",
+  "accept": "Aceitar o desafio",
+  "sent_to_pre": "Desafio enviado para ",
+  "sent_to_post": "…",
+  "cancel": "Cancelar",
+  "sheet_title": "Desafiar {name}",
+  "sheet_sub": "{elo} Elo · partida amistosa: sem Elo nem habilidade em jogo.",
+  "pace_aria": "Ritmo de jogo",
+  "watch_game": "Assistir à partida",
+  "sent": "Desafio enviado",
+  "other_pending": "Há outro desafio pendente",
+  "unavailable": "{name} está indisponível",
+  "send": "Enviar o desafio"
+}

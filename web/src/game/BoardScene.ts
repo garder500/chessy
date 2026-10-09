@@ -6,6 +6,7 @@ import { skillEntry } from "../catalog";
 import { pieceArtAssets, pieceArtKey } from "./pieceArt";
 import { isForgedId } from "../forged";
 import { actionKey, turnsLeft } from "./logic";
+import { t } from "../i18n";
 import { accentColor, boardTheme, getTheme, hexToNum, pieceSet, premoveColor, type ThemeSettings } from "../theme";
 import { dragLift, dragScale, dragThreshold, markBoost, squareAtPoint, touchSlop } from "./touch";
 import {
@@ -1532,7 +1533,7 @@ export class BoardScene extends Phaser.Scene {
     this.expandDomain(900, () => {
       const mid = this.boardCenter();
       const title = this.add
-        .text(mid.x, mid.y, "EXPANSION DE DOMAINE", { fontFamily: MONO, fontSize: "76px", color: "#f3ecff", fontStyle: "800", stroke: "#5b46a8", strokeThickness: 10 })
+        .text(mid.x, mid.y, t("game.domain_title"), { fontFamily: MONO, fontSize: "76px", color: "#f3ecff", fontStyle: "800", stroke: "#5b46a8", strokeThickness: 10 })
         .setOrigin(0.5)
         .setDepth(20)
         .setAlpha(0)

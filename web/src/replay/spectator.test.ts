@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "../i18n";
 import type { ServerMsg } from "../protocol";
 import { fixtureRecord, fixtureSpectatorView } from "./fixtures";
 import {
@@ -14,6 +15,8 @@ import {
 
 const record = fixtureRecord();
 const state = (ply: number): ServerMsg => ({ type: "spectate_state", view: fixtureSpectatorView(ply, record) });
+
+beforeAll(() => setLang("fr"));
 
 describe("réducteur de spectateur", () => {
   it("passe de l'entrée à la retransmission à la première vue", () => {

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api, apiErrorText } from "../api";
+import { useT } from "../i18n";
 import type { LiveGame, Seat } from "../protocol";
-import { seatName } from "../replay/frames";
+import { COLOR_FR, seatName } from "../replay/frames";
 import { liveTag, plyText, sortLive, spectatorsText } from "../replay/lists";
 import { hrefFor } from "../router";
 import { readToken } from "../store";
@@ -12,6 +13,7 @@ import "./live.css";
 export const LIVE_POLL_MS = 5000;
 
 export function Live() {
+  const t = useT();
   const [games, setGames] = useState<LiveGame[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -45,18 +47,18 @@ export function Live() {
     <main className="lv-page">
       <header className="lv-head">
         <div>
-          <p className="eyebrow">Spectateur</p>
-          <h1 className="lv-title">En direct</h1>
+          <p className="eyebrow">{t("live.eyebrow")}</p>
+          <h1 className="lv-title">{t("live.title")}</h1>
         </div>
         <p className="muted lv-sub" aria-live="polite">
-          {games ? `${games.length} partie${games.length > 1 ? "s" : ""} en cours` : ""}
+          {games ? t("live.count", { count: games.length }) : ""}
         </p>
       </header>
 
       {games === null && !error && (
         <div className="lv-state card" role="status" aria-live="polite">
           <span className="rp-spinner" aria-hidden="true" />
-          <p>Chargement des parties en cours…</p>
+          <p>{t("live.loading")}</p>
         </div>
       )}
 
@@ -64,23 +66,23 @@ export function Live() {
         <div className="lv-state card" role="alert">
           <p>{error}</p>
           <button type="button" className="btn" onClick={() => setAttempt((n) => n + 1)}>
-            Réessayer
+            {t("live.retry")}
           </button>
         </div>
       )}
 
       {games !== null && error && (
         <p className="lv-warn" role="status">
-          Actualisation impossible : {error} La liste ci-dessous peut être périmée.
+          {t("live.refresh_failed", { error })}
         </p>
       )}
 
       {games !== null && games.length === 0 && (
         <div className="lv-state card">
-          <p>Aucune partie en cours pour le moment.</p>
-          <p className="muted">Revenez dans un instant, ou lancez vous-même une partie depuis l'accueil.</p>
+          <p>{t("live.empty_title")}</p>
+          <p className="muted">{t("live.empty_sub")}</p>
           <a className="btn" href="#/">
-            Jouer
+            {t("live.play")}
           </a>
         </div>
       )}
@@ -97,29 +99,31 @@ export function Live() {
 }
 
 function Player({ seat, side }: { seat: Seat; side: "white" | "black" }) {
+  const t = useT();
   const name = seatName(seat);
   return (
     <span className="lv-player">
       <span className={`lv-side ${side}`} aria-hidden="true" />
       <span className="avatar sm" aria-hidden="true">
-        {seat.bot ? "IA" : initialOf(name)}
+        {seat.bot ? t("replay.seat_bot") : initialOf(name)}
       </span>
       <span className="lv-name">
         <strong>{name}</strong>
-        <span className="mono muted">{seat.elo !== null ? (seat.bot ? `niveau ${seat.elo}` : seat.elo) : "—"}</span>
+        <span className="mono muted">{seat.elo !== null ? (seat.bot ? t("live.level", { elo: seat.elo }) : seat.elo) : "—"}</span>
       </span>
-      <span className="sr-only"> ({side === "white" ? "blancs" : "noirs"})</span>
+      <span className="sr-only"> ({COLOR_FR[side]})</span>
     </span>
   );
 }
 
 function LiveCard({ game: g }: { game: LiveGame }) {
+  const t = useT();
   return (
     <li className="lv-card card">
       <div className="lv-players">
         <Player seat={g.white} side="white" />
         <span className="lv-vs muted" aria-hidden="true">
-          contre
+          {t("live.vs")}
         </span>
         <Player seat={g.black} side="black" />
       </div>
@@ -128,8 +132,8 @@ function LiveCard({ game: g }: { game: LiveGame }) {
         <span className="muted">{plyText(g.ply)}</span>
         <span className="muted">{spectatorsText(g.spectators)}</span>
       </div>
-      <a className="btn sm lv-watch" href={hrefFor({ name: "watch", param: g.game_id })} aria-label={`Regarder ${seatName(g.white)} contre ${seatName(g.black)}`}>
-        Regarder
+      <a className="btn sm lv-watch" href={hrefFor({ name: "watch", param: g.game_id })} aria-label={t("live.watch_aria", { white: seatName(g.white), black: seatName(g.black) })}>
+        {t("live.watch")}
       </a>
     </li>
   );

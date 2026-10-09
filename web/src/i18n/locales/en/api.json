@@ -1,0 +1,21 @@
+{
+  "username_taken": "This username is already taken.",
+  "bad_credentials": "Incorrect username or password.",
+  "weak_password": "Password too weak: 8 to 128 characters.",
+  "invalid_username": "Invalid username: 3 to 16 characters, letters, digits or _.",
+  "unauthorized": "Your session has expired. Log in again.",
+  "not_found": "Not found.",
+  "network": "Unable to reach the server. Check your connection.",
+  "rate_limited": "Too many attempts. Try again in a moment.",
+  "too_many_attempts": "Too many failed login attempts. Try again in a few minutes.",
+  "bad_recovery": "Incorrect username or recovery code.",
+  "server_error": "The server ran into a problem. Try again later.",
+  "generic": "Something went wrong. Try again.",
+  "no_replay": "Replay unavailable for this game.",
+  "game_not_found": "Game not found.",
+  "game_forbidden": "This game is not accessible with your account.",
+  "illegal_action": "Action not possible in this position.",
+  "bad_ply": "Position not found in this game.",
+  "analysis_failed": "The analysis failed. Try again with a lower depth.",
+  "bad_request": "Invalid request."
+}

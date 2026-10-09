@@ -1,0 +1,21 @@
+{
+  "code_label": "Recovery code",
+  "copy": "Copy code",
+  "copied": "Code copied.",
+  "copy_failed": "Copy failed: select the code and copy it by hand.",
+  "warning": "It will never be shown again. With it, you can choose a new password if you lose the old one; without it, an account whose password is forgotten is lost. Keep it off this device (password manager, paper) and do not share it.",
+  "saved": "I have written down my recovery code",
+  "forgot_intro": "Enter the recovery code you were given at sign-up. All your sessions will be closed and a new code will be issued to you.",
+  "new_password": "New password",
+  "verifying": "Verifying…",
+  "reset": "Reset password",
+  "back": "Back to login",
+  "settings_hint": "Without an email address, this code is the only way to get your account back if you forget your password. Generating a new one replaces the old one.",
+  "generate_btn": "Generate a recovery code",
+  "new_code_intro": "Here is your new code. The old one no longer works.",
+  "done": "Done",
+  "current_password": "Current password",
+  "current_password_required": "Enter your current password.",
+  "generating": "Generating…",
+  "generate": "Generate code"
+}

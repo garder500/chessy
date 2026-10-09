@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "../i18n";
 import { fixtureGames, fixtureLive } from "./fixtures";
 import {
   averageElo,
@@ -22,6 +23,8 @@ import {
 } from "./lists";
 
 const games = fixtureGames();
+
+beforeAll(() => setLang("fr"));
 
 describe("Mes parties : filtre", () => {
   it("sépare classées, amicales et solo", () => {

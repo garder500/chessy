@@ -1,4 +1,5 @@
 // Validation du formulaire de connexion / inscription (logique pure).
+import { t } from "../i18n";
 
 export const USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 export const PASSWORD_MIN = 8;
@@ -7,25 +8,25 @@ export const PASSWORD_MAX = 128;
 export type AuthMode = "login" | "register";
 
 export function validateUsername(value: string): string | null {
-  if (!value) return "Saisissez un pseudo.";
-  if (value.length < 3) return "Au moins 3 caractères.";
-  if (value.length > 16) return "16 caractères au maximum.";
-  if (!USERNAME_RE.test(value)) return "Lettres, chiffres et _ uniquement.";
+  if (!value) return t("auth.v_username_required");
+  if (value.length < 3) return t("auth.v_username_min");
+  if (value.length > 16) return t("auth.v_username_max");
+  if (!USERNAME_RE.test(value)) return t("auth.v_username_chars");
   return null;
 }
 
 export function validatePassword(value: string, mode: AuthMode): string | null {
-  if (!value) return "Saisissez un mot de passe.";
+  if (!value) return t("auth.v_password_required");
   // À la connexion on n'impose pas les règles d'inscription : le serveur tranche.
   if (mode === "login") return null;
-  if (value.length < PASSWORD_MIN) return `Au moins ${PASSWORD_MIN} caractères.`;
-  if (value.length > PASSWORD_MAX) return `${PASSWORD_MAX} caractères au maximum.`;
+  if (value.length < PASSWORD_MIN) return t("auth.v_password_min", { min: PASSWORD_MIN });
+  if (value.length > PASSWORD_MAX) return t("auth.v_password_max", { max: PASSWORD_MAX });
   return null;
 }
 
 export function validateConfirm(password: string, confirm: string): string | null {
-  if (!confirm) return "Confirmez le mot de passe.";
-  if (confirm !== password) return "Les mots de passe ne correspondent pas.";
+  if (!confirm) return t("auth.v_confirm_required");
+  if (confirm !== password) return t("auth.v_confirm_mismatch");
   return null;
 }
 
@@ -37,7 +38,7 @@ export interface FormErrors {
 
 export function validateForm(mode: AuthMode, v: { username: string; password: string; confirm: string }): FormErrors {
   return {
-    username: mode === "register" ? validateUsername(v.username) : v.username ? null : "Saisissez votre pseudo.",
+    username: mode === "register" ? validateUsername(v.username) : v.username ? null : t("auth.v_login_username_required"),
     password: validatePassword(v.password, mode),
     confirm: mode === "register" ? validateConfirm(v.password, v.confirm) : null,
   };
@@ -60,7 +61,10 @@ export function passwordStrength(pw: string): 0 | 1 | 2 | 3 | 4 {
   return Math.min(4, Math.max(1, score)) as 1 | 2 | 3 | 4;
 }
 
-export const STRENGTH_LABEL = ["", "Faible", "Moyen", "Bon", "Solide"] as const;
+/** Libellé de robustesse traduit (chaîne vide pour 0 = vide). */
+export function strengthLabel(level: 0 | 1 | 2 | 3 | 4): string {
+  return level ? t(`auth.strength_${level}`) : "";
+}
 
 export type ServerField = "username" | "password" | "form";
 
@@ -69,23 +73,23 @@ export interface MappedAuthError {
   message: string;
 }
 
-/** Traduit le code d'erreur serveur en message français rattaché à un champ. */
+/** Traduit le code d'erreur serveur en message rattaché à un champ. */
 export function mapAuthError(code: string): MappedAuthError {
   switch (code) {
     case "username_taken":
-      return { field: "username", message: "Ce pseudo est déjà pris." };
+      return { field: "username", message: t("auth.e_username_taken") };
     case "invalid_username":
-      return { field: "username", message: "Pseudo invalide : 3 à 16 caractères, lettres, chiffres ou _." };
+      return { field: "username", message: t("auth.e_invalid_username") };
     case "weak_password":
-      return { field: "password", message: "Mot de passe trop faible : 8 à 128 caractères." };
+      return { field: "password", message: t("auth.e_weak_password") };
     case "bad_credentials":
-      return { field: "form", message: "Pseudo ou mot de passe incorrect." };
+      return { field: "form", message: t("auth.e_bad_credentials") };
     case "too_many_attempts":
-      return { field: "form", message: "Trop d'échecs de connexion. Réessayez dans quelques minutes." };
+      return { field: "form", message: t("auth.e_too_many_attempts") };
     case "network":
-      return { field: "form", message: "Impossible de joindre le serveur. Vérifiez votre connexion." };
+      return { field: "form", message: t("auth.e_network") };
     default:
-      return { field: "form", message: "Une erreur est survenue. Réessayez dans un instant." };
+      return { field: "form", message: t("auth.e_default") };
   }
 }
 
@@ -108,8 +112,8 @@ export function formatRecoveryCode(value: string): string {
 
 export function validateRecoveryCode(value: string): string | null {
   const n = normalizeRecoveryCode(value);
-  if (!n) return "Saisissez votre code de récupération.";
-  if (n.length !== RECOVERY_CODE_LENGTH) return `Le code compte ${RECOVERY_CODE_LENGTH} caractères (4 groupes de ${RECOVERY_GROUP}).`;
+  if (!n) return t("auth.v_code_required");
+  if (n.length !== RECOVERY_CODE_LENGTH) return t("auth.v_code_length", { length: RECOVERY_CODE_LENGTH, group: RECOVERY_GROUP });
   return null;
 }
 
@@ -122,7 +126,7 @@ export interface RecoverErrors {
 
 export function validateRecovery(v: { username: string; code: string; password: string; confirm: string }): RecoverErrors {
   return {
-    username: v.username ? null : "Saisissez votre pseudo.",
+    username: v.username ? null : t("auth.v_login_username_required"),
     code: validateRecoveryCode(v.code),
     // Le nouveau mot de passe suit les règles d'inscription.
     password: validatePassword(v.password, "register"),
@@ -138,15 +142,15 @@ export function hasRecoverErrors(e: RecoverErrors): boolean {
 export function mapRecoveryError(code: string): MappedAuthError {
   switch (code) {
     case "bad_recovery":
-      return { field: "form", message: "Pseudo ou code de récupération incorrect." };
+      return { field: "form", message: t("auth.e_bad_recovery") };
     case "bad_credentials":
-      return { field: "password", message: "Mot de passe incorrect." };
+      return { field: "password", message: t("auth.e_bad_password") };
     case "too_many_attempts":
-      return { field: "form", message: "Trop d'essais. Réessayez dans quelques minutes." };
+      return { field: "form", message: t("auth.e_too_many_tries") };
     case "weak_password":
-      return { field: "password", message: "Mot de passe trop faible : 8 à 128 caractères." };
+      return { field: "password", message: t("auth.e_weak_password") };
     case "unauthorized":
-      return { field: "form", message: "Votre session a expiré. Reconnectez-vous." };
+      return { field: "form", message: t("auth.e_unauthorized") };
     default:
       return mapAuthError(code);
   }

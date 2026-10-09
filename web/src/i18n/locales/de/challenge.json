@@ -1,0 +1,18 @@
+{
+  "received": "Herausforderung erhalten",
+  "challenges_you": "{name} fordert dich heraus",
+  "elo_friendly": "Elo · Freundschaftspartie",
+  "decline": "Ablehnen",
+  "accept": "Herausforderung annehmen",
+  "sent_to_pre": "Herausforderung gesendet an ",
+  "sent_to_post": "…",
+  "cancel": "Abbrechen",
+  "sheet_title": "{name} herausfordern",
+  "sheet_sub": "{elo} Elo · Freundschaftspartie: Weder Elo noch Fähigkeit stehen auf dem Spiel.",
+  "pace_aria": "Bedenkzeit",
+  "watch_game": "Partie ansehen",
+  "sent": "Herausforderung gesendet",
+  "other_pending": "Eine andere Herausforderung steht aus",
+  "unavailable": "{name} ist nicht verfügbar",
+  "send": "Herausforderung senden"
+}

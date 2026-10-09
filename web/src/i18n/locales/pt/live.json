@@ -1,0 +1,16 @@
+{
+  "eyebrow": "Espectador",
+  "title": "Ao vivo",
+  "count_one": "{count} partida em andamento",
+  "count_other": "{count} partidas em andamento",
+  "loading": "Carregando as partidas em andamento…",
+  "retry": "Tentar novamente",
+  "refresh_failed": "Não foi possível atualizar: {error} A lista abaixo pode estar desatualizada.",
+  "empty_title": "Nenhuma partida em andamento no momento.",
+  "empty_sub": "Volte em instantes ou inicie você mesmo uma partida na página inicial.",
+  "play": "Jogar",
+  "level": "nível {elo}",
+  "vs": "contra",
+  "watch": "Assistir",
+  "watch_aria": "Assistir a {white} contra {black}"
+}

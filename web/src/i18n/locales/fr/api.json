@@ -1,0 +1,21 @@
+{
+  "username_taken": "Ce pseudo est déjà pris.",
+  "bad_credentials": "Pseudo ou mot de passe incorrect.",
+  "weak_password": "Mot de passe trop faible : 8 à 128 caractères.",
+  "invalid_username": "Pseudo invalide : 3 à 16 caractères, lettres, chiffres ou _.",
+  "unauthorized": "Votre session a expiré. Reconnectez-vous.",
+  "not_found": "Introuvable.",
+  "network": "Impossible de joindre le serveur. Vérifiez votre connexion.",
+  "rate_limited": "Trop de tentatives. Réessayez dans un instant.",
+  "too_many_attempts": "Trop d'échecs de connexion. Réessayez dans quelques minutes.",
+  "bad_recovery": "Pseudo ou code de récupération incorrect.",
+  "server_error": "Le serveur a rencontré un problème. Réessayez plus tard.",
+  "generic": "Une erreur est survenue. Réessayez.",
+  "no_replay": "Replay indisponible pour cette partie.",
+  "game_not_found": "Partie introuvable.",
+  "game_forbidden": "Cette partie n'est pas accessible avec votre compte.",
+  "illegal_action": "Action impossible dans cette position.",
+  "bad_ply": "Position introuvable dans cette partie.",
+  "analysis_failed": "L'analyse a échoué. Réessayez avec une profondeur plus faible.",
+  "bad_request": "Requête invalide."
+}

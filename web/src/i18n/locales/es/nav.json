@@ -1,0 +1,18 @@
+{
+  "wordmark": "Chessy, inicio",
+  "main": "Navegación principal",
+  "tab.home": "Jugar",
+  "tab.live": "En directo",
+  "tab.ranking": "Clasificación",
+  "tab.friends": "Amigos",
+  "tab.collection": "Colección",
+  "pending_one": "solicitud de amistad pendiente",
+  "pending_other": "solicitudes de amistad pendientes",
+  "settings": "Ajustes",
+  "guest": "Invitado",
+  "login": "Iniciar sesión",
+  "profileSettings": "Perfil y ajustes de {name}",
+  "profile": "Perfil",
+  "games": "Mis partidas",
+  "logout": "Cerrar sesión"
+}

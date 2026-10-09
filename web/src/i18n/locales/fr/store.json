@@ -1,0 +1,9 @@
+{
+  "blocked": "{name} est bloqué : ses messages ne vous parviendront plus.",
+  "reported": "Signalement envoyé. Merci.",
+  "drawDeclined": "Votre proposition de nulle a été refusée.",
+  "rematchDeclined": "La revanche n'aura pas lieu.",
+  "newSkill": "Nouvelle compétence : {name}",
+  "opponentLeft": "Votre adversaire est parti : nouvelle recherche en cours…",
+  "gameCancelled": "La partie a été annulée."
+}

@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import { useT } from "../i18n";
 import { familyVar, skillEntry } from "../catalog";
 import type { CatalogId } from "../catalog";
 import { animClass, BOARD_SIZE, resolveItem, SCENES } from "./skillScenes";
@@ -211,31 +212,32 @@ interface Props {
  * Avec `prefers-reduced-motion`, affiche un « avant → après » statique.
  */
 export const SkillPreview = memo(function SkillPreview({ id, caption, compact, className }: Props) {
+  const t = useT();
   const reduced = usePrefersReducedMotion();
   const entry = skillEntry(id);
   const scene = SCENES[id as CatalogId];
   if (!scene) return null;
   const famVar = familyVar(entry.family);
-  const label = `Aperçu animé : ${entry.name}`;
+  const label = t("skills.preview_label", { name: entry.name });
   return (
     <figure className={["sv-fig", className].filter(Boolean).join(" ")}>
       {!reduced ? (
         // La clé relance la boucle à zéro quand la compétence change.
         <Board key={id} scene={scene} label={label} famVar={famVar} />
       ) : compact ? (
-        <Board scene={scene} snap="after" label={`${label} (état final)`} famVar={famVar} />
+        <Board scene={scene} snap="after" label={t("skills.preview_final", { label })} famVar={famVar} />
       ) : (
         <div className="sv-pair">
           <div>
-            <Board scene={scene} snap="before" label="Avant" famVar={famVar} />
-            <span className="sv-pair-cap">Avant</span>
+            <Board scene={scene} snap="before" label={t("skills.before")} famVar={famVar} />
+            <span className="sv-pair-cap">{t("skills.before")}</span>
           </div>
           <span className="sv-pair-arrow" aria-hidden="true">
             →
           </span>
           <div>
-            <Board scene={scene} snap="after" label="Après" famVar={famVar} />
-            <span className="sv-pair-cap">Après</span>
+            <Board scene={scene} snap="after" label={t("skills.after")} famVar={famVar} />
+            <span className="sv-pair-cap">{t("skills.after")}</span>
           </div>
         </div>
       )}

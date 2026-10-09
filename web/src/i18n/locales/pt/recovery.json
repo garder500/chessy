@@ -1,0 +1,21 @@
+{
+  "code_label": "Código de recuperação",
+  "copy": "Copiar código",
+  "copied": "Código copiado.",
+  "copy_failed": "Não foi possível copiar: selecione o código e copie manualmente.",
+  "warning": "Ele nunca será exibido novamente. Com ele, você poderá escolher uma nova senha se perder a antiga; sem ele, uma conta cuja senha foi esquecida está perdida. Guarde-o fora deste dispositivo (gerenciador de senhas, papel) e não o compartilhe.",
+  "saved": "Anotei meu código de recuperação",
+  "forgot_intro": "Digite o código de recuperação recebido no cadastro. Todas as suas sessões serão encerradas e um novo código será entregue a você.",
+  "new_password": "Nova senha",
+  "verifying": "Verificando…",
+  "reset": "Redefinir senha",
+  "back": "Voltar ao login",
+  "settings_hint": "Sem endereço de e-mail, este código é a única forma de recuperar sua conta se você esquecer a senha. Gerar um novo substitui o anterior.",
+  "generate_btn": "Gerar um código de recuperação",
+  "new_code_intro": "Este é o seu novo código. O anterior não funciona mais.",
+  "done": "Concluído",
+  "current_password": "Senha atual",
+  "current_password_required": "Digite sua senha atual.",
+  "generating": "Gerando…",
+  "generate": "Gerar código"
+}

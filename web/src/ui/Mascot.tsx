@@ -1,7 +1,10 @@
+import { useT } from "../i18n";
+
 /** Le Chevalier : mascotte de Chessy. Cavalier « chess-knight » de Skoll (game-icons.net, CC BY 3.0), couronne « Crown5 » de Reicon (MIT). */
 export function Mascot({ size = 164 }: { size?: number }) {
+  const t = useT();
   return (
-    <div className="mascot" style={{ width: size, height: size }} role="img" aria-label="Le Chevalier, mascotte de Chessy">
+    <div className="mascot" style={{ width: size, height: size }} role="img" aria-label={t("game.mascot_alt")}>
       <svg className="mascot-knight" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
         <defs>
           <linearGradient id="mk-gold" x1="0" y1="0" x2="0" y2="1">

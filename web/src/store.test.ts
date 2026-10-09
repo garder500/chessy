@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Me, ServerMsg, StateView } from "./protocol";
 import { accountAfterGame, noticeText, Store } from "./store";
+import { setLang } from "./i18n";
 
+beforeEach(() => setLang("fr"));
 const me: Me = { player_id: "p", username: "jeremy", guest: false, elo: 1284, rank: 3, games: 4, wins: 2, draws: 1, losses: 1 };
 
 const welcome: ServerMsg = { type: "welcome", player_id: "p", token: "t", deck: ["freeze"], pending_reward: null, account: me };

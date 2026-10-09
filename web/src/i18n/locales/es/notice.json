@@ -1,0 +1,15 @@
+{
+  "someone": "Este jugador",
+  "friend_request_received": "{name} te ha enviado una solicitud de amistad.",
+  "friend_accepted": "{name} ahora es tu amigo.",
+  "friend_removed": "{name} fue eliminado de tus amigos.",
+  "challenge_declined": "{name} rechazó tu desafío.",
+  "challenge_expired": "El desafío ha caducado.",
+  "challenge_cancelled": "{name} canceló su desafío.",
+  "user_not_found": "Jugador no encontrado.",
+  "already_friends": "{name} ya es tu amigo.",
+  "friend_offline": "{name} no está en línea.",
+  "rated_pair_capped": "Ya habéis jugado 3 partidas clasificatorias entre vosotros esta hora: esta no cuenta para el Elo.",
+  "friend_busy": "{name} está en plena partida.",
+  "default": "Notificación."
+}

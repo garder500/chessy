@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore, type CSSProperties } from "react";
+import { LANGS, LANG_NAMES, getLang, hasChosenLang, setLang, useLang, useT, type Lang } from "../i18n";
 import { CATALOG, FAMILY_LABEL } from "../catalog";
 import { sfx, skillSfx, type SfxName } from "../sound";
 import { store, useAppState } from "../store";
@@ -45,67 +46,25 @@ function Slider({ value, onChange, label, disabled }: { value: number; onChange:
   );
 }
 
-const COLOR_MODES: { id: ColorMode; label: string }[] = [
-  { id: "system", label: "Système" },
-  { id: "light", label: "Clair" },
-  { id: "dark", label: "Sombre" },
-];
+const COLOR_MODES: ColorMode[] = ["system", "light", "dark"];
 
 /** Aperçu d'un son : ignore les interrupteurs de catégorie, jamais le réglage général. */
 const preview = (name: SfxName) => sfx.play(name, { force: true });
 
-const GROUPS: { title: string; items: [SfxName, string][] }[] = [
-  {
-    title: "Coups",
-    items: [
-      ["move", "Coup"],
-      ["capture", "Capture"],
-      ["castle", "Roque"],
-      ["promote", "Promotion"],
-      ["check", "Échec"],
-      ["illegal", "Coup refusé"],
-    ],
-  },
-  {
-    title: "Partie",
-    items: [
-      ["game_start", "Début"],
-      ["your_turn", "À vous de jouer"],
-      ["low_time", "Peu de temps"],
-      ["game_win", "Victoire"],
-      ["game_lose", "Défaite"],
-      ["game_draw", "Nulle"],
-    ],
-  },
-  {
-    title: "Effets",
-    items: [
-      ["trap_sprung", "Piège déclenché"],
-      ["shield", "Bouclier"],
-      ["pushed", "Repoussé"],
-      ["saved", "Sauvé"],
-      ["vanish", "Disparition"],
-    ],
-  },
-  {
-    title: "Social et interface",
-    items: [
-      ["match_found", "Adversaire trouvé"],
-      ["chat", "Message"],
-      ["friend_request", "Demande d'ami"],
-      ["challenge", "Défi reçu"],
-      ["notice", "Notification"],
-      ["ui_click", "Clic"],
-    ],
-  },
+const GROUPS: { id: string; items: SfxName[] }[] = [
+  { id: "moves", items: ["move", "capture", "castle", "promote", "check", "illegal"] },
+  { id: "game", items: ["game_start", "your_turn", "low_time", "game_win", "game_lose", "game_draw"] },
+  { id: "effects", items: ["trap_sprung", "shield", "pushed", "saved", "vanish"] },
+  { id: "social", items: ["match_found", "chat", "friend_request", "challenge", "notice", "ui_click"] },
 ];
 
 /** Page Réglages d'un invité (un compte les trouve dans son profil, voir `Profile`). */
 export function Settings() {
+  const t = useT();
   return (
     <main className="st-page">
-      <p className="eyebrow">Préférences</p>
-      <h1 className="st-title">Réglages</h1>
+      <p className="eyebrow">{t("settings.eyebrow")}</p>
+      <h1 className="st-title">{t("settings.title")}</h1>
       <SettingsBody />
     </main>
   );
@@ -113,38 +72,41 @@ export function Settings() {
 
 /** Apparence, sons et jeu : les sections de réglages, sans titre de page. */
 export function SettingsBody() {
+  const t = useT();
   const snd = useSoundSettings();
   const theme = useTheme();
   const off = !snd.enabled;
 
   return (
     <>
+      <LanguageSettings />
+
       <section className="card st-card st-look" aria-labelledby="st-look">
         <div className="st-look-opts">
-          <h2 id="st-look" className="st-h">Apparence</h2>
+          <h2 id="st-look" className="st-h">{t("settings.look")}</h2>
 
           <fieldset className="st-field">
-            <legend className="field-label">Mode</legend>
-            <div className="st-swatches" role="radiogroup" aria-label="Mode clair ou sombre">
+            <legend className="field-label">{t("settings.mode")}</legend>
+            <div className="st-swatches" role="radiogroup" aria-label={t("settings.modeLabel")}>
               {COLOR_MODES.map((m) => (
                 <button
-                  key={m.id}
+                  key={m}
                   type="button"
                   role="radio"
-                  aria-checked={theme.mode === m.id}
+                  aria-checked={theme.mode === m}
                   className="st-swatch"
                   data-sfx="off"
-                  onClick={() => setTheme({ mode: m.id })}
+                  onClick={() => setTheme({ mode: m })}
                 >
-                  <span>{m.label}</span>
+                  <span>{t(`settings.mode.${m}`)}</span>
                 </button>
               ))}
             </div>
           </fieldset>
 
           <fieldset className="st-field">
-            <legend className="field-label">Thème du plateau</legend>
-            <div className="st-swatches" role="radiogroup" aria-label="Thème du plateau">
+            <legend className="field-label">{t("settings.board")}</legend>
+            <div className="st-swatches" role="radiogroup" aria-label={t("settings.board")}>
               {BOARD_THEMES.map((b) => (
                 <button
                   key={b.id}
@@ -161,15 +123,15 @@ export function SettingsBody() {
                     <i style={{ background: b.dark }} />
                     <i style={{ background: b.light }} />
                   </span>
-                  <span>{b.label}</span>
+                  <span>{t(`settings.board.${b.id}`)}</span>
                 </button>
               ))}
             </div>
           </fieldset>
 
           <fieldset className="st-field">
-            <legend className="field-label">Jeu de pièces</legend>
-            <div className="st-swatches" role="radiogroup" aria-label="Jeu de pièces">
+            <legend className="field-label">{t("settings.pieces")}</legend>
+            <div className="st-swatches" role="radiogroup" aria-label={t("settings.pieces")}>
               {PIECE_SETS.map((p) => (
                 <button
                   key={p.id}
@@ -184,15 +146,15 @@ export function SettingsBody() {
                     <i style={{ background: p.white ?? "#ece8de" }} />
                     <i style={{ background: p.black ?? "#2a2c33", boxShadow: p.black ? undefined : "inset 0 0 0 1px #4a505b" }} />
                   </span>
-                  <span>{p.label}</span>
+                  <span>{t(`settings.pieces.${p.id}`)}</span>
                 </button>
               ))}
             </div>
           </fieldset>
 
           <fieldset className="st-field">
-            <legend className="field-label">Couleur d'accent</legend>
-            <div className="st-swatches" role="radiogroup" aria-label="Couleur d'accent">
+            <legend className="field-label">{t("settings.accent")}</legend>
+            <div className="st-swatches" role="radiogroup" aria-label={t("settings.accent")}>
               {ACCENTS.map((a) => (
                 <button
                   key={a.id}
@@ -206,7 +168,7 @@ export function SettingsBody() {
                   <span className="st-dots" aria-hidden="true">
                     <i style={{ background: a.color }} />
                   </span>
-                  <span>{a.label}</span>
+                  <span>{t(`settings.accent.${a.id}`)}</span>
                 </button>
               ))}
             </div>
@@ -216,31 +178,31 @@ export function SettingsBody() {
         <div className="st-look-prev">
           <BoardPreview theme={theme} />
           <p className="st-legend muted">
-            Aperçu : dernier coup (accent), cases légales et capture, premove (accent mêlé de rouge).
+            {t("settings.previewLegend")}
           </p>
         </div>
       </section>
 
       <section className="card st-card" aria-labelledby="st-sound">
-        <h2 id="st-sound" className="st-h">Sons</h2>
-        <Switch checked={snd.enabled} onChange={(enabled) => sfx.setSettings({ enabled })} label="Sons activés" hint="Interrupteur général : coupe tous les effets." />
-        <Slider value={snd.master} onChange={(master) => sfx.setSettings({ master })} label="Volume général" disabled={off} />
-        <Slider value={snd.effects} onChange={(effects) => sfx.setSettings({ effects })} label="Volume des effets" disabled={off} />
-        <Switch checked={snd.ui} onChange={(ui) => sfx.setSettings({ ui })} label="Sons d'interface" hint="Clics, messages, demandes d'ami, défis, notifications." />
-        <Switch checked={snd.yourTurn} onChange={(yourTurn) => sfx.setSettings({ yourTurn })} label="Notification « à vous de jouer »" hint="Un petit carillon quand le trait vous revient." />
+        <h2 id="st-sound" className="st-h">{t("settings.sound")}</h2>
+        <Switch checked={snd.enabled} onChange={(enabled) => sfx.setSettings({ enabled })} label={t("settings.soundOn")} hint={t("settings.soundOnHint")} />
+        <Slider value={snd.master} onChange={(master) => sfx.setSettings({ master })} label={t("settings.volumeMaster")} disabled={off} />
+        <Slider value={snd.effects} onChange={(effects) => sfx.setSettings({ effects })} label={t("settings.volumeEffects")} disabled={off} />
+        <Switch checked={snd.ui} onChange={(ui) => sfx.setSettings({ ui })} label={t("settings.soundUi")} hint={t("settings.soundUiHint")} />
+        <Switch checked={snd.yourTurn} onChange={(yourTurn) => sfx.setSettings({ yourTurn })} label={t("settings.yourTurn")} hint={t("settings.yourTurnHint")} />
 
-        {off && <p className="st-note muted">Les sons sont désactivés : activez-les pour écouter les aperçus.</p>}
+        {off && <p className="st-note muted">{t("settings.soundOff")}</p>}
         <div className="st-groups">
           {GROUPS.map((g) => (
-            <div key={g.title} className="st-group">
-              <h3 className="eyebrow">{g.title}</h3>
+            <div key={g.id} className="st-group">
+              <h3 className="eyebrow">{t(`settings.group.${g.id}`)}</h3>
               <div className="st-chips">
-                {g.items.map(([name, label]) => (
+                {g.items.map((name) => (
                   <button key={name} type="button" className="st-play" disabled={off} data-sfx="off" onClick={() => preview(name)}>
                     <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" focusable="false">
                       <path d="M3 1.8v8.4L10 6z" fill="currentColor" />
                     </svg>
-                    {label}
+                    {t(`settings.sfx.${name}`)}
                   </button>
                 ))}
               </div>
@@ -248,7 +210,7 @@ export function SettingsBody() {
           ))}
         </div>
 
-        <h3 className="eyebrow st-skills-h">Compétences ({CATALOG.length})</h3>
+        <h3 className="eyebrow st-skills-h">{t("settings.skills", { count: CATALOG.length })}</h3>
         <ul className="st-skills">
           {CATALOG.map((c) => (
             <li key={c.id}>
@@ -259,7 +221,7 @@ export function SettingsBody() {
                 data-sfx="off"
                 style={{ "--fam": `var(--fam-${c.family})` } as CSSProperties}
                 onClick={() => preview(skillSfx(c.id))}
-                aria-label={`Écouter ${c.name}`}
+                aria-label={t("settings.listen", { name: c.name })}
               >
                 <span className="st-skill-art">
                   <SkillArt id={c.id} size={34} />
@@ -275,14 +237,14 @@ export function SettingsBody() {
       </section>
 
       <section className="card st-card" aria-labelledby="st-play">
-        <h2 id="st-play" className="st-h">Jeu</h2>
+        <h2 id="st-play" className="st-h">{t("settings.play")}</h2>
         <div className="st-row">
           <div className="st-row-txt">
-            <span className="st-label" id="st-move-label">Mode de déplacement</span>
-            <span className="st-hint muted">Le clic sur une pièce puis sur sa destination fonctionne toujours.</span>
+            <span className="st-label" id="st-move-label">{t("settings.moveMode")}</span>
+            <span className="st-hint muted">{t("settings.moveModeHint")}</span>
           </div>
           <div className="seg st-seg" role="radiogroup" aria-labelledby="st-move-label">
-            {([["drag", "Glisser-déposer + clic"], ["click", "Clic seulement"]] as [MoveMode, string][]).map(([mode, label]) => (
+            {(["drag", "click"] as MoveMode[]).map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -292,7 +254,7 @@ export function SettingsBody() {
                 data-sfx="off"
                 onClick={() => setTheme({ move: mode })}
               >
-                {label}
+                {t(`settings.move.${mode}`)}
               </button>
             ))}
           </div>
@@ -300,14 +262,14 @@ export function SettingsBody() {
         <Switch
           checked={theme.premove}
           onChange={(premove) => setTheme({ premove })}
-          label="Premoves"
-          hint="Préparer un coup pendant le tour de l'adversaire ; il part dès que c'est à vous s'il est légal."
+          label={t("settings.premove")}
+          hint={t("settings.premoveHint")}
         />
         <Switch
           checked={theme.reduceMotion}
           onChange={(reduceMotion) => setTheme({ reduceMotion })}
-          label="Réduire les animations"
-          hint="Plateau et interface presque instantanés, sans secousses."
+          label={t("settings.reduceMotion")}
+          hint={t("settings.reduceMotionHint")}
         />
       </section>
 
@@ -318,6 +280,7 @@ export function SettingsBody() {
 
 /** Chat : couper tous les messages reçus, et la liste des joueurs bloqués (comptes seulement). */
 function ChatSettings() {
+  const t = useT();
   const { account, blocked, connection } = useAppState();
   const online = connection === "open";
   const member = !!account && !account.guest;
@@ -327,28 +290,59 @@ function ChatSettings() {
   if (!account || account.guest) return null;
   return (
     <section className="card st-card" aria-labelledby="st-chat">
-      <h2 id="st-chat" className="st-h">Messages</h2>
+      <h2 id="st-chat" className="st-h">{t("settings.chat")}</h2>
       <Switch
         checked={!!account.chat_muted}
         onChange={(muted) => store.setChatMuted(muted)}
-        label="Couper le chat"
-        hint="Vous ne recevez plus aucun message des adversaires ; vous pouvez toujours écrire."
+        label={t("settings.chatMute")}
+        hint={t("settings.chatMuteHint")}
       />
-      <h3 className="eyebrow st-skills-h">Joueurs bloqués ({blocked.length})</h3>
+      <h3 className="eyebrow st-skills-h">{t("settings.blocked", { count: blocked.length })}</h3>
       {blocked.length === 0 ? (
-        <p className="st-hint muted">Personne. Bloquez un joueur depuis le chat de la partie, ses amis ou son profil : ses messages, demandes d'ami et défis ne vous parviennent plus.</p>
+        <p className="st-hint muted">{t("settings.blockedNone")}</p>
       ) : (
         <ul className="mod-blocked">
           {blocked.map((name) => (
             <li key={name}>
               <span className="st-label">{name}</span>
               <button type="button" className="btn sm ghost" disabled={!online} onClick={() => store.unblockUser(name)}>
-                Débloquer
+                {t("settings.unblock")}
               </button>
             </li>
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+/** Langue de l'interface : « Automatique » suit le navigateur, un choix explicite est mémorisé. */
+function LanguageSettings() {
+  const t = useT();
+  const lang = useLang();
+  const auto = !hasChosenLang();
+  return (
+    <section className="card st-card" aria-labelledby="st-lang">
+      <h2 id="st-lang" className="st-h">{t("settings.language")}</h2>
+      <div className="st-row">
+        <div className="st-row-txt">
+          <span className="st-label" id="st-lang-label">{t("settings.languageLabel")}</span>
+          <span className="st-hint muted">{auto ? t("settings.languageAutoHint", { name: LANG_NAMES[lang] }) : t("settings.languageHint")}</span>
+        </div>
+        <select
+          className="input st-select"
+          aria-labelledby="st-lang-label"
+          value={auto ? "auto" : getLang()}
+          onChange={(e) => setLang(e.target.value === "auto" ? null : (e.target.value as Lang))}
+        >
+          <option value="auto">{t("settings.languageAuto")}</option>
+          {LANGS.map((l) => (
+            <option key={l} value={l}>
+              {LANG_NAMES[l]}
+            </option>
+          ))}
+        </select>
+      </div>
     </section>
   );
 }

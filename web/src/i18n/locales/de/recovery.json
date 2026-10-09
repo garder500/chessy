@@ -1,0 +1,21 @@
+{
+  "code_label": "Wiederherstellungscode",
+  "copy": "Code kopieren",
+  "copied": "Code kopiert.",
+  "copy_failed": "Kopieren fehlgeschlagen: Markiere den Code und kopiere ihn von Hand.",
+  "warning": "Er wird nie wieder angezeigt. Damit kannst du ein neues Passwort festlegen, falls du das alte verlierst; ohne ihn ist ein Konto mit vergessenem Passwort verloren. Bewahre ihn nicht auf diesem Gerät auf (Passwortmanager, Papier) und teile ihn mit niemandem.",
+  "saved": "Ich habe meinen Wiederherstellungscode notiert",
+  "forgot_intro": "Gib den Wiederherstellungscode ein, den du bei der Registrierung erhalten hast. Alle deine Sitzungen werden beendet und du erhältst einen neuen Code.",
+  "new_password": "Neues Passwort",
+  "verifying": "Überprüfung…",
+  "reset": "Passwort zurücksetzen",
+  "back": "Zurück zur Anmeldung",
+  "settings_hint": "Ohne E-Mail-Adresse ist dieser Code die einzige Möglichkeit, dein Konto zurückzubekommen, falls du dein Passwort vergisst. Ein neuer Code ersetzt den alten.",
+  "generate_btn": "Wiederherstellungscode erzeugen",
+  "new_code_intro": "Hier ist dein neuer Code. Der alte funktioniert nicht mehr.",
+  "done": "Fertig",
+  "current_password": "Aktuelles Passwort",
+  "current_password_required": "Gib dein aktuelles Passwort ein.",
+  "generating": "Wird erzeugt…",
+  "generate": "Code erzeugen"
+}
