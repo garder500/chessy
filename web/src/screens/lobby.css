@@ -86,4 +86,5 @@
 :root .jp-deck-slot { width: 32px; height: 36px; margin: 0 -2px 0 0; }
 :root .jp-deck-slot > svg { width: 20px; height: 20px; }
 .jp-deck-empty { width: 32px; height: 36px; margin-right: -2px; background: var(--line-2); opacity: 0.5; }
-@media (max-width: 719px) { .jp-deck { display: flex; } }
+/* Téléphone : la barre d'onglets fixe recouvre le bas de la page ; le padding du body (hauteur 100 %) ne s'ajoute pas au défilement, on réserve donc la place ici. */
+@media (max-width: 719px) { .jp-deck { display: flex; } .jp { padding-bottom: calc(64px + env(safe-area-inset-bottom)); } }
