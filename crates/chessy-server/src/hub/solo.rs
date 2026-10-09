@@ -23,6 +23,7 @@ use std::time::{Duration, Instant};
 
 use chessy_engine::ai::Strength;
 use chessy_engine::{Action, Color};
+use rand::seq::IndexedRandom;
 
 use super::social::Rematch;
 use super::{Hub, Phase, Session, Timer};
@@ -40,6 +41,9 @@ pub(super) struct Solo {
     pub elo: i32,
     /// Set for a matchmaking bot, which passes for a person: see [`Disguise`].
     pub disguise: Option<Disguise>,
+    /// Set for a placement game: the level is the hidden one being measured
+    /// (see [`Hub::placement_start`]). The bot is plain otherwise.
+    pub placement: Option<i32>,
 }
 
 /// A matchmaking bot is a real account (its name, rating and deck are stored)
@@ -97,7 +101,92 @@ impl Hub {
                 }
             }
         };
-        self.start_solo(player, elo as i32, human, None, None);
+        self.start_solo(player, elo as i32, human, None, None, None);
+    }
+
+    /// The next of the five placement games (docs/spec-v5.md): a plain Solo
+    /// game against a bot of a level the player has not met yet, drawn at
+    /// random and never shown. Only accounts can be placed; the result of the
+    /// game is settled by [`Hub::settle_placement`].
+    pub fn placement_start(&mut self, player: &str, color: SoloColor) {
+        if self.player_game.contains_key(player)
+            || !matches!(self.lobby_status(player), LobbyStatus::Idle)
+        {
+            return self.fail(player, "already_in_game", "finish your current game first");
+        }
+        let account =
+            matches!(self.store.player_row(player), Ok(Some(row)) if row.username.is_some());
+        if !account {
+            return self.fail(
+                player,
+                "account_required",
+                "placement games need an account",
+            );
+        }
+        let (placed, played) = match (
+            self.store.is_placed(player),
+            self.store.placement_levels_played(player),
+        ) {
+            (Ok(placed), Ok(played)) => (placed, played),
+            _ => return self.fail(player, "unavailable", "try again"),
+        };
+        if placed {
+            return self.fail(player, "already_placed", "your rating is already estimated");
+        }
+        let remaining: Vec<i32> = crate::elo::PLACEMENT_LEVELS
+            .into_iter()
+            .filter(|l| !played.contains(l))
+            .collect();
+        let Some(&level) = remaining.choose(&mut rand::rng()) else {
+            return self.fail(player, "already_placed", "your rating is already estimated");
+        };
+        let human = match color {
+            SoloColor::White => Color::White,
+            SoloColor::Black => Color::Black,
+            SoloColor::Random => {
+                if rand::random_bool(0.5) {
+                    Color::White
+                } else {
+                    Color::Black
+                }
+            }
+        };
+        self.start_solo(player, level, human, None, None, Some(level));
+    }
+
+    /// Books a finished placement game (`recorded`: it was played far enough
+    /// to be stored; one abandoned at deck selection can be played again).
+    /// Returns what the player is told with the game over.
+    pub(super) fn settle_placement(
+        &mut self,
+        session: &Session,
+        game_id: &str,
+        outcome: &chessy_engine::Outcome,
+        recorded: bool,
+    ) -> Option<PlacementView> {
+        let solo = session.solo.as_ref()?;
+        let level = solo.placement?;
+        if !recorded {
+            return None;
+        }
+        let human = session.players[solo.bot.opposite().index()].clone();
+        let score = match outcome.winner() {
+            Some(c) if c == solo.bot => 0.0,
+            Some(_) => 1.0,
+            None => 0.5,
+        };
+        match self.store.record_placement(&human, game_id, level, score) {
+            Ok(done) => Some(PlacementView {
+                done: done.done,
+                total: done.total,
+                elo: done.elo.map(|(_, after)| after),
+                before: done.elo.map(|(before, _)| before),
+            }),
+            Err(e) => {
+                tracing::error!("could not record placement game {game_id}: {e}");
+                None
+            }
+        }
     }
 
     /// A game against a matchmaking bot, for a player the queue could not pair
@@ -117,7 +206,7 @@ impl Hub {
             rated,
             kind,
         };
-        self.start_solo(player, bot.elo, human, Some(disguise), time);
+        self.start_solo(player, bot.elo, human, Some(disguise), time, None);
     }
 
     /// Opens deck selection against a bot of level `elo`; `human` is the
@@ -129,6 +218,7 @@ impl Hub {
         human: Color,
         disguise: Option<Disguise>,
         time: Option<TimeControl>,
+        placement: Option<i32>,
     ) {
         let (white, black) = match human {
             Color::White => (player.to_string(), String::new()),
@@ -144,6 +234,7 @@ impl Hub {
             bot: human.opposite(),
             elo,
             disguise,
+            placement,
         };
         self.open_session(white, black, rated, kind, Some(seat), time);
     }
@@ -353,6 +444,7 @@ impl Hub {
             elo,
             setup.human_color.opposite(),
             setup.disguise,
+            None,
             None,
         );
     }

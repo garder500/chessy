@@ -84,7 +84,7 @@ export function Profile({ username }: Props) {
         <div className="pf-id">
           <h1 className="pf-name">{p.username}</h1>
           <p className="pf-meta">
-            <span className="tag">{tierOf(p.elo).name}</span>
+            {p.placed === false ? <span className="tag">Non évalué</span> : <span className="tag">{tierOf(p.elo).name}</span>}
             {p.rank && <span className="mono">Rang #{p.rank}</span>}
             <span className="muted">{memberSince(p.created_at)}</span>
           </p>

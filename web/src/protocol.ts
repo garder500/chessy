@@ -271,6 +271,23 @@ export interface Me {
   losses: number;
   /** Le compte ne reçoit aucun message de chat (`set_chat_muted`) ; absent = serveur ancien. */
   chat_muted?: boolean;
+  /** Parties d'évaluation (v5) ; absent = serveur ancien (on suppose le joueur déjà évalué). */
+  placement?: PlacementProgress;
+}
+
+/** Avancement des parties d'évaluation : `placed` quand l'Elo est une estimation. */
+export interface PlacementProgress {
+  placed: boolean;
+  done: number;
+  total: number;
+}
+
+/** Fin d'une partie d'évaluation ; `elo` (et `before`) une fois les `total` parties jouées. */
+export interface PlacementView {
+  done: number;
+  total: number;
+  elo?: number | null;
+  before?: number | null;
 }
 
 export interface LeaderboardEntry {
@@ -302,6 +319,8 @@ export interface RecentGame {
 export interface PublicProfile {
   username: string;
   elo: number;
+  /** Faux tant que l'Elo est celui de départ (parties d'évaluation non jouées) ; absent = serveur ancien. */
+  placed?: boolean;
   peak_elo: number;
   rank: number | null;
   games: number;
@@ -381,7 +400,7 @@ export type ServerMsg =
   | ({ type: "deck_select" } & DeckSelectInfo)
   | ({ type: "state" } & StateView)
   | { type: "opponent_status"; connected: boolean }
-  | { type: "game_over"; outcome: Outcome; reward: RewardOffer | null; rated: boolean; elo: EloChange | null; reason: string }
+  | { type: "game_over"; outcome: Outcome; reward: RewardOffer | null; rated: boolean; elo: EloChange | null; reason: string; placement?: PlacementView }
   | { type: "deck_update"; deck: SkillId[]; gained: SkillId | null; lost: SkillId | null }
   | { type: "game_cancelled"; reason: string }
   | { type: "spectate_state"; view: SpectatorView }
@@ -401,6 +420,7 @@ export type ClientMsg =
   | { type: "hello"; token?: string }
   | { type: "queue_join"; ranked?: boolean; time?: TimeControl }
   | { type: "solo_start"; elo: number; color: SoloColor }
+  | { type: "placement_start"; color?: SoloColor }
   | { type: "create_room"; time?: TimeControl }
   | { type: "join_room"; code: string }
   | { type: "leave_lobby" }

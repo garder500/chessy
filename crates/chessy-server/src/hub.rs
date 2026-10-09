@@ -1160,9 +1160,10 @@ impl Hub {
             }
         }
         let info = |hub: &Hub, color: Color| match &seat_solo {
-            Some(s) if s.bot == color => {
-                crate::bot::info(s.elo, s.disguise.as_ref().map(|d| d.name.as_str()))
-            }
+            Some(s) if s.bot == color => crate::bot::info(
+                s.placement.is_none().then_some(s.elo),
+                s.disguise.as_ref().map(|d| d.name.as_str()),
+            ),
             _ => hub.opponent_info(&pair[color.index()]),
         };
         let connected = [
@@ -1783,10 +1784,11 @@ impl Hub {
                     kind: session.recording.kind,
                     loadouts,
                     actions: &session.recording.actions,
+                    // A placement game keeps its level hidden, replay included.
                     solo_elo: session
                         .solo
                         .as_ref()
-                        .filter(|s| s.is_plain())
+                        .filter(|s| s.is_plain() && s.placement.is_none())
                         .map(|s| s.elo),
                 };
                 match self.store.record_game(&record) {
@@ -1799,6 +1801,7 @@ impl Hub {
             }
             None => None,
         };
+        let placement = self.settle_placement(&session, game_id, &outcome, loadouts.is_some());
         let winner = outcome.winner();
         for color in Color::BOTH {
             let player = &session.players[color.index()];
@@ -1847,6 +1850,7 @@ impl Hub {
                     rated: change.is_some(),
                     elo,
                     reason: reason.to_string(),
+                    placement,
                 },
             );
             self.send(
@@ -1856,8 +1860,11 @@ impl Hub {
                 },
             );
         }
-        if session.solo.is_some() {
-            self.offer_solo_rematch(&session);
+        if let Some(solo) = &session.solo {
+            // A placement game has no rematch: the next one is a new request.
+            if solo.placement.is_none() {
+                self.offer_solo_rematch(&session);
+            }
         } else {
             self.offer_rematch(
                 &session.players,
