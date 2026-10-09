@@ -23,7 +23,6 @@ use std::time::{Duration, Instant};
 
 use chessy_engine::ai::Strength;
 use chessy_engine::{Action, Color};
-use rand::seq::IndexedRandom;
 
 use super::social::Rematch;
 use super::{Hub, Phase, Session, Timer};
@@ -105,8 +104,8 @@ impl Hub {
     }
 
     /// The next of the five placement games (docs/spec-v5.md): a plain Solo
-    /// game against a bot of a level the player has not met yet, drawn at
-    /// random and never shown. Only accounts can be placed; the result of the
+    /// game against a bot whose level follows the player's results (a win
+    /// climbs a step, anything else replays it), never shown. Only accounts can be placed; the result of the
     /// game is settled by [`Hub::settle_placement`].
     pub fn placement_start(&mut self, player: &str, color: SoloColor) {
         if self.player_game.contains_key(player)
@@ -123,23 +122,16 @@ impl Hub {
                 "placement games need an account",
             );
         }
-        let (placed, played) = match (
+        let (placed, level) = match (
             self.store.is_placed(player),
-            self.store.placement_levels_played(player),
+            self.store.placement_next_level(player),
         ) {
-            (Ok(placed), Ok(played)) => (placed, played),
+            (Ok(placed), Ok(level)) => (placed, level),
             _ => return self.fail(player, "unavailable", "try again"),
         };
         if placed {
             return self.fail(player, "already_placed", "your rating is already estimated");
         }
-        let remaining: Vec<i32> = crate::elo::PLACEMENT_LEVELS
-            .into_iter()
-            .filter(|l| !played.contains(l))
-            .collect();
-        let Some(&level) = remaining.choose(&mut rand::rng()) else {
-            return self.fail(player, "already_placed", "your rating is already estimated");
-        };
         let human = match color {
             SoloColor::White => Color::White,
             SoloColor::Black => Color::Black,

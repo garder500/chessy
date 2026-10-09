@@ -28,6 +28,19 @@ pub fn new_rating(ra: i32, rb: i32, score: f64, games_before: u32) -> i32 {
 
 /// Levels of the bots met in the placement games (docs/spec-v5.md), in Elo.
 pub const PLACEMENT_LEVELS: [i32; 5] = [400, 800, 1200, 1600, 2000];
+/// The level of the next placement game, given the scores of the games played
+/// so far in order: the ladder starts at its first step, a win climbs one
+/// step, anything else (loss or draw) replays the same step, so a player who
+/// stumbles is not thrown at a much stronger bot.
+pub fn placement_next_level(scores: &[f64]) -> i32 {
+    let top = PLACEMENT_LEVELS.len() - 1;
+    let step = scores.iter().fold(
+        0,
+        |step, &s| if s >= 1.0 { (step + 1).min(top) } else { step },
+    );
+    PLACEMENT_LEVELS[step]
+}
+
 /// Bounds of an estimate. Five games cannot tell a strong player from a very
 /// strong one, so the starting rating stops at the default one: whoever
 /// dominates climbs from there with the high K of the first rated games.
@@ -100,6 +113,17 @@ mod tests {
 
     fn levels(scores: [f64; 5]) -> Vec<(i32, f64)> {
         PLACEMENT_LEVELS.into_iter().zip(scores).collect()
+    }
+
+    #[test]
+    fn ladder_climbs_on_wins_and_holds_otherwise() {
+        assert_eq!(placement_next_level(&[]), 400);
+        assert_eq!(placement_next_level(&[1.0]), 800);
+        assert_eq!(placement_next_level(&[0.0]), 400);
+        assert_eq!(placement_next_level(&[1.0, 0.0]), 800);
+        assert_eq!(placement_next_level(&[1.0, 0.5, 1.0]), 1200);
+        assert_eq!(placement_next_level(&[1.0, 1.0, 1.0, 1.0]), 2000);
+        assert_eq!(placement_next_level(&[1.0; 6]), 2000);
     }
 
     #[test]

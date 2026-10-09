@@ -66,10 +66,9 @@ async fn five_games_replace_the_rating_with_an_estimate() {
     assert_eq!((me.elo, me.games, me.losses), (200, 0, 0));
     assert!(me.placement.placed);
 
-    // The five bots were five different levels.
-    let mut levels = store.placement_levels_played(&id).unwrap();
-    levels.sort_unstable();
-    assert_eq!(levels, vec![400, 800, 1200, 1600, 2000]);
+    // A loss replays the same step: five losses, five games at the first level.
+    let levels = store.placement_levels_played(&id).unwrap();
+    assert_eq!(levels, vec![400; 5]);
 
     // Once placed, no more.
     c.say(json!({"type": "placement_start"}));

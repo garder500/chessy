@@ -462,6 +462,20 @@ const MIGRATIONS: &[&str] = &[
          games_at INTEGER NOT NULL DEFAULT 0,
          at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
      );",
+    // Adaptive placement: a lost level is played again, so a level can appear
+    // several times per player. One row per game instead of one per level.
+    "CREATE TABLE placement_results_v2 (
+         player_id TEXT NOT NULL REFERENCES players(id),
+         level INTEGER NOT NULL,
+         score REAL NOT NULL,
+         game_id TEXT NOT NULL,
+         at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+         PRIMARY KEY (player_id, game_id)
+     );
+     INSERT INTO placement_results_v2 (player_id, level, score, game_id, at)
+         SELECT player_id, level, score, game_id, at FROM placement_results ORDER BY rowid;
+     DROP TABLE placement_results;
+     ALTER TABLE placement_results_v2 RENAME TO placement_results;",
 ];
 
 fn migrate(conn: &mut Connection) -> StoreResult<()> {
@@ -797,6 +811,18 @@ impl Store {
         placement_levels(&conn, player)
     }
 
+    /// The level of the next placement game of `player`: see
+    /// [`elo::placement_next_level`].
+    pub fn placement_next_level(&self, player: &str) -> StoreResult<i32> {
+        let conn = self.db();
+        let mut stmt = conn
+            .prepare("SELECT score FROM placement_results WHERE player_id = ?1 ORDER BY rowid")?;
+        let scores: Vec<f64> = stmt
+            .query_map(params![player], |r| r.get(0))?
+            .collect::<Result<_, _>>()?;
+        Ok(elo::placement_next_level(&scores))
+    }
+
     /// Whether the rating of `player` is an estimate from the placement games
     /// (or a level, for a matchmaking bot) rather than the default one.
     pub fn is_placed(&self, player: &str) -> StoreResult<bool> {
@@ -825,8 +851,9 @@ impl Store {
                 params![player, level, score, game_id],
             )?;
         }
-        let mut stmt =
-            tx.prepare("SELECT level, score FROM placement_results WHERE player_id = ?1")?;
+        let mut stmt = tx.prepare(
+            "SELECT level, score FROM placement_results WHERE player_id = ?1 ORDER BY rowid",
+        )?;
         let results: Vec<(i32, f64)> = stmt
             .query_map(params![player], |r| Ok((r.get(0)?, r.get(1)?)))?
             .collect::<Result<_, _>>()?;
@@ -1345,7 +1372,8 @@ fn player_row(conn: &Connection, column: &str, value: &str) -> StoreResult<Optio
 }
 
 fn placement_levels(conn: &Connection, player: &str) -> StoreResult<Vec<i32>> {
-    let mut stmt = conn.prepare("SELECT level FROM placement_results WHERE player_id = ?1")?;
+    let mut stmt =
+        conn.prepare("SELECT level FROM placement_results WHERE player_id = ?1 ORDER BY rowid")?;
     let levels = stmt
         .query_map(params![player], |r| r.get(0))?
         .collect::<Result<_, _>>()?;
