@@ -205,7 +205,7 @@ fn game_number(game_id: &str) -> u64 {
 
 impl Session {
     pub(super) fn kind(&self) -> GameKind {
-        if self.solo.is_some() {
+        if self.solo.as_ref().is_some_and(super::solo::Solo::is_plain) {
             GameKind::Solo
         } else {
             self.recording.kind
@@ -404,14 +404,17 @@ impl Hub {
         let Some(feed) = self.feeds.get_mut(game_id) else {
             return;
         };
-        let delay = if session.solo.is_some() || (feed.delivered.is_none() && feed.queue.is_empty())
-        {
+        let plain_solo = session
+            .solo
+            .as_ref()
+            .is_some_and(super::solo::Solo::is_plain);
+        let delay = if plain_solo || (feed.delivered.is_none() && feed.queue.is_empty()) {
             Duration::ZERO
         } else {
             self.config.spectator_delay
         };
         let over = game.outcome().is_over();
-        let configured = if session.solo.is_some() {
+        let configured = if plain_solo {
             Duration::ZERO
         } else {
             self.config.spectator_delay
