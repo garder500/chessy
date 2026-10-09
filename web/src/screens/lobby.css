@@ -88,3 +88,6 @@
 .jp-deck-empty { width: 32px; height: 36px; margin-right: -2px; background: var(--line-2); opacity: 0.5; }
 /* Téléphone : la barre d'onglets fixe recouvre le bas de la page ; le padding du body (hauteur 100 %) ne s'ajoute pas au défilement, on réserve donc la place ici. */
 @media (max-width: 719px) { .jp-deck { display: flex; } .jp { padding-bottom: calc(64px + env(safe-area-inset-bottom)); } }
+
+.jp-place { display: grid; gap: 8px; padding: 14px 16px; margin-bottom: 14px; }
+.jp-place p { margin: 0; }

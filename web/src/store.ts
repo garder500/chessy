@@ -8,6 +8,7 @@ import type {
   Me,
   NoticeCode,
   Outcome,
+  PlacementView,
   ReportReason,
   RewardOffer,
   ServerMsg,
@@ -38,6 +39,8 @@ export interface GameOver {
   rated: boolean;
   elo: EloChange | null;
   reason: string;
+  /** Partie d'évaluation : avancement, et Elo estimé après la dernière. */
+  placement: PlacementView | null;
 }
 
 export interface AppState {
@@ -75,6 +78,18 @@ export interface AppState {
   soloPending: boolean;
   /** Partie regardée en tant que spectateur (v4), `null` si on ne regarde rien. */
   spectating: SpectatingState | null;
+}
+
+/** Le compte après une fin de partie : nouvel Elo (classée ou estimation) et avancement de l'évaluation. */
+export function accountAfterGame(account: Me, msg: Extract<ServerMsg, { type: "game_over" }>): Me {
+  const next = { ...account };
+  if (msg.elo) next.elo = msg.elo.you_after;
+  const p = msg.placement;
+  if (p) {
+    next.placement = { placed: p.elo != null, done: p.done, total: p.total };
+    if (p.elo != null) next.elo = p.elo;
+  }
+  return next;
 }
 
 /** Valeurs par défaut des champs que d'anciens serveurs n'envoient pas (`clock_enabled`, `opponent.bot`). */
@@ -370,6 +385,14 @@ export class Store {
     this.set({ game: null, over: null, deckSelect: null, rematch: "none" });
   }
 
+  /** Lance la prochaine partie d'évaluation (adversaire dont l'Elo reste caché). */
+  startPlacement(color: SoloColor = "random") {
+    this.send({ type: "placement_start", color });
+    this.set({ soloPending: true });
+    if (this.soloTimer) clearTimeout(this.soloTimer);
+    this.soloTimer = setTimeout(() => this.clearSoloPending(), SOLO_PENDING_MS);
+  }
+
   /** Lance une partie contre l'IA et mémorise le réglage. */
   startSolo(elo: number, color: SoloColor) {
     const solo: SoloSetting = { elo: clampElo(elo), color };
@@ -550,11 +573,18 @@ export class Store {
         break;
       case "game_over":
         this.set({
-          over: { outcome: msg.outcome, reward: msg.reward, rated: msg.rated, elo: msg.elo, reason: msg.reason },
+          over: {
+            outcome: msg.outcome,
+            reward: msg.reward,
+            rated: msg.rated,
+            elo: msg.elo,
+            reason: msg.reason,
+            placement: msg.placement ?? null,
+          },
           rewardOpen: false,
-          // L'Elo affiché dans la barre de navigation suit la partie classée.
-          account:
-            this.state.account && msg.elo ? { ...this.state.account, elo: msg.elo.you_after } : this.state.account,
+          // L'Elo affiché dans la barre de navigation suit la partie classée,
+          // ou l'estimation qui clôt les parties d'évaluation.
+          account: this.state.account ? accountAfterGame(this.state.account, msg) : this.state.account,
         });
         break;
       case "deck_update":

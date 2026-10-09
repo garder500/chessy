@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
-import type { Color, EloChange, Outcome } from "../../protocol";
+import type { Color, EloChange, Outcome, PlacementView } from "../../protocol";
 import { formatDelta, resultFor, resultHeadline } from "../../outcome";
 import { navigate } from "../../router";
 import { store } from "../../store";
@@ -18,6 +18,8 @@ interface Props {
   /** Partie contre l'IA : ni Elo ni récompense, revanche immédiate. */
   solo?: boolean;
   elo: EloChange | null;
+  /** Partie d'évaluation : pas de revanche, la suivante se lance d'ici. */
+  placement?: PlacementView | null;
   rematch: "none" | "offered" | "received";
   /** Une récompense attend d'être choisie (victoire classée). */
   reward: boolean;
@@ -27,7 +29,7 @@ interface Props {
 }
 
 /** Fin de partie plein écran : la pièce sous le faisceau, le titre, l'Elo, puis l'étape suivante (récompense, revanche, analyse). */
-export function Result({ outcome, you, rated, solo = false, elo, rematch, reward, gameId, onReward, onHide }: Props) {
+export function Result({ outcome, you, rated, solo = false, elo, placement = null, rematch, reward, gameId, onReward, onHide }: Props) {
   const { title, reason } = resultHeadline(outcome, you);
   const result = resultFor(outcome, you);
   const delta = elo ? elo.you_after - elo.you_before : null;
@@ -36,7 +38,8 @@ export function Result({ outcome, you, rated, solo = false, elo, rematch, reward
     first.current?.focus();
   }, []);
 
-  const cadence = solo ? "Entraînement" : `${rated ? "Classée" : "Amicale"} · 10 min`;
+  const placementLeft = placement ? placement.total - placement.done : 0;
+  const cadence = placement ? `Évaluation · ${placement.done}/${placement.total}` : solo ? "Entraînement" : `${rated ? "Classée" : "Amicale"} · 10 min`;
   const leave = () => store.leaveGame();
   const analyse = (sub?: "analyse") => {
     store.leaveGame();
@@ -69,7 +72,18 @@ export function Result({ outcome, you, rated, solo = false, elo, rematch, reward
         <p className="rs-reason">{reason}</p>
 
         <div className="rs-chips">
-          {!solo && rated && elo && delta !== null ? (
+          {placement ? (
+            placement.elo != null ? (
+              <span className="card rs-elo">
+                <CountUp className="num rs-elo-n" to={placement.elo} />
+                <span className="rs-delta">Elo estimé</span>
+              </span>
+            ) : (
+              <span className="muted rs-none">
+                Partie d'évaluation {placement.done}/{placement.total} : l'Elo de l'adversaire reste caché, votre Elo sera estimé après la dernière.
+              </span>
+            )
+          ) : !solo && rated && elo && delta !== null ? (
             <span className="card rs-elo">
               <CountUp className="num rs-elo-n" to={elo.you_after} />
               <span className={`rs-delta ${delta > 0 ? "up" : delta < 0 ? "down" : ""}`}>{formatDelta(delta)}</span>
@@ -94,7 +108,18 @@ export function Result({ outcome, you, rated, solo = false, elo, rematch, reward
               Choisir ma récompense
             </button>
           )}
-          {rematch === "received" ? (
+          {placement ? (
+            <div className="rs-pair">
+              {placementLeft > 0 && (
+                <button type="button" className="btn pri" onClick={() => store.startPlacement()}>
+                  Partie suivante
+                </button>
+              )}
+              <button type="button" className={`btn${placementLeft > 0 ? "" : " pri"}`} onClick={() => analyse("analyse")}>
+                Analyser
+              </button>
+            </div>
+          ) : rematch === "received" ? (
             <>
               <p className="rs-msg">L'adversaire propose une revanche.</p>
               <div className="rs-pair">

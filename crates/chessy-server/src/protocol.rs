@@ -134,6 +134,12 @@ pub enum ClientMsg {
         #[serde(default)]
         color: SoloColor,
     },
+    /// Starts the next placement game (docs/spec-v5.md): a game against a bot
+    /// whose level is hidden. Accounts only, until the five games are played.
+    PlacementStart {
+        #[serde(default)]
+        color: SoloColor,
+    },
     /// Watches a running game (not allowed while playing).
     Spectate {
         game_id: String,
@@ -214,6 +220,8 @@ pub struct Me {
     pub losses: u32,
     /// The account drops every incoming chat message (`set_chat_muted`).
     pub chat_muted: bool,
+    /// Placement games: see docs/spec-v5.md.
+    pub placement: crate::store::PlacementProgress,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -224,6 +232,16 @@ pub struct OpponentInfo {
     /// The opponent is the Solo bot. Omitted (false) for people.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub bot: bool,
+}
+
+/// The placement games after one of them ended. `elo` is the estimate, once
+/// all `total` are played; `before` is the rating it replaces.
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+pub struct PlacementView {
+    pub done: u32,
+    pub total: u32,
+    pub elo: Option<i32>,
+    pub before: Option<i32>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -429,6 +447,9 @@ pub enum ServerMsg {
         rated: bool,
         elo: Option<EloView>,
         reason: String,
+        /// Set after a placement game.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        placement: Option<PlacementView>,
     },
     /// Your deck changed (reward applied, or you lost a skill).
     DeckUpdate {
@@ -518,7 +539,8 @@ impl ClientMsg {
             | ClientMsg::ReportUser { .. }
             | ClientMsg::Challenge { .. }
             | ClientMsg::ChallengeRespond { .. }
-            | ClientMsg::SoloStart { .. } => expensive,
+            | ClientMsg::SoloStart { .. }
+            | ClientMsg::PlacementStart { .. } => expensive,
             _ => 1,
         }
     }

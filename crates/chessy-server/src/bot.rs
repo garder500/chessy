@@ -38,18 +38,18 @@ pub fn is_bot_id(id: &str) -> bool {
 }
 
 /// What the human sees of the bot: Sage, or, for a matchmaking bot, an
-/// ordinary player.
-pub fn info(elo: i32, disguise: Option<&str>) -> OpponentInfo {
+/// ordinary player. `elo` is `None` when the level is hidden (placement games).
+pub fn info(elo: Option<i32>, disguise: Option<&str>) -> OpponentInfo {
     match disguise {
         Some(name) => OpponentInfo {
             username: Some(name.to_string()),
-            elo: Some(elo),
+            elo,
             guest: false,
             bot: false,
         },
         None => OpponentInfo {
             username: Some(BOT_NAME.to_string()),
-            elo: Some(elo),
+            elo,
             guest: true,
             bot: true,
         },

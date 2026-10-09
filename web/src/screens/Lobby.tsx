@@ -64,6 +64,9 @@ export function Lobby({ state }: { state: AppState }) {
 
   const current = MODES.find((m) => m.id === mode)!;
   const elo = account?.elo ?? 1200;
+  // Un compte dont l'Elo est encore celui de départ ; un serveur ancien ne le dit pas.
+  const placement = isAccount ? account?.placement : undefined;
+  const unplaced = !!placement && !placement.placed;
   const online = sortFriends(friends.friends.filter((f) => f.presence !== "offline"));
   const challenged = typeof sheet === "object" && sheet ? friends.friends.find((f) => f.username === sheet.friend) : undefined;
   const closeSheet = () => setSheet(null);
@@ -74,7 +77,13 @@ export function Lobby({ state }: { state: AppState }) {
         <Beam width={560} height={400} glow={current.glow} />
         {isAccount && (
           <span className="chip jp-elo">
-            <span className="num">{elo}</span> Elo
+            {unplaced ? (
+              "Elo non évalué"
+            ) : (
+              <>
+                <span className="num">{elo}</span> Elo
+              </>
+            )}
           </span>
         )}
         <div className="jp-hero">
@@ -95,6 +104,19 @@ export function Lobby({ state }: { state: AppState }) {
       </section>
 
       <div className="jp-panel">
+        {unplaced && placement && (
+          <div className="jp-place card">
+            <p>
+              <strong>Elo non évalué</strong> · {placement.done}/{placement.total} parties d'évaluation
+            </p>
+            <p className="muted">
+              Cinq parties contre des adversaires de niveau inconnu estiment votre vrai Elo (au lieu de 1200 par défaut).
+            </p>
+            <button type="button" className="btn pri" disabled={!connected || state.soloPending} onClick={() => store.startPlacement()}>
+              {placement.done === 0 ? "Commencer l'évaluation" : "Partie suivante"}
+            </button>
+          </div>
+        )}
         <h2 className="jp-panel-title">Nouvelle partie</h2>
         <div className="segs" role="radiogroup" aria-label="Mode">
           {MODES.map((m) => (

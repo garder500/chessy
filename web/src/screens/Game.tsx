@@ -533,6 +533,7 @@ export function Game({ view }: { view: StateView }) {
           rated={over?.rated ?? view.rated}
           solo={isBot}
           elo={over?.elo ?? null}
+          placement={over?.placement ?? null}
           rematch={rematch}
           reward={!!over?.reward}
           gameId={view.game_id}

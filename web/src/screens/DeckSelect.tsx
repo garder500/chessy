@@ -59,7 +59,7 @@ export function DeckSelect({ info }: { info: DeckSelectInfo }) {
           <span className="dk-opp-txt">
             <strong>{isBot ? oppName : `Contre ${oppName}`}</strong>
             <span className="meta dk-opp-meta">
-              {isBot ? "Partie d'entraînement" : `${opp.elo !== null ? `${opp.elo} · ` : ""}${info.rated ? "Classée" : "Amicale"}`} · vous jouez les {info.you === "white" ? "blancs" : "noirs"}
+              {isBot ? (opp.elo === null ? "Partie d'évaluation" : "Partie d'entraînement") : `${opp.elo !== null ? `${opp.elo} · ` : ""}${info.rated ? "Classée" : "Amicale"}`} · vous jouez les {info.you === "white" ? "blancs" : "noirs"}
             </span>
           </span>
         </div>
@@ -105,7 +105,7 @@ export function DeckSelect({ info }: { info: DeckSelectInfo }) {
           <span className="dk-opp-txt">
             <strong>{isBot ? oppName : `Contre ${oppName}`}</strong>
             <span className="meta">
-              {isBot ? "Partie d'entraînement" : `${opp.elo !== null ? `${opp.elo} · ` : ""}${info.rated ? "Classée" : "Amicale"}`} · {info.you === "white" ? "blancs" : "noirs"}
+              {isBot ? (opp.elo === null ? "Partie d'évaluation" : "Partie d'entraînement") : `${opp.elo !== null ? `${opp.elo} · ` : ""}${info.rated ? "Classée" : "Amicale"}`} · {info.you === "white" ? "blancs" : "noirs"}
             </span>
           </span>
         </div>

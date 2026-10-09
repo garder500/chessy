@@ -328,6 +328,7 @@ impl App {
                 }
                 ClientMsg::ChallengeCancel => hub.challenge_cancel(player),
                 ClientMsg::SoloStart { elo, color } => hub.solo_start(player, elo, color),
+                ClientMsg::PlacementStart { color } => hub.placement_start(player, color),
                 ClientMsg::Spectate { game_id } => hub.spectate(player, &game_id),
                 ClientMsg::Unspectate => hub.unspectate(player),
             }
