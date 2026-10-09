@@ -157,7 +157,9 @@ pub fn new_game(loadouts: &Loadouts) -> Game {
 pub fn advance(game: &mut Game, action: Action) -> Result<Step, RuleError> {
     let before = game.pos.clone();
     let mover = game.side_to_move();
-    let events = game.apply(action)?;
+    let mut events = game.apply(action)?;
+    // As in the live game, Mind Reading's hint is the one the mover saw.
+    crate::hub::view::mask_best_move(game, mover, &mut events);
     let notation = match action {
         Action::Move { from, to, promo } => move_notation(
             &before,
@@ -362,7 +364,9 @@ pub fn explore(
     let mut game = new_game(loadouts);
     let mut events = Vec::new();
     for (i, &action) in actions[..ply].iter().enumerate() {
+        let mover = game.side_to_move();
         events = game.apply(action).map_err(|_| i)?;
+        crate::hub::view::mask_best_move(&game, mover, &mut events);
     }
     let mut notation = Vec::new();
     let mut error = None;

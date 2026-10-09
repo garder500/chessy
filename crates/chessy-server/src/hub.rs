@@ -9,7 +9,7 @@ mod moderation;
 mod social;
 mod solo;
 mod spectate;
-mod view;
+pub(crate) mod view;
 
 pub use spectate::{LiveGame, LiveSeat, SpectatorView, UsedSkills, MAX_SPECTATORS};
 

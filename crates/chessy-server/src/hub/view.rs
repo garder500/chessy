@@ -72,7 +72,7 @@ fn strip(pos: &mut Position, viewer: Color, hidden: &HashSet<PieceId>) {
 
 /// Mind Reading names the best move of the position the player sees: a
 /// search on the real one would point at hidden pieces and traps.
-pub(super) fn mask_best_move(game: &Game, mover: Color, events: &mut Vec<Event>) {
+pub(crate) fn mask_best_move(game: &Game, mover: Color, events: &mut Vec<Event>) {
     if !events.iter().any(|e| matches!(e, Event::BestMove { .. })) {
         return;
     }
