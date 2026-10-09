@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useT } from "../i18n";
 import { hrefFor, navigate, type Route } from "../router";
 import { store, type AppState } from "../store";
 
 /** Icônes des onglets : visibles seulement dans la barre du bas, sur téléphone. */
-const TABS: { name: Route["name"]; label: string; icon: string }[] = [
-  { name: "home", label: "Jouer", icon: "M8 5.5v13l10-6.5z" },
-  { name: "live", label: "En direct", icon: "M12 9.5a2.5 2.5 0 110 5 2.5 2.5 0 010-5zM7.5 7.5a6.4 6.4 0 000 9M16.5 7.5a6.4 6.4 0 010 9M4.6 4.6a10.5 10.5 0 000 14.8M19.4 4.6a10.5 10.5 0 010 14.8" },
-  { name: "ranking", label: "Classement", icon: "M4 20V11M10 20V5M16 20v-7M21 20H3" },
-  { name: "friends", label: "Amis", icon: "M9 4.5a3.5 3.5 0 110 7 3.5 3.5 0 010-7zM2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.8a3.5 3.5 0 010 6.4M18.5 14.8c1.6.8 2.6 2.5 3 5.2" },
-  { name: "collection", label: "Collection", icon: "M5 6h11v15H5zM8 3h11a1 1 0 011 1v14" },
+const TABS: { name: Route["name"]; icon: string }[] = [
+  { name: "home", icon: "M8 5.5v13l10-6.5z" },
+  { name: "live", icon: "M12 9.5a2.5 2.5 0 110 5 2.5 2.5 0 010-5zM7.5 7.5a6.4 6.4 0 000 9M16.5 7.5a6.4 6.4 0 010 9M4.6 4.6a10.5 10.5 0 000 14.8M19.4 4.6a10.5 10.5 0 010 14.8" },
+  { name: "ranking", icon: "M4 20V11M10 20V5M16 20v-7M21 20H3" },
+  { name: "friends", icon: "M9 4.5a3.5 3.5 0 110 7 3.5 3.5 0 010-7zM2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.8a3.5 3.5 0 010 6.4M18.5 14.8c1.6.8 2.6 2.5 3 5.2" },
+  { name: "collection", icon: "M5 6h11v15H5zM8 3h11a1 1 0 011 1v14" },
 ];
 
 const PHONE = "(max-width: 719px)";
@@ -25,8 +26,9 @@ function usePhone(): boolean {
 }
 
 export function Wordmark() {
+  const t = useT();
   return (
-    <a className="wordmark" href="#/" aria-label="Chessy, accueil">
+    <a className="wordmark" href="#/" aria-label={t("nav.wordmark")}>
       {/* Couronne « Crown5 » de Reicon (MIT) dans un cartouche à liseré d'accent. */}
       <span className="wordmark-mark" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="20" height="20" focusable="false" fill="currentColor">
@@ -44,6 +46,7 @@ export function initialOf(name: string | null | undefined): string {
 }
 
 export function NavBar({ state, route }: { state: AppState; route: Route["name"] }) {
+  const t = useT();
   const { account, friends } = state;
   const pending = friends.incoming.length;
   const activeTab =
@@ -53,7 +56,7 @@ export function NavBar({ state, route }: { state: AppState; route: Route["name"]
     <header className="nav">
       <div className="nav-in">
         <Wordmark />
-        <nav className="nav-tabs" aria-label="Navigation principale">
+        <nav className="nav-tabs" aria-label={t("nav.main")}>
           {TABS.map((tab) => (
             <a
               key={tab.name}
@@ -64,11 +67,11 @@ export function NavBar({ state, route }: { state: AppState; route: Route["name"]
               <svg className="nav-tab-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true" focusable="false">
                 <path d={tab.icon} />
               </svg>
-              {tab.label}
+              {t(`nav.tab.${tab.name}`)}
               {tab.name === "friends" && pending > 0 && (
                 <span className="nav-count">
                   {pending}
-                  <span className="sr-only"> demande{pending > 1 ? "s" : ""} d'ami en attente</span>
+                  <span className="sr-only"> {t("nav.pending", { count: pending })}</span>
                 </span>
               )}
             </a>
@@ -80,15 +83,15 @@ export function NavBar({ state, route }: { state: AppState; route: Route["name"]
           ) : (
             account && (
               <>
-                <a className="nav-gear" href={hrefFor({ name: "settings" })} aria-label="Réglages" title="Réglages">
+                <a className="nav-gear" href={hrefFor({ name: "settings" })} aria-label={t("nav.settings")} title={t("nav.settings")}>
                   <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="3.2" />
                     <path d="M12 2.8v2.6M12 18.6v2.6M4.2 7.4l2.2 1.3M17.6 15.3l2.2 1.3M4.2 16.6l2.2-1.3M17.6 8.7l2.2-1.3" />
                   </svg>
                 </a>
-                <span className="nav-guest muted">Invité</span>
+                <span className="nav-guest muted">{t("nav.guest")}</span>
                 <button type="button" className="btn sm" onClick={() => navigate({ name: "auth" })}>
-                  Se connecter
+                  {t("nav.login")}
                 </button>
               </>
             )
@@ -100,6 +103,7 @@ export function NavBar({ state, route }: { state: AppState; route: Route["name"]
 }
 
 function UserMenu({ username, elo }: { username: string; elo: number }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const phone = usePhone();
   const root = useRef<HTMLDivElement>(null);
@@ -123,7 +127,7 @@ function UserMenu({ username, elo }: { username: string; elo: number }) {
   // Téléphone : l'avatar ouvre directement le profil, qui regroupe réglages et déconnexion.
   if (phone) {
     return (
-      <a className="nav-avatar" href={hrefFor({ name: "profile", param: username })} aria-label={`Profil et réglages de ${username}`}>
+      <a className="nav-avatar" href={hrefFor({ name: "profile", param: username })} aria-label={t("nav.profileSettings", { name: username })}>
         <span className="avatar sm">{initialOf(username)}</span>
       </a>
     );
@@ -152,13 +156,13 @@ function UserMenu({ username, elo }: { username: string; elo: number }) {
             href={hrefFor({ name: "profile", param: username })}
             onClick={() => setOpen(false)}
           >
-            Profil
+            {t("nav.profile")}
           </a>
           <a role="menuitem" href={hrefFor({ name: "settings" })} onClick={() => setOpen(false)}>
-            Réglages
+            {t("nav.settings")}
           </a>
           <a role="menuitem" href={hrefFor({ name: "games" })} onClick={() => setOpen(false)}>
-            Mes parties
+            {t("nav.games")}
           </a>
           <button
             type="button"
@@ -169,7 +173,7 @@ function UserMenu({ username, elo }: { username: string; elo: number }) {
               navigate({ name: "home" });
             }}
           >
-            Déconnexion
+            {t("nav.logout")}
           </button>
         </div>
       )}

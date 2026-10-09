@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "../i18n";
 import { nextTier, pointsToNextTier, tierOf, tierProgress } from "./tier";
+
+beforeAll(() => setLang("fr"));
 
 describe("tierOf", () => {
   it.each([

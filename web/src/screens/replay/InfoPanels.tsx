@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 import type { BestMove, MoveInfo, PlyAnalysis } from "../../protocol";
 import { currentResponse, exploreErrorText, lineEntries, MAX_LINE, type ExploreState } from "../../replay/explore";
 import { bestMoveSentence, explainSentence, formatEval, type Subject } from "../../replay/labels";
@@ -21,6 +22,7 @@ interface MovePanelProps {
 
 /** Ce qui s'est passé au dernier coup : phrase « Vous avez joué X ; le meilleur coup était Y (+0,8) ». */
 export function MovePanel({ move, analysis, subject, evalCp, bestHere, showBest, onShowBest, onSeeAlternative }: MovePanelProps) {
+  const t = useT();
   const sentence = move ? bestMoveSentence(move, analysis, subject) : null;
   const why = move ? explainSentence(move, analysis) : null;
   const alternative = !!move && !!analysis && analysis.label !== "best" && !!analysis.best && analysis.best.notation !== move.notation;
@@ -28,7 +30,7 @@ export function MovePanel({ move, analysis, subject, evalCp, bestHere, showBest,
     <section className="gm-panel card rp-now" aria-labelledby="rp-now-h">
       <div className="gm-panel-head">
         <h2 id="rp-now-h" className="gm-h">
-          {move ? `Coup ${move.ply}` : "Position initiale"}
+          {move ? t("replay.move_heading", { ply: move.ply }) : t("replay.initial_position")}
         </h2>
         {analysis && <LabelChip label={analysis.label} />}
       </div>
@@ -39,27 +41,27 @@ export function MovePanel({ move, analysis, subject, evalCp, bestHere, showBest,
             <span className="muted"> · {COLOR_FR[move.color]}</span>
           </p>
         ) : (
-          <p className="muted">Avant le premier coup.</p>
+          <p className="muted">{t("replay.before_first")}</p>
         )}
         {sentence && <p className="rp-sentence">{sentence}</p>}
         {why && analysis && <p className={`rp-why rp-why-${analysis.label}`}>{why}</p>}
-        {!analysis && move && <p className="muted rp-help">Lancez l'analyse pour voir la qualité de ce coup.</p>}
+        {!analysis && move && <p className="muted rp-help">{t("replay.run_analysis_move")}</p>}
       </div>
       {alternative && (
         <button type="button" className="btn sm rp-wide" onClick={onSeeAlternative}>
-          Voir le meilleur coup sur l'échiquier
+          {t("replay.see_best")}
         </button>
       )}
       {evalCp !== null && (
         <p className="rp-eval">
-          Évaluation <strong className="mono">{formatEval(evalCp)}</strong> <span className="muted">(côté blancs)</span>
+          {t("replay.eval_label")} <strong className="mono">{formatEval(evalCp)}</strong> <span className="muted">{t("replay.eval_white_side")}</span>
         </p>
       )}
       {bestHere && (
         <label className="rp-check">
           <input type="checkbox" checked={showBest} onChange={(e) => onShowBest(e.target.checked)} />
           <span>
-            Flèche du meilleur coup ici : <strong className="mono">{bestHere.notation}</strong> <span className="muted">({formatEval(bestHere.eval_cp)})</span>
+            {t("replay.arrow_here")} <strong className="mono">{bestHere.notation}</strong> <span className="muted">({formatEval(bestHere.eval_cp)})</span>
           </span>
         </label>
       )}
@@ -77,6 +79,7 @@ interface ExplorePanelProps {
 
 /** Variation en cours d'exploration : coups joués, annulation, retour, évaluation et meilleur coup du moteur. */
 export function ExplorePanel({ state, pending, error, onUndo, onExit }: ExplorePanelProps) {
+  const t = useT();
   const res = currentResponse(state);
   const entries = lineEntries(state);
   const toMove = res.frame?.to_move ?? "white";
@@ -84,17 +87,17 @@ export function ExplorePanel({ state, pending, error, onUndo, onExit }: ExploreP
     <section className="gm-panel card rp-explore" aria-labelledby="rp-explore-h">
       <div className="gm-panel-head">
         <h2 id="rp-explore-h" className="gm-h">
-          Exploration
+          {t("replay.explore_heading")}
         </h2>
-        <span className="tag">Variation</span>
+        <span className="tag">{t("replay.variation_tag")}</span>
       </div>
       <p className="muted rp-help">
-        À partir du coup {state.ply}. Jouez des coups ou des compétences sur l'échiquier : la partie enregistrée n'est pas modifiée.
+        {t("replay.explore_help", { ply: state.ply })}
       </p>
 
-      <div className="rp-variation" aria-label="Variation jouée">
+      <div className="rp-variation" aria-label={t("replay.variation_aria")}>
         {entries.length === 0 ? (
-          <span className="muted">Aucun coup joué : c'est aux {COLOR_FR[toMove]} de jouer.</span>
+          <span className="muted">{t("replay.variation_empty", { color: COLOR_FR[toMove] })}</span>
         ) : (
           <ol className="rp-line-list">
             {entries.map((e) => (
@@ -110,20 +113,20 @@ export function ExplorePanel({ state, pending, error, onUndo, onExit }: ExploreP
 
       <div className="rp-eval-now" aria-live="polite">
         <p>
-          Évaluation <strong className="mono">{formatEval(res.eval_cp)}</strong> <span className="muted">(côté blancs)</span>
+          {t("replay.eval_label")} <strong className="mono">{formatEval(res.eval_cp)}</strong> <span className="muted">{t("replay.eval_white_side")}</span>
         </p>
         {res.best ? (
           <p>
-            Meilleur coup des {COLOR_FR[toMove]} : <strong className="mono">{res.best.notation}</strong> <span className="muted">({formatEval(res.best.eval_cp)})</span>
+            {t("replay.explore_best", { color: COLOR_FR[toMove] })} <strong className="mono">{res.best.notation}</strong> <span className="muted">({formatEval(res.best.eval_cp)})</span>
           </p>
         ) : (
-          <p className="muted">Aucun coup simple à proposer.</p>
+          <p className="muted">{t("replay.no_suggestion")}</p>
         )}
       </div>
 
       {pending && (
         <p className="muted" role="status">
-          Le moteur réfléchit…
+          {t("replay.thinking")}
         </p>
       )}
       {error && (
@@ -135,10 +138,10 @@ export function ExplorePanel({ state, pending, error, onUndo, onExit }: ExploreP
 
       <div className="gm-row">
         <button type="button" className="btn sm" onClick={onUndo} disabled={pending || state.line.length === 0}>
-          Annuler le dernier coup
+          {t("replay.undo_last")}
         </button>
         <button type="button" className="btn sm pri" onClick={onExit}>
-          Retour à la partie
+          {t("replay.back_to_game")}
         </button>
       </div>
     </section>

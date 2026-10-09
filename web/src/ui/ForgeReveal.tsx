@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { FAMILY_LABEL } from "../catalog";
+import { useT } from "../i18n";
 import { RARITIES, RARITY_LABEL } from "../forged";
 import { navigate } from "../router";
 import { skillInfo } from "../skills";
@@ -8,7 +9,6 @@ import { SkillArt } from "./SkillArt";
 import { tileRarity } from "./tileRarity";
 import "./forgeReveal.css";
 
-const SHORT: Record<string, string> = { common: "Commune", uncommon: "Peu commune", rare: "Rare", epic: "Épique", legendary: "Légendaire" };
 const STAGE_W = 390;
 const STAGE_H = 844;
 
@@ -52,6 +52,7 @@ const CONFETTI = Array.from({ length: 28 }, (_, i) => ({
  * apparaît. Dure environ 7 s ; « Passer » saute à la fin.
  */
 export function ForgeReveal({ skill }: { skill: string }) {
+  const t = useT();
   const info = skillInfo(skill);
   const rarity = tileRarity(skill);
   const idx = RARITIES.indexOf(rarity);
@@ -95,7 +96,7 @@ export function ForgeReveal({ skill }: { skill: string }) {
       <style>{scanKeyframes(idx)}</style>
       <div className="fr-stage">
         <div className="fr-ember" />
-        <p className="fr-cap">Le forgeron au travail</p>
+        <p className="fr-cap">{t("forge.smith_working")}</p>
 
         <div className="fr-shk">
           <div className="fr-rig">
@@ -164,13 +165,13 @@ export function ForgeReveal({ skill }: { skill: string }) {
         </div>
 
         <div className="fr-roll fx">
-          <p className="fr-roll-t">Rareté tirée par le forgeron</p>
+          <p className="fr-roll-t">{t("forge.rarity_drawn")}</p>
           <div className="fr-cells">
             <i className="fr-scan" />
             {RARITIES.map((r, i) => (
               <div key={r} className={`fr-cell r-${r}${i === idx ? " win" : ""}`}>
                 <span className="hexc fr-cell-hex" />
-                {SHORT[r]}
+                {RARITY_LABEL[r]}
               </div>
             ))}
           </div>
@@ -178,7 +179,7 @@ export function ForgeReveal({ skill }: { skill: string }) {
 
         <div className="fr-title fx">
           <h1>{RARITY_LABEL[rarity]}</h1>
-          <p>Nouvelle compétence · {FAMILY_LABEL[info.family]}</p>
+          <p>{t("forge.new_skill")} · {FAMILY_LABEL[info.family]}</p>
         </div>
 
         <div className="fr-cardwrap fx" style={{ "--fam": `var(--fam-${info.family})` } as CSSProperties}>
@@ -195,7 +196,7 @@ export function ForgeReveal({ skill }: { skill: string }) {
             {info.name}
           </h2>
           <p className="fr-desc">{info.description}</p>
-          {info.unique && <span className="fr-stamp fx">Unique au monde</span>}
+          {info.unique && <span className="fr-stamp fx">{t("forge.unique_world")}</span>}
         </div>
 
         {CONFETTI.map((c, i) => (
@@ -204,14 +205,14 @@ export function ForgeReveal({ skill }: { skill: string }) {
 
         <div className="fr-fin fx">
           <button type="button" className="btn pri block" onClick={() => close(true)}>
-            Ajouter à mon deck
+            {t("forge.add_to_deck")}
           </button>
           <button type="button" className="link" onClick={() => close(false)}>
-            Plus tard
+            {t("forge.later")}
           </button>
         </div>
         <button type="button" className="link fr-skip fx" onClick={() => setSkip(true)}>
-          Passer
+          {t("forge.skip")}
         </button>
       </div>
     </div>

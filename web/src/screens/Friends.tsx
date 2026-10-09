@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import { ChallengeSheet } from "../ui/ChallengeSheet";
 import { useEffect, useMemo, useState } from "react";
 import type { FriendInfo, UserResult } from "../protocol";
@@ -13,6 +14,7 @@ import { useProfile } from "../ui/useProfile";
 import "./friends.css";
 
 export function Friends() {
+  const t = useT();
   const { account, friends, connection } = useAppState();
   const guest = !account || account.guest;
 
@@ -20,14 +22,13 @@ export function Friends() {
     return (
       <main className="frd-page">
         <div className="card frd-guest">
-          <p className="eyebrow">Amis</p>
-          <h1>Les amis demandent un compte</h1>
+          <p className="eyebrow">{t("friends.guest_eyebrow")}</p>
+          <h1>{t("friends.guest_title")}</h1>
           <p className="muted">
-            Avec un compte, vous retrouvez vos amis, voyez qui est en ligne et pouvez les défier en un clic. Votre deck
-            d'invité est conservé à l'inscription.
+            {t("friends.guest_text")}
           </p>
           <a className="btn pri frd-guest-btn" href={hrefFor({ name: "auth" })}>
-            Créer un compte ou se connecter
+            {t("friends.guest_cta")}
           </a>
         </div>
       </main>
@@ -38,6 +39,7 @@ export function Friends() {
 }
 
 function FriendsBody({ online, friends }: { online: boolean; friends: ReturnType<typeof useAppState>["friends"] }) {
+  const t = useT();
   const sorted = useMemo(() => sortFriends(friends.friends), [friends.friends]);
   const [selected, setSelected] = useState<string | null>(null);
   const current = sorted.find((f) => f.username === selected) ?? sorted[0] ?? null;
@@ -45,20 +47,20 @@ function FriendsBody({ online, friends }: { online: boolean; friends: ReturnType
   return (
     <main className="frd-page">
       <header className="frd-head">
-        <p className="eyebrow">Social</p>
-        <h1 className="frd-title">Amis</h1>
+        <p className="eyebrow">{t("friends.eyebrow")}</p>
+        <h1 className="frd-title">{t("friends.title")}</h1>
       </header>
       {/* Téléphone : la liste, puis le détail de l'ami choisi à sa place, avec un retour vers la liste. */}
       <div className={`frd-grid${selected !== null && current ? " has-sel" : ""}`}>
-        <aside className="frd-side card" aria-label="Vos amis">
+        <aside className="frd-side card" aria-label={t("friends.aria_list")}>
           <AddFriend online={online} />
           <Requests incoming={friends.incoming} outgoing={friends.outgoing} online={online} />
           <section className="frd-sec" aria-labelledby="frd-list-h">
             <h2 id="frd-list-h" className="frd-sec-h">
-              Mes amis <span className="mono frd-count">{sorted.length}</span>
+              {t("friends.my_friends")} <span className="mono frd-count">{sorted.length}</span>
             </h2>
             {sorted.length === 0 ? (
-              <p className="frd-empty muted">Pas encore d'amis. Cherchez un pseudo ci-dessus pour envoyer une demande.</p>
+              <p className="frd-empty muted">{t("friends.empty")}</p>
             ) : (
               <ul className="frd-list">
                 {sorted.map((f) => (
@@ -75,20 +77,20 @@ function FriendsBody({ online, friends }: { online: boolean; friends: ReturnType
           </section>
         </aside>
 
-        <section className="frd-detail" aria-label="Profil de l'ami sélectionné">
+        <section className="frd-detail" aria-label={t("friends.aria_detail")}>
           {current ? (
             <>
               <button type="button" className="btn ghost sm frd-back" onClick={() => setSelected(null)}>
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" focusable="false">
                   <path d="M15 5l-7 7 7 7" />
                 </svg>
-                Mes amis
+                {t("friends.my_friends")}
               </button>
               <Detail key={current.username} friend={current} online={online} />
             </>
           ) : (
             <div className="card frd-placeholder">
-              <p className="muted">Sélectionnez un ami pour voir ses statistiques et le défier.</p>
+              <p className="muted">{t("friends.select_hint")}</p>
             </div>
           )}
         </section>
@@ -100,6 +102,7 @@ function FriendsBody({ online, friends }: { online: boolean; friends: ReturnType
 // ---- recherche / ajout --------------------------------------------------------
 
 function AddFriend({ online }: { online: boolean }) {
+  const t = useT();
   const { userResults } = useAppState();
   const [query, setQuery] = useState("");
   const [sent, setSent] = useState<Set<string>>(new Set());
@@ -108,8 +111,8 @@ function AddFriend({ online }: { online: boolean }) {
 
   useEffect(() => {
     if (!active) return;
-    const t = setTimeout(() => store.send({ type: "user_search", query: q }), 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => store.send({ type: "user_search", query: q }), 300);
+    return () => clearTimeout(timer);
   }, [q, active]);
 
   const fresh = active && userResults && userResults.query.trim().toLowerCase() === q.toLowerCase();
@@ -126,16 +129,16 @@ function AddFriend({ online }: { online: boolean }) {
   return (
     <section className="frd-sec" aria-labelledby="frd-add-h">
       <h2 id="frd-add-h" className="frd-sec-h">
-        Ajouter par pseudo
+        {t("friends.add_title")}
       </h2>
       <label className="frd-sr" htmlFor="frd-search">
-        Pseudo à rechercher
+        {t("friends.search_label")}
       </label>
       <input
         id="frd-search"
         className="input frd-search"
         type="search"
-        placeholder="Rechercher un pseudo…"
+        placeholder={t("friends.search_placeholder")}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         autoComplete="off"
@@ -145,9 +148,9 @@ function AddFriend({ online }: { online: boolean }) {
         aria-describedby="frd-search-status"
       />
       <div id="frd-search-status" aria-live="polite" className="frd-search-status">
-        {query && !active && <p className="frd-hint">Saisissez au moins 2 caractères.</p>}
-        {active && !users && <p className="frd-hint">Recherche…</p>}
-        {users && users.length === 0 && <p className="frd-hint">Aucun joueur ne commence par « {q} ».</p>}
+        {query && !active && <p className="frd-hint">{t("friends.search_min")}</p>}
+        {active && !users && <p className="frd-hint">{t("friends.searching")}</p>}
+        {users && users.length === 0 && <p className="frd-hint">{t("friends.no_match", { q })}</p>}
       </div>
       {users && users.length > 0 && (
         <ul className="frd-results">
@@ -164,11 +167,11 @@ function AddFriend({ online }: { online: boolean }) {
                 </span>
                 {relation === "none" ? (
                   <button type="button" className="btn sm" onClick={() => request(u)} disabled={!online}>
-                    Ajouter
+                    {t("friends.add")}
                   </button>
                 ) : relation === "incoming" ? (
                   <button type="button" className="btn sm" onClick={() => accept(u)} disabled={!online}>
-                    Accepter
+                    {t("friends.accept")}
                   </button>
                 ) : (
                   <span className="tag">{RELATION_LABEL[relation]}</span>
@@ -193,11 +196,12 @@ function Requests({
   outgoing: { username: string }[];
   online: boolean;
 }) {
+  const t = useT();
   if (incoming.length === 0 && outgoing.length === 0) return null;
   return (
     <section className="frd-sec" aria-labelledby="frd-req-h">
       <h2 id="frd-req-h" className="frd-sec-h">
-        Demandes <span className="mono frd-count">{incoming.length + outgoing.length}</span>
+        {t("friends.requests")} <span className="mono frd-count">{incoming.length + outgoing.length}</span>
       </h2>
       <ul className="frd-list">
         {incoming.map((r) => (
@@ -215,18 +219,18 @@ function Requests({
                 className="btn sm"
                 onClick={() => store.send({ type: "friend_respond", username: r.username, accept: true })}
                 disabled={!online}
-                aria-label={`Accepter la demande de ${r.username}`}
+                aria-label={t("friends.accept_request_aria", { name: r.username })}
               >
-                Accepter
+                {t("friends.accept")}
               </button>
               <button
                 type="button"
                 className="btn sm ghost"
                 onClick={() => store.send({ type: "friend_respond", username: r.username, accept: false })}
                 disabled={!online}
-                aria-label={`Refuser la demande de ${r.username}`}
+                aria-label={t("friends.decline_request_aria", { name: r.username })}
               >
-                Refuser
+                {t("friends.decline")}
               </button>
             </span>
           </li>
@@ -237,7 +241,7 @@ function Requests({
             <span className="frd-who">
               <span className="frd-name">{r.username}</span>
             </span>
-            <span className="tag">En attente</span>
+            <span className="tag">{t("friends.pending")}</span>
           </li>
         ))}
       </ul>
@@ -248,6 +252,7 @@ function Requests({
 // ---- liste ---------------------------------------------------------------------
 
 function FriendRow({ friend: f, active, onSelect }: { friend: FriendInfo; active: boolean; onSelect: () => void }) {
+  useT();
   return (
     <button type="button" className={`frd-row${active ? " on" : ""}`} onClick={onSelect} aria-pressed={active}>
       <span className="frd-av">
@@ -266,6 +271,7 @@ function FriendRow({ friend: f, active, onSelect }: { friend: FriendInfo; active
 // ---- détail --------------------------------------------------------------------
 
 function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
+  const t = useT();
   const { outgoingChallenge } = useAppState();
   const { state, reload } = useProfile(friend.username);
   const [confirming, setConfirming] = useState(false);
@@ -276,11 +282,11 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
   const canChallenge = online && friend.presence === "online" && !outgoingChallenge;
   const why =
     friend.presence === "in_game"
-      ? `${friend.username} est en partie.`
+      ? t("friends.why_in_game", { name: friend.username })
       : friend.presence === "offline"
-        ? `${friend.username} est hors ligne.`
+        ? t("friends.why_offline", { name: friend.username })
         : otherPending
-          ? "Un autre défi est déjà en attente."
+          ? t("friends.why_other_pending")
           : "";
 
   return (
@@ -300,20 +306,20 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
           {pending ? (
             <>
               <button type="button" className="btn pri" disabled>
-                Défi envoyé
+                {t("friends.challenge_sent")}
               </button>
               <button type="button" className="btn ghost" onClick={() => store.cancelChallenge()}>
-                Annuler
+                {t("friends.cancel")}
               </button>
             </>
           ) : (
             <>
               <button type="button" className="btn pri" disabled={!canChallenge} onClick={() => setSheet(true)}>
-                Défier
+                {t("friends.challenge")}
               </button>
               {friend.presence === "in_game" && friend.game_id && (
                 <a className="btn" href={hrefFor({ name: "watch", param: friend.game_id })}>
-                  Regarder
+                  {t("friends.watch")}
                 </a>
               )}
             </>
@@ -322,34 +328,34 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
       </div>
       {why && !pending && <p className="frd-why muted">{why}</p>}
 
-      {state.status === "loading" && <div className="frd-skel" aria-busy="true" aria-label="Chargement du profil" />}
+      {state.status === "loading" && <div className="frd-skel" aria-busy="true" aria-label={t("friends.loading_profile")} />}
       {state.status === "error" && (
         <div className="frd-err" role="alert">
           <p>{state.message}</p>
           <button type="button" className="btn sm" onClick={reload}>
-            Réessayer
+            {t("friends.retry")}
           </button>
         </div>
       )}
-      {state.status === "notfound" && <p className="muted">Ce profil n'est plus disponible.</p>}
+      {state.status === "notfound" && <p className="muted">{t("friends.profile_gone")}</p>}
       {state.status === "ready" && (
         <>
           <div className="frd-stats">
             <StatTile label="Elo" value={state.profile.elo} />
-            <StatTile label="Parties" value={state.profile.games} />
+            <StatTile label={t("friends.stat_games")} value={state.profile.games} />
             <StatTile
-              label="Victoires"
+              label={t("friends.stat_wins")}
               value={winRate(state.profile.wins, state.profile.games) === null ? "—" : `${winRate(state.profile.wins, state.profile.games)} %`}
-              hint={`${state.profile.wins} V · ${state.profile.draws} N · ${state.profile.losses} D`}
+              hint={t("friends.record_hint", { w: state.profile.wins, d: state.profile.draws, l: state.profile.losses })}
             />
-            <StatTile label="Rang" value={state.profile.rank ? `#${state.profile.rank}` : "—"} />
+            <StatTile label={t("friends.stat_rank")} value={state.profile.rank ? `#${state.profile.rank}` : "—"} />
           </div>
-          <h3 className="frd-sub-h">Évolution de l'Elo</h3>
+          <h3 className="frd-sub-h">{t("friends.elo_history")}</h3>
           <EloChart history={state.profile.history} />
-          <h3 className="frd-sub-h">Dernières parties</h3>
+          <h3 className="frd-sub-h">{t("friends.recent_games")}</h3>
           <RecentGames games={state.profile.recent} limit={5} />
           <a className="frd-full" href={hrefFor({ name: "profile", param: friend.username })}>
-            Voir le profil complet
+            {t("friends.full_profile")}
           </a>
         </>
       )}
@@ -358,8 +364,8 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
 
       <div className="frd-remove">
         {confirming ? (
-          <div className="frd-confirm" role="alertdialog" aria-label={`Retirer ${friend.username}`}>
-            <span>Retirer {friend.username} de vos amis ?</span>
+          <div className="frd-confirm" role="alertdialog" aria-label={t("friends.remove_aria", { name: friend.username })}>
+            <span>{t("friends.remove_confirm", { name: friend.username })}</span>
             <button
               type="button"
               className="btn sm danger"
@@ -370,15 +376,15 @@ function Detail({ friend, online }: { friend: FriendInfo; online: boolean }) {
               disabled={!online}
               autoFocus
             >
-              Confirmer
+              {t("friends.confirm")}
             </button>
             <button type="button" className="btn sm ghost" onClick={() => setConfirming(false)}>
-              Annuler
+              {t("friends.cancel")}
             </button>
           </div>
         ) : (
           <button type="button" className="btn sm ghost danger" onClick={() => setConfirming(true)} disabled={!online}>
-            Retirer
+            {t("friends.remove")}
           </button>
         )}
         {!confirming && <ModerationActions username={friend.username} />}

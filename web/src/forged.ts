@@ -2,19 +2,18 @@
 // (nom, description, famille, rareté, icône, son). Ce module les garde en mémoire, repère les identifiants
 // inconnus dans ce que le client reçoit et va chercher leur définition (`GET /api/skills/forged`).
 import type { Family } from "./catalog";
+import { t } from "./i18n";
 import type { ForgedSkillId } from "./protocol";
 
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
 export const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
 
-export const RARITY_LABEL: Record<Rarity, string> = {
-  common: "Commune",
-  uncommon: "Peu commune",
-  rare: "Rare",
-  epic: "Épique",
-  legendary: "Légendaire",
-};
+/** Libellé de chaque rareté, traduit à chaque lecture (propriétés dynamiques). */
+export const RARITY_LABEL: Record<Rarity, string> = Object.defineProperties(
+  {} as Record<Rarity, string>,
+  Object.fromEntries(RARITIES.map((r) => [r, { enumerable: true, get: () => t(`forge.rarity_${r}`) }])),
+);
 
 /** Ce que le client dessine pour l'icône (voir `ui/ForgedArt.tsx`). */
 export interface IconSpec {

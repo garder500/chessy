@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
 import type { Color, EloChange, Outcome, PlacementView } from "../../protocol";
+import { useT } from "../../i18n";
 import { formatDelta, resultFor, resultHeadline } from "../../outcome";
 import { navigate } from "../../router";
 import { store } from "../../store";
@@ -30,6 +31,7 @@ interface Props {
 
 /** Fin de partie plein écran : la pièce sous le faisceau, le titre, l'Elo, puis l'étape suivante (récompense, revanche, analyse). */
 export function Result({ outcome, you, rated, solo = false, elo, placement = null, rematch, reward, gameId, onReward, onHide }: Props) {
+  const t = useT();
   const { title, reason } = resultHeadline(outcome, you);
   const result = resultFor(outcome, you);
   const delta = elo ? elo.you_after - elo.you_before : null;
@@ -39,7 +41,7 @@ export function Result({ outcome, you, rated, solo = false, elo, placement = nul
   }, []);
 
   const placementLeft = placement ? placement.total - placement.done : 0;
-  const cadence = placement ? `Évaluation · ${placement.done}/${placement.total}` : solo ? "Entraînement" : `${rated ? "Classée" : "Amicale"} · 10 min`;
+  const cadence = placement ? t("game.cad_placement", { done: placement.done, total: placement.total }) : solo ? t("game.mode_training") : t(rated ? "game.cad_rated" : "game.cad_friendly");
   const leave = () => store.leaveGame();
   const analyse = (sub?: "analyse") => {
     store.leaveGame();
@@ -51,7 +53,7 @@ export function Result({ outcome, you, rated, solo = false, elo, placement = nul
       {result === "win" && !solo && <Confetti />}
       {result !== "loss" && <Beam width={560} height={470} />}
       <header className="rs-top">
-        <button type="button" className="rs-x" aria-label="Fermer et revenir à l'accueil" onClick={leave}>
+        <button type="button" className="rs-x" aria-label={t("game.close_home_aria")} onClick={leave}>
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
@@ -76,11 +78,11 @@ export function Result({ outcome, you, rated, solo = false, elo, placement = nul
             placement.elo != null ? (
               <span className="card rs-elo">
                 <CountUp className="num rs-elo-n" to={placement.elo} />
-                <span className="rs-delta">Elo estimé</span>
+                <span className="rs-delta">{t("game.elo_estimated")}</span>
               </span>
             ) : (
               <span className="muted rs-none">
-                Partie d'évaluation {placement.done}/{placement.total} : l'Elo de l'adversaire reste caché, votre Elo sera estimé après la dernière.
+                {t("game.placement_hidden", { done: placement.done, total: placement.total })}
               </span>
             )
           ) : !solo && rated && elo && delta !== null ? (
@@ -90,70 +92,70 @@ export function Result({ outcome, you, rated, solo = false, elo, placement = nul
             </span>
           ) : (
             <span className="muted rs-none">
-              {solo ? "Partie d'entraînement : ni Elo ni récompense en jeu." : rated ? "Partie classée non comptabilisée : ni Elo ni récompense." : "Partie amicale : ni Elo ni récompense en jeu."}
+              {t(solo ? "game.none_solo" : rated ? "game.none_rated" : "game.none_friendly")}
             </span>
           )}
           {reward && (
             <span className="card rs-reward">
               <span className="hex" style={{ width: 22, height: 25, background: "var(--rar-legendary)" }} aria-hidden="true" />
-              Récompense à choisir
+              {t("game.reward_pending")}
             </span>
           )}
         </div>
-        {result === "loss" && rated && !solo && <p className="muted rs-lost">Battez votre adversaire en classée pour reprendre une compétence perdue.</p>}
+        {result === "loss" && rated && !solo && <p className="muted rs-lost">{t("game.lost_hint")}</p>}
 
         <div className="rs-act">
           {reward && (
             <button type="button" className="btn pri block" onClick={onReward}>
-              Choisir ma récompense
+              {t("game.choose_reward")}
             </button>
           )}
           {placement ? (
             <div className="rs-pair">
               {placementLeft > 0 && (
                 <button type="button" className="btn pri" onClick={() => store.startPlacement()}>
-                  Partie suivante
+                  {t("game.next_game")}
                 </button>
               )}
               <button type="button" className={`btn${placementLeft > 0 ? "" : " pri"}`} onClick={() => analyse("analyse")}>
-                Analyser
+                {t("game.analyse")}
               </button>
             </div>
           ) : rematch === "received" ? (
             <>
-              <p className="rs-msg">L'adversaire propose une revanche.</p>
+              <p className="rs-msg">{t("game.rematch_received")}</p>
               <div className="rs-pair">
                 <button type="button" className="btn pri" onClick={() => store.respondRematch(true)}>
-                  Accepter
+                  {t("game.accept")}
                 </button>
                 <button type="button" className="btn" onClick={() => store.respondRematch(false)}>
-                  Refuser
+                  {t("game.decline")}
                 </button>
               </div>
             </>
           ) : (
             <div className="rs-pair">
               <button type="button" className={`btn${reward ? "" : " pri"}`} disabled={rematch === "offered"} onClick={() => store.requestRematch()}>
-                {rematch === "offered" ? (solo ? "Nouvelle partie…" : "Revanche proposée…") : "Revanche"}
+                {rematch === "offered" ? (solo ? t("game.rematch_new") : t("game.rematch_offered")) : t("game.rematch")}
               </button>
               <button type="button" className="btn" onClick={() => analyse("analyse")}>
-                Analyser
+                {t("game.analyse")}
               </button>
             </div>
           )}
           <div className="rs-links">
             <button type="button" className="link" onClick={onHide}>
-              Revoir le plateau
+              {t("game.review_board")}
             </button>
             <span aria-hidden="true">·</span>
             <button type="button" className="link" onClick={() => analyse()}>
-              Revoir la partie
+              {t("game.review_game")}
             </button>
             <span aria-hidden="true" className="rs-home-sep">
               ·
             </span>
             <button type="button" className="link rs-home" onClick={leave}>
-              Retour à l'accueil
+              {t("game.go_home")}
             </button>
           </div>
         </div>

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "../i18n";
 import type { Action, ExploreResponse } from "../protocol";
 import {
   beginExplore,
@@ -22,6 +23,8 @@ function respond(ply: number, notation: string[], over: Partial<ExploreResponse>
   const base = fixtureExplore(record, ply + notation.length, notation);
   return { ...base, ...over };
 }
+
+beforeAll(() => setLang("fr"));
 
 describe("exploration : départ", () => {
   it("démarre avec la position de départ", () => {

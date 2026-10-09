@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, gameErrorText } from "../api";
+import { useT } from "../i18n";
 import type { GameSummary } from "../protocol";
 import {
   countByFilter,
@@ -13,7 +14,7 @@ import {
   showsDelta,
   type GamesFilter,
 } from "../replay/lists";
-import { kindLabel } from "../replay/frames";
+import { colorCap, kindLabel } from "../replay/frames";
 import { hrefFor } from "../router";
 import { readToken, useAppState } from "../store";
 import { formatDelta, reasonText, relativeTime, RESULT_LABEL } from "../ui/social";
@@ -23,6 +24,7 @@ type Status = "loading" | "ready" | "error";
 
 /** Page `#/games` : mes parties terminées, paginées, avec accès au replay et à l'analyse. */
 export function Games() {
+  const t = useT();
   const { account } = useAppState();
   const accountId = account?.player_id ?? null;
   const guest = account?.guest ?? false;
@@ -75,10 +77,10 @@ export function Games() {
     <main className="lv-page">
       <header className="lv-head">
         <div>
-          <p className="eyebrow">Historique</p>
-          <h1 className="lv-title">Mes parties</h1>
+          <p className="eyebrow">{t("games.eyebrow")}</p>
+          <h1 className="lv-title">{t("games.title")}</h1>
         </div>
-        <div className="seg lv-filter" role="group" aria-label="Filtrer les parties">
+        <div className="seg lv-filter" role="group" aria-label={t("games.filter_aria")}>
           {GAMES_FILTERS.map((f) => (
             <button key={f.id} type="button" className={filter === f.id ? "on" : undefined} aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
               {f.label}
@@ -90,14 +92,14 @@ export function Games() {
 
       {guest && (
         <p className="lv-warn" role="note">
-          Vous jouez en invité. <a href={hrefFor({ name: "auth" })}>Créez un compte</a> pour retrouver vos parties sur tous vos appareils.
+          {t("games.guest_before")} <a href={hrefFor({ name: "auth" })}>{t("games.guest_link")}</a> {t("games.guest_after")}
         </p>
       )}
 
       {(accountId === null || status === "loading") && (
         <div className="lv-state card" role="status" aria-live="polite">
           <span className="rp-spinner" aria-hidden="true" />
-          <p>Chargement de vos parties…</p>
+          <p>{t("games.loading")}</p>
         </div>
       )}
 
@@ -105,7 +107,7 @@ export function Games() {
         <div className="lv-state card" role="alert">
           <p>{error}</p>
           <button type="button" className="btn" onClick={() => void load(0)}>
-            Réessayer
+            {t("games.retry")}
           </button>
         </div>
       )}
@@ -117,12 +119,12 @@ export function Games() {
               <p>{emptyGamesText(filter, games.length)}</p>
               {games.length === 0 && (
                 <a className="btn" href="#/">
-                  Jouer une partie
+                  {t("games.play")}
                 </a>
               )}
             </div>
           ) : (
-            <ul className="gl-list card" aria-label="Parties terminées">
+            <ul className="gl-list card" aria-label={t("games.list_aria")}>
               {shown.map((g) => (
                 <GameRow key={g.game_id} game={g} />
               ))}
@@ -136,11 +138,11 @@ export function Games() {
           )}
           <div className="gl-foot">
             <span className="muted" aria-live="polite">
-              {games.length} sur {total} partie{total > 1 ? "s" : ""} chargée{games.length > 1 ? "s" : ""}
+              {t("games.loaded", { loaded: games.length, count: total })}
             </span>
             {canMore && (
               <button type="button" className="btn" disabled={more} onClick={() => void load(games.length)}>
-                {more ? "Chargement…" : "Charger plus"}
+                {t(more ? "games.loading_more" : "games.load_more")}
               </button>
             )}
           </div>
@@ -151,32 +153,33 @@ export function Games() {
 }
 
 function GameRow({ game: g }: { game: GameSummary }) {
+  const t = useT();
   const opponent = opponentLabel(g);
   return (
     <li className={`gl-row ${g.result}`}>
       <span className={`gl-result ${g.result}`}>{RESULT_LABEL[g.result]}</span>
       <span className="gl-main">
         <span className="gl-opp">
-          contre <strong>{opponent}</strong>
+          {t("games.vs")} <strong>{opponent}</strong>
         </span>
         <span className="gl-meta">
-          {reasonText(g.reason, g.result)} · {g.color === "white" ? "Blancs" : "Noirs"} · {g.plies} coup{g.plies > 1 ? "s" : ""} · {relativeTime(g.at)}
+          {reasonText(g.reason, g.result)} · {colorCap(g.color)} · {t("games.plies", { count: g.plies })} · {relativeTime(g.at)}
         </span>
       </span>
       <span className="gl-side">
         <span className="tag">{kindLabel(g.kind, g.rated)}</span>
         {showsDelta(g) && (
-          <span className={`gl-delta mono ${(g.elo_delta ?? 0) > 0 ? "up" : (g.elo_delta ?? 0) < 0 ? "down" : ""}`} aria-label={`Variation d'Elo ${formatDelta(g.elo_delta)}`}>
+          <span className={`gl-delta mono ${(g.elo_delta ?? 0) > 0 ? "up" : (g.elo_delta ?? 0) < 0 ? "down" : ""}`} aria-label={t("games.delta_aria", { delta: formatDelta(g.elo_delta) })}>
             {formatDelta(g.elo_delta)}
           </span>
         )}
       </span>
       <span className="gl-actions">
-        <a className="btn sm" href={hrefFor({ name: "replay", param: g.game_id })} aria-label={`Revoir la partie contre ${opponent}`}>
-          Revoir
+        <a className="btn sm" href={hrefFor({ name: "replay", param: g.game_id })} aria-label={t("games.review_aria", { opponent })}>
+          {t("games.review")}
         </a>
-        <a className="btn sm ghost" href={hrefFor({ name: "replay", param: g.game_id, sub: "analyse" })} aria-label={`Analyser la partie contre ${opponent}`}>
-          Analyser
+        <a className="btn sm ghost" href={hrefFor({ name: "replay", param: g.game_id, sub: "analyse" })} aria-label={t("games.analyse_aria", { opponent })}>
+          {t("games.analyse")}
         </a>
       </span>
     </li>

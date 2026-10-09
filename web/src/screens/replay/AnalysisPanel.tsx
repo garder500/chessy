@@ -1,5 +1,6 @@
+import { useT } from "../../i18n";
 import type { Analysis, Color, GameRecord } from "../../protocol";
-import { seatName } from "../../replay/frames";
+import { COLOR_FR, colorCap, seatName } from "../../replay/frames";
 import { formatAccuracy, LABEL_MEANING, LABEL_ORDER, LABEL_SHORT, summarySentence } from "../../replay/labels";
 import { LabelChip } from "./MoveList";
 
@@ -21,10 +22,11 @@ interface Props {
 }
 
 function DepthPicker({ depth, onDepth, disabled }: { depth: number; onDepth: (d: number) => void; disabled?: boolean }) {
+  const t = useT();
   return (
     <div className="rp-depth">
       <span className="field-label" id="rp-depth-l">
-        Profondeur
+        {t("replay.depth")}
       </span>
       <div className="seg" role="group" aria-labelledby="rp-depth-l">
         {DEPTHS.map((d) => (
@@ -39,12 +41,12 @@ function DepthPicker({ depth, onDepth, disabled }: { depth: number; onDepth: (d:
 
 /** Lexique : ce que veulent dire les étiquettes et comment la perte se mesure. */
 function Legend() {
+  const t = useT();
   return (
     <details className="rp-legend">
-      <summary>Que signifient ces étiquettes ?</summary>
+      <summary>{t("replay.legend_summary")}</summary>
       <p className="muted rp-help">
-        Le moteur compare chaque coup au meilleur coup possible. L'écart se compte en pions : un pion d'avantage vaut 1,0. Plus l'écart est grand, plus
-        l'étiquette est sévère.
+        {t("replay.legend_intro")}
       </p>
       <ul className="rp-legend-list">
         {LABEL_ORDER.map((label) => (
@@ -59,18 +61,20 @@ function Legend() {
 }
 
 function AccuracyTile({ color, name, value }: { color: Color; name: string; value: number }) {
+  const t = useT();
   return (
     <div className="rp-acc">
       <span className={`rp-dot ${color}`} aria-hidden="true" />
       <span className="rp-acc-name">{name}</span>
       <strong className="mono rp-acc-val">{formatAccuracy(value)}</strong>
-      <span className="sr-only">de précision pour les {color === "white" ? "blancs" : "noirs"}</span>
+      <span className="sr-only">{t("replay.accuracy_sr", { color: COLOR_FR[color] })}</span>
     </div>
   );
 }
 
 /** Lancement de l'analyse, état de chargement/erreur, précision des joueurs et résumé par étiquette. */
 export function AnalysisPanel({ record, state, depth, onDepth, onAnalyse, onCancel }: Props) {
+  const t = useT();
   const white = seatName(record.white);
   const black = seatName(record.black);
   const noMoves = record.plies === 0;
@@ -79,20 +83,20 @@ export function AnalysisPanel({ record, state, depth, onDepth, onAnalyse, onCanc
     <section className="gm-panel card rp-analysis" aria-labelledby="rp-analysis-h">
       <div className="gm-panel-head">
         <h2 id="rp-analysis-h" className="gm-h">
-          Analyse
+          {t("replay.analysis_heading")}
         </h2>
-        {state.status === "ready" && <span className="mono muted">profondeur {state.data.depth}</span>}
+        {state.status === "ready" && <span className="mono muted">{t("replay.depth_value", { depth: state.data.depth })}</span>}
       </div>
 
       {state.status === "loading" && (
         <div className="rp-loading" role="status" aria-live="polite">
           <span className="rp-spinner" aria-hidden="true" />
           <div>
-            <strong>Analyse en cours…</strong>
-            <p className="muted">Le moteur évalue chaque coup, jusqu'à 25 secondes.</p>
+            <strong>{t("replay.analysing")}</strong>
+            <p className="muted">{t("replay.analysing_sub")}</p>
           </div>
           <button type="button" className="btn sm ghost" onClick={onCancel}>
-            Annuler
+            {t("replay.cancel")}
           </button>
         </div>
       )}
@@ -105,30 +109,30 @@ export function AnalysisPanel({ record, state, depth, onDepth, onAnalyse, onCanc
 
       {(state.status === "idle" || state.status === "error") && (
         <>
-          {state.status === "idle" && <p className="muted rp-help">Le moteur note chaque coup (meilleur, bon, imprécision, erreur, gaffe) et calcule la précision de chaque joueur.</p>}
+          {state.status === "idle" && <p className="muted rp-help">{t("replay.analysis_intro")}</p>}
           <Legend />
           <DepthPicker depth={depth} onDepth={onDepth} />
           <button type="button" className="btn pri rp-wide" onClick={onAnalyse} disabled={noMoves}>
-            {state.status === "error" ? "Réessayer l'analyse" : "Analyser la partie"}
+            {t(state.status === "error" ? "replay.retry_analysis" : "replay.analyse_game")}
           </button>
         </>
       )}
 
       {state.status === "ready" && (
         <>
-          <div className="rp-accs" role="group" aria-label="Précision des joueurs">
+          <div className="rp-accs" role="group" aria-label={t("replay.accuracy_group")}>
             <AccuracyTile color="white" name={white} value={state.data.accuracy.white} />
             <AccuracyTile color="black" name={black} value={state.data.accuracy.black} />
           </div>
           <table className="rp-sum">
-            <caption className="sr-only">Nombre de coups par étiquette et par camp</caption>
+            <caption className="sr-only">{t("replay.summary_caption")}</caption>
             <thead>
               <tr>
                 <th scope="col">
-                  <span className="sr-only">Étiquette</span>
+                  <span className="sr-only">{t("replay.label_col")}</span>
                 </th>
-                <th scope="col">Blancs</th>
-                <th scope="col">Noirs</th>
+                <th scope="col">{colorCap("white")}</th>
+                <th scope="col">{colorCap("black")}</th>
               </tr>
             </thead>
             <tbody>
@@ -145,15 +149,16 @@ export function AnalysisPanel({ record, state, depth, onDepth, onAnalyse, onCanc
             </tbody>
           </table>
           <p className="muted rp-help">
-            {white} : {summarySentence(state.data.summary.white)}.<br />
-            {black} : {summarySentence(state.data.summary.black)}.
+            {t("replay.player_summary", { name: white, summary: summarySentence(state.data.summary.white) })}
+            <br />
+            {t("replay.player_summary", { name: black, summary: summarySentence(state.data.summary.black) })}
           </p>
           <Legend />
           <details className="rp-redo">
-            <summary>Relancer à une autre profondeur</summary>
+            <summary>{t("replay.redo_summary")}</summary>
             <DepthPicker depth={depth} onDepth={onDepth} />
             <button type="button" className="btn sm rp-wide" onClick={onAnalyse}>
-              Réanalyser
+              {t("replay.reanalyse")}
             </button>
           </details>
         </>

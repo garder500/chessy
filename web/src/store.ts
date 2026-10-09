@@ -17,6 +17,7 @@ import type {
   StateView,
   UserResult,
 } from "./protocol";
+import { t } from "./i18n";
 import { forgedVersion, isForgedId, loadForged, noticeForged, onForgedChange } from "./forged";
 import { skillName } from "./skills";
 import { sfx } from "./sound";
@@ -156,54 +157,32 @@ const initial: AppState = {
   spectating: null,
 };
 
-const ERROR_TEXT: Record<string, string> = {
-  not_your_turn: "Ce n'est pas votre tour.",
-  illegal_action: "Action impossible.",
-  no_such_room: "Cette salle n'existe pas.",
-  own_room: "Vous ne pouvez pas rejoindre votre propre salle.",
-  already_in_game: "Vous êtes déjà dans une partie.",
-  invalid_deck: "Sélection de compétences invalide.",
-  replaced: "Ce compte s'est connecté depuis un autre onglet.",
-  session_revoked: "Votre session a pris fin : vous êtes repassé en invité.",
-  flooded: "Connexion coupée : trop de messages envoyés.",
-  queue_full: "La file classée est pleine, réessayez dans un instant.",
-  rooms_full: "Trop de salles ouvertes, réessayez dans un instant.",
-  account_required: "Un compte est nécessaire pour cette action.",
-  spectate_full: "Cette partie a atteint son maximum de spectateurs.",
-  no_such_game: "Cette partie n'existe pas ou est terminée.",
-  invalid_target: "Action impossible sur votre propre compte.",
-  blocked: "Vous avez bloqué ce joueur : débloquez-le d'abord.",
-  block_list_full: "Votre liste de joueurs bloqués est pleine.",
-};
+/** Erreurs serveur ayant un texte traduit (`errors.<code>`) ; les autres affichent le message brut du serveur. */
+const KNOWN_ERRORS = new Set([
+  "not_your_turn", "illegal_action", "no_such_room", "own_room", "already_in_game", "invalid_deck", "replaced",
+  "session_revoked", "flooded", "queue_full", "rooms_full", "account_required", "spectate_full", "no_such_game",
+  "invalid_target", "blocked", "block_list_full",
+]);
+const errorText = (code: string, fallback: string) => (KNOWN_ERRORS.has(code) ? t(`errors.${code}`) : fallback);
 
-/** Texte français d'une notice serveur. */
+/** Texte d'une notice serveur, dans la langue courante. */
 export function noticeText(code: NoticeCode, username?: string): string {
-  const who = username ?? "Ce joueur";
+  const name = username ?? t("notice.someone");
   switch (code) {
     case "friend_request_received":
-      return `${who} vous a envoyé une demande d'ami.`;
     case "friend_accepted":
-      return `${who} est maintenant votre ami.`;
     case "friend_removed":
-      return `${who} a été retiré de vos amis.`;
     case "challenge_declined":
-      return `${who} a refusé votre défi.`;
     case "challenge_expired":
-      return "Le défi a expiré.";
     case "challenge_cancelled":
-      return `${who} a annulé son défi.`;
     case "user_not_found":
-      return "Joueur introuvable.";
     case "already_friends":
-      return `${who} est déjà votre ami.`;
     case "friend_offline":
-      return `${who} n'est pas en ligne.`;
     case "rated_pair_capped":
-      return "Vous avez déjà joué 3 parties classées l'un contre l'autre cette heure : celle-ci ne compte pas pour l'Elo.";
     case "friend_busy":
-      return `${who} est en pleine partie.`;
+      return t(`notice.${code}`, { name });
     default:
-      return "Notification.";
+      return t("notice.default");
   }
 }
 
@@ -356,7 +335,7 @@ export class Store {
 
   blockUser(username: string) {
     this.send({ type: "block_user", username });
-    this.notify(`${username} est bloqué : ses messages ne vous parviendront plus.`);
+    this.notify(t("store.blocked", { name: username }));
   }
 
   unblockUser(username: string) {
@@ -495,7 +474,7 @@ export class Store {
         if (this.state.account) this.set({ account: { ...this.state.account, chat_muted: msg.chat_muted } });
         break;
       case "report_ack":
-        this.notify("Signalement envoyé. Merci.");
+        this.notify(t("store.reported"));
         break;
       case "notice":
         if (msg.code === "challenge_declined" || msg.code === "challenge_expired") this.set({ outgoingChallenge: null });
@@ -517,7 +496,7 @@ export class Store {
         break;
       case "draw_declined":
         if (this.state.game) this.set({ game: { ...this.state.game, draw_offer: "none" } });
-        this.notify("Votre proposition de nulle a été refusée.");
+        this.notify(t("store.drawDeclined"));
         break;
       case "chat":
         if (!msg.mine) sfx.play("chat");
@@ -528,7 +507,7 @@ export class Store {
         break;
       case "rematch_declined":
         this.set({ rematch: "none" });
-        this.notify("La revanche n'aura pas lieu.");
+        this.notify(t("store.rematchDeclined"));
         break;
       case "lobby":
         this.set({ lobby: msg.status });
@@ -593,7 +572,7 @@ export class Store {
           const gained = msg.gained;
           void loadForged([gained]).then(() => {
             if (isForgedId(gained)) this.set({ reveal: gained });
-            else this.notify(`Nouvelle compétence : ${skillName(gained)}`);
+            else this.notify(t("store.newSkill", { name: skillName(gained) }));
           });
         }
         this.set({
@@ -608,9 +587,9 @@ export class Store {
         this.set({ game: null, deckSelect: null, over: null, rematch: "none" });
         sfx.play("notice");
         if (msg.reason === "opponent_left_requeued") {
-          this.notify("Votre adversaire est parti : nouvelle recherche en cours…");
+          this.notify(t("store.opponentLeft"));
         } else if (msg.reason !== "you_left") {
-          this.notify("La partie a été annulée.");
+          this.notify(t("store.gameCancelled"));
         }
         break;
       case "error":
@@ -623,7 +602,7 @@ export class Store {
         if (msg.code === "session_revoked") {
           // Session terminée ailleurs (déconnexion depuis un autre onglet ou appareil) :
           // on oublie le jeton et on repart en invité, une seule fois (un invité n'a rien à révoquer).
-          this.notify(ERROR_TEXT.session_revoked);
+          this.notify(t("errors.session_revoked"));
           if (readToken()) {
             writeToken(null);
             this.reconnect();
@@ -632,7 +611,7 @@ export class Store {
         }
         if (msg.code === "replaced") this.set({ connection: "replaced" });
         if (msg.code === "illegal_action" || msg.code === "not_your_turn") sfx.play("illegal");
-        this.notify(ERROR_TEXT[msg.code] ?? msg.message);
+        this.notify(errorText(msg.code, msg.message));
         break;
     }
   }

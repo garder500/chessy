@@ -1,0 +1,19 @@
+{
+  "reason_harassment": "Assédio ou insultos",
+  "reason_spam": "Spam",
+  "reason_cheating": "Trapaça",
+  "reason_inappropriate_name": "Nome de usuário inadequado",
+  "reason_other": "Outro",
+  "unblock": "Desbloquear",
+  "block": "Bloquear",
+  "report": "Denunciar",
+  "block_title": "Bloquear {username}?",
+  "block_body": "As mensagens, os pedidos de amizade e os desafios dessa pessoa deixarão de chegar até você, e ela será removida dos seus amigos. Você ainda pode jogar contra ela. {username} não é avisado, e você pode desbloqueá-lo a qualquer momento em Configurações.",
+  "block_confirm": "Bloquear {username}",
+  "cancel": "Cancelar",
+  "report_title": "Denunciar {username}",
+  "report_sub": "A denúncia é enviada à moderação. {username} não é avisado.",
+  "reason_aria": "Motivo",
+  "attach": "Anexar as últimas mensagens da partida",
+  "send": "Enviar denúncia"
+}

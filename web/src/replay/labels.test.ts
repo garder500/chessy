@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "../i18n";
 import { fixtureAnalysis, fixtureRecord } from "./fixtures";
 import {
   analysisByPly,
@@ -14,13 +15,14 @@ import {
   LABEL_TEXT,
   labelFromLoss,
   mistakeTotal,
-  playedPhrase,
   summarySentence,
 } from "./labels";
 
 const record = fixtureRecord();
 const analysis = fixtureAnalysis(3, record);
 const byPly = analysisByPly(analysis);
+
+beforeAll(() => setLang("fr"));
 
 describe("étiquettes", () => {
   it("nomme les cinq étiquettes en français", () => {
@@ -79,9 +81,8 @@ describe("phrase du meilleur coup", () => {
   });
 
   it("parle des blancs ou des noirs pour un spectateur", () => {
-    expect(playedPhrase("white")).toBe("Les blancs ont joué");
-    expect(playedPhrase("black")).toBe("Les noirs ont joué");
     expect(bestMoveSentence(record.moves[14], byPly.get(15), "white")).toContain("Les blancs ont joué Teleportation d1→h5");
+    expect(bestMoveSentence(record.moves[14], byPly.get(15), "black")).toMatch(/^Les noirs ont joué /);
   });
 
   it("reconnaît le meilleur coup", () => {

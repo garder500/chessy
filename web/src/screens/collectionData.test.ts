@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "../i18n";
 import { CATALOG } from "../catalog";
 import type { SkillHistoryEntry } from "../protocol";
 import { dayLabel, describeEntry, filterHistory, groupByDay, historyStats, RULES } from "./collectionData";
+
+beforeAll(() => setLang("fr"));
 
 const entry = (id: number, over: Partial<SkillHistoryEntry> = {}): SkillHistoryEntry => ({
   id,

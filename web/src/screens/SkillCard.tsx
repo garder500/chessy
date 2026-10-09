@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { useT } from "../i18n";
 import { FAMILY_LABEL, skillEntry } from "../catalog";
 import { skillInfo } from "../skills";
 import { SkillArt } from "../ui/SkillArt";
@@ -22,6 +23,7 @@ interface Props {
 
 /** Carte de compétence : illustration, nom, famille, description, liseré de famille. */
 export function SkillCard({ skill, selected, order, disabled, locked, badge, radio, onClick }: Props) {
+  const t = useT();
   const info = skillInfo(skill);
   const rarity = skillEntry(skill).rarity;
   const style = { "--fam": `var(--fam-${info.family})` } as CSSProperties;
@@ -36,14 +38,14 @@ export function SkillCard({ skill, selected, order, disabled, locked, badge, rad
         <span className="skc-name">{info.name}</span>
         <span className="skc-meta">
           <span className="eyebrow">{FAMILY_LABEL[info.family]}</span>
-          {rarity ? <RarityTag rarity={rarity} /> : info.unique && <span className="tag foil-tag">unique</span>}
+          {rarity ? <RarityTag rarity={rarity} /> : info.unique && <span className="tag foil-tag">{t("skills.unique_tag")}</span>}
           {locked && (
             <span className="tag skc-lock">
               <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true" focusable="false">
                 <rect x="2" y="5.5" width="8" height="5" rx="1.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
                 <path d="M4 5.5V4a2 2 0 014 0v1.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
               </svg>
-              hors quota
+              {t("skills.locked_tag")}
             </span>
           )}
           {badge && <span className="tag">{badge}</span>}

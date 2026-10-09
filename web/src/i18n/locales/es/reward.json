@@ -1,0 +1,18 @@
+{
+  "forging_cta": "Forjando…",
+  "forge_start": "Iniciar la forja",
+  "take": "Tomar {name}",
+  "choose": "Elegir",
+  "back_aria": "Volver al resultado",
+  "title": "Tu recompensa",
+  "sub": "Quítale una habilidad a tu rival o haz forjar una inédita.",
+  "take_label": "Recuperar",
+  "empty": "Tu rival no tiene nada que no tengas ya: solo queda el sorteo al azar.",
+  "luck": "O prueba suerte",
+  "forge_name": "Forjar una habilidad",
+  "forge_desc": "Inédita, de común a legendaria. Tu rival pierde una al azar.",
+  "deck_full": "Tu mazo está lleno ({n}): elige la habilidad que reemplazar",
+  "forging_hint": "El herrero está trabajando…",
+  "replace_hint": "Selecciona la habilidad a reemplazar para continuar.",
+  "skip": "Omitir"
+}

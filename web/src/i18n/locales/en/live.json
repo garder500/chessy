@@ -1,0 +1,16 @@
+{
+  "eyebrow": "Spectator",
+  "title": "Live",
+  "count_one": "{count} game in progress",
+  "count_other": "{count} games in progress",
+  "loading": "Loading games in progress…",
+  "retry": "Try again",
+  "refresh_failed": "Unable to refresh: {error} The list below may be out of date.",
+  "empty_title": "No games in progress right now.",
+  "empty_sub": "Come back in a moment, or start a game yourself from the home page.",
+  "play": "Play",
+  "level": "level {elo}",
+  "vs": "vs",
+  "watch": "Watch",
+  "watch_aria": "Watch {white} vs {black}"
+}

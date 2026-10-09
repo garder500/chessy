@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "../i18n";
 import { actionKey } from "../game/logic";
 import {
   colorOf,
@@ -17,6 +18,8 @@ import {
 import { fixtureExplore, fixtureRecord, fixtureSpectatorView, sq } from "./fixtures";
 
 const record = fixtureRecord();
+
+beforeAll(() => setLang("fr"));
 
 describe("fixtures", () => {
   it("respectent le contrat : frames.length == plies + 1", () => {

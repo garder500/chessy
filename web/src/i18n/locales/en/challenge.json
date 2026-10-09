@@ -1,0 +1,18 @@
+{
+  "received": "Challenge received",
+  "challenges_you": "{name} challenges you",
+  "elo_friendly": "Elo · friendly game",
+  "decline": "Decline",
+  "accept": "Accept challenge",
+  "sent_to_pre": "Challenge sent to ",
+  "sent_to_post": "…",
+  "cancel": "Cancel",
+  "sheet_title": "Challenge {name}",
+  "sheet_sub": "{elo} Elo · friendly game: no Elo or skill at stake.",
+  "pace_aria": "Time control",
+  "watch_game": "Watch the game",
+  "sent": "Challenge sent",
+  "other_pending": "Another challenge is pending",
+  "unavailable": "{name} is unavailable",
+  "send": "Send challenge"
+}

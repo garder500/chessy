@@ -49,28 +49,31 @@ export class ApiError extends Error {
   }
 }
 
-const ERROR_TEXT: Record<string, string> = {
-  username_taken: "Ce pseudo est déjà pris.",
-  bad_credentials: "Pseudo ou mot de passe incorrect.",
-  weak_password: "Mot de passe trop faible : 8 à 128 caractères.",
-  invalid_username: "Pseudo invalide : 3 à 16 caractères, lettres, chiffres ou _.",
-  unauthorized: "Votre session a expiré. Reconnectez-vous.",
-  not_found: "Introuvable.",
-  network: "Impossible de joindre le serveur. Vérifiez votre connexion.",
-  rate_limited: "Trop de tentatives. Réessayez dans un instant.",
-  too_many_attempts: "Trop d'échecs de connexion. Réessayez dans quelques minutes.",
-  bad_recovery: "Pseudo ou code de récupération incorrect.",
-};
+import { t } from "./i18n";
 
-/** Message français pour une erreur API (ou quelconque). */
+/** Codes d'erreur serveur connus : le texte vit dans `api.<code>`. */
+const KNOWN_ERRORS = new Set([
+  "username_taken",
+  "bad_credentials",
+  "weak_password",
+  "invalid_username",
+  "unauthorized",
+  "not_found",
+  "network",
+  "rate_limited",
+  "too_many_attempts",
+  "bad_recovery",
+]);
+
+/** Message traduit pour une erreur API (ou quelconque). */
 export function apiErrorText(err: unknown): string {
   if (err instanceof ApiError) {
-    if (ERROR_TEXT[err.code]) return ERROR_TEXT[err.code];
-    if (err.status === 401) return ERROR_TEXT.unauthorized;
-    if (err.status === 404) return ERROR_TEXT.not_found;
-    if (err.status >= 500) return "Le serveur a rencontré un problème. Réessayez plus tard.";
+    if (KNOWN_ERRORS.has(err.code)) return t(`api.${err.code}`);
+    if (err.status === 401) return t("api.unauthorized");
+    if (err.status === 404) return t("api.not_found");
+    if (err.status >= 500) return t("api.server_error");
   }
-  return "Une erreur est survenue. Réessayez.";
+  return t("api.generic");
 }
 
 import { noticeForged } from "./forged";
@@ -179,16 +182,16 @@ export const api = {
   },
 };
 
-/** Message français pour une erreur des routes de replay, d'analyse et d'exploration. */
+/** Message traduit pour une erreur des routes de replay, d'analyse et d'exploration. */
 export function gameErrorText(err: unknown): string {
   if (err instanceof ApiError) {
-    if (err.code === "no_replay") return "Replay indisponible pour cette partie.";
-    if (err.status === 404 || err.code === "not_found" || err.code === "no_such_game") return "Partie introuvable.";
-    if (err.status === 403) return "Cette partie n'est pas accessible avec votre compte.";
-    if (err.code === "illegal_action") return "Action impossible dans cette position.";
-    if (err.code === "bad_ply") return "Position introuvable dans cette partie.";
-    if (err.code === "analysis_failed" || err.code === "analysis_timeout") return "L'analyse a échoué. Réessayez avec une profondeur plus faible.";
-    if (err.status === 400) return "Requête invalide.";
+    if (err.code === "no_replay") return t("api.no_replay");
+    if (err.status === 404 || err.code === "not_found" || err.code === "no_such_game") return t("api.game_not_found");
+    if (err.status === 403) return t("api.game_forbidden");
+    if (err.code === "illegal_action") return t("api.illegal_action");
+    if (err.code === "bad_ply") return t("api.bad_ply");
+    if (err.code === "analysis_failed" || err.code === "analysis_timeout") return t("api.analysis_failed");
+    if (err.status === 400) return t("api.bad_request");
   }
   return apiErrorText(err);
 }

@@ -1,0 +1,21 @@
+{
+  "code_label": "Code de récupération",
+  "copy": "Copier le code",
+  "copied": "Code copié.",
+  "copy_failed": "Copie impossible : sélectionnez le code et copiez-le à la main.",
+  "warning": "Il ne sera plus jamais affiché. Avec lui, vous pourrez choisir un nouveau mot de passe si vous perdez l'ancien ; sans lui, un compte dont le mot de passe est oublié est perdu. Gardez-le hors de cet appareil (gestionnaire de mots de passe, papier) et ne le partagez pas.",
+  "saved": "J'ai noté mon code de récupération",
+  "forgot_intro": "Saisissez le code de récupération donné à l'inscription. Toutes vos sessions seront fermées et un nouveau code vous sera remis.",
+  "new_password": "Nouveau mot de passe",
+  "verifying": "Vérification…",
+  "reset": "Réinitialiser le mot de passe",
+  "back": "Retour à la connexion",
+  "settings_hint": "Sans adresse e-mail, ce code est le seul moyen de retrouver votre compte si vous oubliez votre mot de passe. En générer un nouveau remplace l'ancien.",
+  "generate_btn": "Générer un code de récupération",
+  "new_code_intro": "Voici votre nouveau code. L'ancien ne fonctionne plus.",
+  "done": "Terminé",
+  "current_password": "Mot de passe actuel",
+  "current_password_required": "Saisissez votre mot de passe actuel.",
+  "generating": "Génération…",
+  "generate": "Générer le code"
+}

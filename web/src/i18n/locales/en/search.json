@@ -1,0 +1,18 @@
+{
+  "back_aria": "Cancel and go back",
+  "title": "Search",
+  "room_code_aria": "Room code {code}",
+  "private_room": "Private room",
+  "share_code": "Share this code with your opponent.",
+  "code_copied": "Code copied",
+  "copy_code": "Copy code",
+  "timer_aria_one": "Wait time: {count} second",
+  "timer_aria_other": "Wait time: {count} seconds",
+  "finding": "Finding an opponent",
+  "sub_ranked": "Ranked · opponent of similar strength · {time}",
+  "sub_friendly": "Friendly · {time}",
+  "elo_widens": "The Elo range gradually widens while you wait.",
+  "did_you_know": "Did you know?",
+  "close_room": "Close room",
+  "cancel_search": "Cancel search"
+}

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "../i18n";
 import "./sheet.css";
 
 const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
@@ -15,6 +16,7 @@ interface Props {
 
 /** Panneau qui monte du bas (téléphone) ou fenêtre centrée (grand écran) : choix secondaires, confirmations, formulaires. */
 export function Sheet({ open, title, onClose, children, hideTitle }: Props) {
+  const t = useT();
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -66,7 +68,7 @@ export function Sheet({ open, title, onClose, children, hideTitle }: Props) {
           <h2 id={titleId} className={hideTitle ? "sr-only" : "sheet-title"}>
             {title}
           </h2>
-          <button type="button" className="sheet-x" aria-label="Fermer" onClick={onClose}>
+          <button type="button" className="sheet-x" aria-label={t("sheet.close")} onClick={onClose}>
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>

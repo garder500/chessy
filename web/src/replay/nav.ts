@@ -1,5 +1,7 @@
 // Navigation d'un replay : position courante, lecture automatique et vitesse. Pur et testable.
 
+import { intlLocale } from "../i18n";
+
 export const SPEEDS = [0.5, 1, 2] as const;
 export type Speed = (typeof SPEEDS)[number];
 
@@ -80,7 +82,7 @@ export function navReduce(state: ReplayNav, action: NavAction): ReplayNav {
 
 /** Libellé de vitesse : `0,5×`, `1×`, `2×`. */
 export function speedLabel(speed: Speed): string {
-  return `${String(speed).replace(".", ",")}×`;
+  return `${speed.toLocaleString(intlLocale())}×`;
 }
 
 /** Touches de navigation d'un replay. `null` = touche ignorée. */

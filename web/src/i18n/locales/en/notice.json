@@ -1,0 +1,15 @@
+{
+  "someone": "This player",
+  "friend_request_received": "{name} sent you a friend request.",
+  "friend_accepted": "{name} is now your friend.",
+  "friend_removed": "{name} was removed from your friends.",
+  "challenge_declined": "{name} declined your challenge.",
+  "challenge_expired": "The challenge has expired.",
+  "challenge_cancelled": "{name} cancelled their challenge.",
+  "user_not_found": "Player not found.",
+  "already_friends": "{name} is already your friend.",
+  "friend_offline": "{name} is not online.",
+  "rated_pair_capped": "You already played 3 ranked games against each other this hour: this one doesn't count for Elo.",
+  "friend_busy": "{name} is in the middle of a game.",
+  "default": "Notification."
+}

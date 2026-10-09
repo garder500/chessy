@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "../i18n";
 import { formatDelta, parseServerDate, presenceLabel, reasonText, relativeTime, sortFriends, winRate } from "./social";
+
+beforeAll(() => setLang("fr"));
 
 const now = new Date("2026-10-06T12:00:00Z");
 

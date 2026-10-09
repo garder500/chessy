@@ -1,0 +1,14 @@
+{
+  "rarity_common": "Common",
+  "rarity_uncommon": "Uncommon",
+  "rarity_rare": "Rare",
+  "rarity_epic": "Epic",
+  "rarity_legendary": "Legendary",
+  "smith_working": "The blacksmith at work",
+  "rarity_drawn": "Rarity drawn by the blacksmith",
+  "new_skill": "New skill",
+  "unique_world": "One of a kind",
+  "add_to_deck": "Add to my deck",
+  "later": "Later",
+  "skip": "Skip"
+}

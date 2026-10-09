@@ -1,0 +1,9 @@
+{
+  "blocked": "{name} está bloqueado: as suas mensagens deixam de chegar até si.",
+  "reported": "Denúncia enviada. Obrigado.",
+  "drawDeclined": "A sua proposta de empate foi recusada.",
+  "rematchDeclined": "Não haverá desforra.",
+  "newSkill": "Nova habilidade: {name}",
+  "opponentLeft": "O seu adversário saiu: nova procura em curso…",
+  "gameCancelled": "A partida foi cancelada."
+}

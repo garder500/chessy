@@ -1,0 +1,16 @@
+{
+  "eyebrow": "Spectateur",
+  "title": "En direct",
+  "count_one": "{count} partie en cours",
+  "count_other": "{count} parties en cours",
+  "loading": "Chargement des parties en cours…",
+  "retry": "Réessayer",
+  "refresh_failed": "Actualisation impossible : {error} La liste ci-dessous peut être périmée.",
+  "empty_title": "Aucune partie en cours pour le moment.",
+  "empty_sub": "Revenez dans un instant, ou lancez vous-même une partie depuis l'accueil.",
+  "play": "Jouer",
+  "level": "niveau {elo}",
+  "vs": "contre",
+  "watch": "Regarder",
+  "watch_aria": "Regarder {white} contre {black}"
+}

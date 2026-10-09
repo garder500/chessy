@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "../i18n";
 import {
   formatRecoveryCode,
   hasErrors,
@@ -14,6 +15,8 @@ import {
   validateRecoveryCode,
   validateUsername,
 } from "./authLogic";
+
+beforeAll(() => setLang("fr"));
 
 describe("validateUsername", () => {
   it("accepte 3 à 16 caractères alphanumériques ou _", () => {

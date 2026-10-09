@@ -1,8 +1,9 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { skillEntry } from "./catalog";
 import { ambientEffects } from "./game/logic";
+import { setLang } from "./i18n";
 import { forgedDef, isForgedId, loadForged, noticeForged, rememberForged, resetForged, unknownForged, type ForgedDef } from "./forged";
 import { NO_PIECE } from "./protocol";
 import { SkillArt, SkillSprite } from "./ui/SkillArt";
@@ -106,6 +107,7 @@ describe("chargement", () => {
 });
 
 describe("fiche et icône", () => {
+  beforeAll(() => setLang("fr"));
   it("la fiche d'une compétence forgée vient de sa définition, avec une fiche d'attente avant", () => {
     expect(skillEntry("forged_8").name).toBe("Pouvoir forgé");
     rememberForged([def(8, { rarity: "legendary", unique: true })]);
@@ -136,6 +138,7 @@ describe("fiche et icône", () => {
 });
 
 describe("effets de partie entière", () => {
+  beforeAll(() => setLang("fr"));
   const effect = (kind: "truce" | "fog" | "silenced", expires_at: number, owner?: "white" | "black") => ({ kind, piece: NO_PIECE, expires_at, owner });
 
   it("les liste avec la durée restante, et ignore ceux qui sont finis", () => {

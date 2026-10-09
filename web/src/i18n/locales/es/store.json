@@ -1,0 +1,9 @@
+{
+  "blocked": "{name} está bloqueado: sus mensajes ya no te llegarán.",
+  "reported": "Denuncia enviada. Gracias.",
+  "drawDeclined": "Tu propuesta de tablas fue rechazada.",
+  "rematchDeclined": "No habrá revancha.",
+  "newSkill": "Nueva habilidad: {name}",
+  "opponentLeft": "Tu rival se fue: buscando de nuevo…",
+  "gameCancelled": "La partida fue cancelada."
+}

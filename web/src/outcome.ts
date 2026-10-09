@@ -1,26 +1,27 @@
+import { t } from "./i18n";
 import type { Color, Outcome } from "./protocol";
 
-/** One-line French description of how a game ended, from `you`'s point of view. */
+/** One-line description of how a game ended, from `you`'s point of view. */
 export function describeOutcome(outcome: Outcome, you: Color): string {
   switch (outcome.type) {
     case "ongoing":
       return "";
     case "checkmate":
-      return outcome.winner === you ? "Échec et mat : vous avez gagné !" : "Échec et mat : vous avez perdu.";
+      return t(outcome.winner === you ? "outcome.checkmate_win" : "outcome.checkmate_loss");
     case "resignation":
-      return outcome.winner === you ? "Votre adversaire a abandonné : victoire !" : "Vous avez abandonné.";
+      return t(outcome.winner === you ? "outcome.resignation_win" : "outcome.resignation_loss");
     case "timeout":
-      return outcome.winner === you ? "Temps écoulé pour l'adversaire : victoire !" : "Votre temps est écoulé.";
+      return t(outcome.winner === you ? "outcome.timeout_win" : "outcome.timeout_loss");
     case "draw_agreed":
-      return "Nulle par accord mutuel.";
+      return t("outcome.draw_agreed");
     case "stalemate":
-      return "Pat : partie nulle.";
+      return t("outcome.stalemate");
     case "fifty_moves":
-      return "Règle des 50 coups : partie nulle.";
+      return t("outcome.fifty_moves");
     case "repetition":
-      return "Triple répétition : partie nulle.";
+      return t("outcome.repetition");
     case "insufficient_material":
-      return "Matériel insuffisant : partie nulle.";
+      return t("outcome.insufficient_material");
   }
 }
 
@@ -36,19 +37,20 @@ export function resultFor(outcome: Outcome, you: Color): Result | null {
 /** Titre court + motif pour le panneau de fin de partie. */
 export function resultHeadline(outcome: Outcome, you: Color): { title: string; reason: string } {
   const result = resultFor(outcome, you);
-  const title = result === "win" ? "Victoire" : result === "loss" ? "Défaite" : "Partie nulle";
+  const title = t(result === "win" ? "outcome.title_win" : result === "loss" ? "outcome.title_loss" : "outcome.title_draw");
+  // [point de vue du vainqueur ou nulle, point de vue du perdant]
   const reasons: Record<string, [string, string]> = {
-    checkmate: ["Échec et mat", "Échec et mat"],
-    resignation: ["Abandon de l'adversaire", "Vous avez abandonné"],
-    timeout: ["Temps écoulé pour l'adversaire", "Votre temps est écoulé"],
-    draw_agreed: ["Nulle par accord mutuel", "Nulle par accord mutuel"],
-    stalemate: ["Pat", "Pat"],
-    fifty_moves: ["Règle des 50 coups", "Règle des 50 coups"],
-    repetition: ["Triple répétition", "Triple répétition"],
-    insufficient_material: ["Matériel insuffisant", "Matériel insuffisant"],
+    checkmate: ["outcome.reason_checkmate", "outcome.reason_checkmate"],
+    resignation: ["outcome.reason_resignation_win", "outcome.reason_resignation_loss"],
+    timeout: ["outcome.reason_timeout_win", "outcome.reason_timeout_loss"],
+    draw_agreed: ["outcome.reason_draw_agreed", "outcome.reason_draw_agreed"],
+    stalemate: ["outcome.reason_stalemate", "outcome.reason_stalemate"],
+    fifty_moves: ["outcome.reason_fifty_moves", "outcome.reason_fifty_moves"],
+    repetition: ["outcome.reason_repetition", "outcome.reason_repetition"],
+    insufficient_material: ["outcome.reason_insufficient_material", "outcome.reason_insufficient_material"],
   };
   const pair = reasons[outcome.type];
-  return { title, reason: pair ? (result === "loss" ? pair[1] : pair[0]) : "" };
+  return { title, reason: pair ? t(result === "loss" ? pair[1] : pair[0]) : "" };
 }
 
 /** Variation d'Elo formatée avec un vrai signe moins : `+14`, `−9`, `±0`. */

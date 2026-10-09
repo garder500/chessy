@@ -1,0 +1,18 @@
+{
+  "wordmark": "Chessy, home",
+  "main": "Main navigation",
+  "tab.home": "Play",
+  "tab.live": "Live",
+  "tab.ranking": "Ranking",
+  "tab.friends": "Friends",
+  "tab.collection": "Collection",
+  "pending_one": "pending friend request",
+  "pending_other": "pending friend requests",
+  "settings": "Settings",
+  "guest": "Guest",
+  "login": "Sign in",
+  "profileSettings": "Profile and settings of {name}",
+  "profile": "Profile",
+  "games": "My games",
+  "logout": "Sign out"
+}

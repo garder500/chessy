@@ -1,0 +1,18 @@
+{
+  "forging_cta": "Schmiede läuft…",
+  "forge_start": "Schmiede starten",
+  "take": "{name} nehmen",
+  "choose": "Auswählen",
+  "back_aria": "Zurück zum Ergebnis",
+  "title": "Deine Belohnung",
+  "sub": "Nimm deinem Gegner eine Fähigkeit ab oder lass eine ganz neue schmieden.",
+  "take_label": "Nehmen",
+  "empty": "Dein Gegner hat nichts, was du nicht schon hast: Es bleibt nur die Zufallsziehung.",
+  "luck": "Oder versuche dein Glück",
+  "forge_name": "Fähigkeit schmieden",
+  "forge_desc": "Ganz neu, von gewöhnlich bis legendär. Dein Gegner verliert zufällig eine.",
+  "deck_full": "Dein Deck ist voll ({n}): Wähle die Fähigkeit, die ersetzt werden soll",
+  "forging_hint": "Der Schmied ist am Werk…",
+  "replace_hint": "Wähle die zu ersetzende Fähigkeit, um fortzufahren.",
+  "skip": "Überspringen"
+}

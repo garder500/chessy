@@ -1,5 +1,9 @@
 /** Petite couronne dorée marquant une compétence unique (à placer dans un conteneur positionné). */
-export function UniqueBadge({ label = "Compétence unique" }: { label?: string }) {
+import { useT } from "../i18n";
+
+export function UniqueBadge({ label }: { label?: string }) {
+  const t = useT();
+  label ??= t("skills.unique_badge");
   return (
     <span className="foil-badge" role="img" aria-label={label} title={label}>
       <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true" focusable="false">

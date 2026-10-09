@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { useEffect, useRef } from "react";
 import type { Highlights } from "../interaction";
 import type { Square, StateView } from "../protocol";
+import { useT } from "../i18n";
 import { getTheme, useTheme } from "../theme";
 import { BOARD_SIZE, BoardScene, type PremoveMark } from "./BoardScene";
 
@@ -34,6 +35,7 @@ function webglUsable(): boolean {
 }
 
 export function PhaserBoard({ view, highlights, onSquare, interactive = true, canDrag, onDragStart, onDrop, premove = null, onCancelPremove, flipped = false }: Props) {
+  const t = useT();
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<BoardScene | null>(null);
   // Latest props, readable from the deferred game setup and from scene callbacks.
@@ -109,5 +111,5 @@ export function PhaserBoard({ view, highlights, onSquare, interactive = true, ca
     scene.current?.setPremove(premove);
   }, [premove]);
 
-  return <div className="gm-board-host" ref={host} role="img" aria-label="Échiquier" />;
+  return <div className="gm-board-host" ref={host} role="img" aria-label={t("game.board_aria")} />;
 }

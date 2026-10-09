@@ -1,0 +1,19 @@
+{
+  "not_your_turn": "Não é a sua vez.",
+  "illegal_action": "Ação impossível.",
+  "no_such_room": "Esta sala não existe.",
+  "own_room": "Não pode entrar na sua própria sala.",
+  "already_in_game": "Já está numa partida.",
+  "invalid_deck": "Seleção de habilidades inválida.",
+  "replaced": "Esta conta iniciou sessão noutro separador.",
+  "session_revoked": "A sua sessão terminou: voltou a ser convidado.",
+  "flooded": "Ligação cortada: demasiadas mensagens enviadas.",
+  "queue_full": "A fila classificada está cheia, tente novamente daqui a pouco.",
+  "rooms_full": "Demasiadas salas abertas, tente novamente daqui a pouco.",
+  "account_required": "É necessária uma conta para esta ação.",
+  "spectate_full": "Esta partida atingiu o número máximo de espectadores.",
+  "no_such_game": "Esta partida não existe ou já terminou.",
+  "invalid_target": "Ação impossível na sua própria conta.",
+  "blocked": "Bloqueou este jogador: desbloqueie-o primeiro.",
+  "block_list_full": "A sua lista de jogadores bloqueados está cheia."
+}
