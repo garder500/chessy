@@ -7,8 +7,10 @@ des joueurs face aux faux joueurs. Cinq **parties d'évaluation** estiment un El
 
 ## Déroulement
 
-- Message client `placement_start { color? }` (comptes seulement, pas les invités). Le serveur tire au hasard un niveau
-  parmi **400, 800, 1200, 1600, 2000** que le joueur n'a pas encore rencontré et lance une partie Solo (l'IA « Sage »,
+- Message client `placement_start { color? }` (comptes seulement, pas les invités). Le niveau suit une échelle
+  **400, 800, 1200, 1600, 2000** : la première partie est au palier 400, une victoire monte d'un palier (plafonné à
+  2000), une défaite ou une nulle rejoue le même palier, pour ne pas jeter un joueur en difficulté contre un bot bien
+  plus fort. Le serveur lance une partie Solo (l'IA « Sage »,
   sans horloge) à ce niveau. L'Elo de l'adversaire n'est jamais envoyé (`opponent.elo: null`), ni stocké dans la
   partie enregistrée (`solo_elo` nul), donc absent du replay.
 - Une partie d'évaluation ne touche ni `games`/`wins`/`losses`, ni l'Elo, ni les récompenses ; pas de revanche.
