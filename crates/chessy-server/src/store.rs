@@ -459,6 +459,7 @@ const MIGRATIONS: &[&str] = &[
      CREATE TABLE IF NOT EXISTS placements (
          player_id TEXT PRIMARY KEY REFERENCES players(id),
          elo INTEGER NOT NULL,
+         games_at INTEGER NOT NULL DEFAULT 0,
          at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
      );",
 ];
@@ -849,7 +850,8 @@ impl Store {
                 params![player, game_id, after],
             )?;
             tx.execute(
-                "INSERT INTO placements (player_id, elo) VALUES (?1, ?2)",
+                "INSERT INTO placements (player_id, elo, games_at)
+                 SELECT id, ?2, games FROM players WHERE id = ?1",
                 params![player, after],
             )?;
             moved = Some((before, after));
@@ -1387,7 +1389,10 @@ fn rank_of(conn: &Connection, row: &PlayerRow) -> StoreResult<Option<u32>> {
 fn settle_ratings(tx: &rusqlite::Transaction, rec: &GameRecord) -> StoreResult<EloChange> {
     let load = |id: &str| -> StoreResult<(i32, u32)> {
         Ok(tx.query_row(
-            "SELECT elo, games FROM players WHERE id = ?1",
+            // The provisional (high K) period restarts at the placement.
+            "SELECT elo, games - COALESCE(
+                 (SELECT games_at FROM placements WHERE player_id = players.id), 0)
+             FROM players WHERE id = ?1",
             params![id],
             |r| Ok((r.get(0)?, r.get(1)?)),
         )?)

@@ -20,9 +20,11 @@ des joueurs face aux faux joueurs. Cinq **parties d'évaluation** estiment un El
 ## Estimation
 
 L'Elo estimé est l'Elo de performance : le niveau `R` pour lequel la somme des scores attendus contre les cinq
-adversaires égale le score réel (recherche par dichotomie), borné à **200..2200** (un score parfait ou nul ne dit
-qu'« au moins / au plus »). Il **remplace** l'Elo (le pic repart de là, un point est ajouté à la courbe) ; les parties
-classées suivantes utilisent K = 40 / 20 comme avant. L'évaluation ne se rejoue pas.
+adversaires égale le score réel (recherche par dichotomie), borné à **200..1200**. Le plafond est l'Elo de départ :
+cinq parties ne distinguent pas un bon joueur d'un très bon, donc personne n'est placé au-dessus de 1200 ; un joueur
+qui domine monte ensuite vite. L'estimation **remplace** l'Elo (le pic repart de là, un point est ajouté à la courbe).
+La période « provisoire » (K = 40 pendant 30 parties classées) repart à l'évaluation, y compris pour un compte
+existant qui avait déjà beaucoup joué. L'évaluation ne se rejoue pas.
 
 ## Stockage
 

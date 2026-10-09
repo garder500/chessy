@@ -28,10 +28,11 @@ pub fn new_rating(ra: i32, rb: i32, score: f64, games_before: u32) -> i32 {
 
 /// Levels of the bots met in the placement games (docs/spec-v5.md), in Elo.
 pub const PLACEMENT_LEVELS: [i32; 5] = [400, 800, 1200, 1600, 2000];
-/// Bounds of an estimate: a perfect or an empty score only says "at least" or
-/// "at most", so it stops one step beyond the bots met.
+/// Bounds of an estimate. Five games cannot tell a strong player from a very
+/// strong one, so the starting rating stops at the default one: whoever
+/// dominates climbs from there with the high K of the first rated games.
 pub const PLACEMENT_MIN: i32 = 200;
-pub const PLACEMENT_MAX: i32 = 2200;
+pub const PLACEMENT_MAX: i32 = START_ELO;
 
 /// The rating whose expected score against `results`' opponents equals the
 /// score actually made (a performance rating, found by bisection since the
@@ -105,6 +106,7 @@ mod tests {
     fn placement_extremes_are_clamped() {
         assert_eq!(placement_estimate(&levels([0.0; 5])), PLACEMENT_MIN);
         assert_eq!(placement_estimate(&levels([1.0; 5])), PLACEMENT_MAX);
+        assert_eq!(PLACEMENT_MAX, 1200);
     }
 
     #[test]
@@ -114,7 +116,12 @@ mod tests {
         assert!((950..=1050).contains(&mid), "{mid}");
         // Beating more should never rate lower.
         let better = placement_estimate(&levels([1.0, 1.0, 1.0, 0.0, 0.0]));
-        assert!(better > mid + 150, "{better} vs {mid}");
+        assert!(better > mid + 100, "{better} vs {mid}");
+        // Beating the 1600 and 2000 bots too does not go above the default.
+        assert_eq!(
+            placement_estimate(&levels([1.0, 1.0, 1.0, 1.0, 0.0])),
+            PLACEMENT_MAX
+        );
         // Half a point against everyone is a draw-ish 1200.
         let even = placement_estimate(&levels([0.5; 5]));
         assert!((1190..=1210).contains(&even), "{even}");
