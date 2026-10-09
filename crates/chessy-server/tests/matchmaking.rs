@@ -8,7 +8,7 @@ use std::time::Duration;
 use chessy_server::hub::HubConfig;
 use chessy_server::protocol::ClientMsg;
 use common::*;
-use serde_json::json;
+use serde_json::{json, Value};
 
 fn ranked() -> ClientMsg {
     ClientMsg::QueueJoin {
@@ -309,8 +309,31 @@ fn quick_bots() -> HubConfig {
     HubConfig {
         queue_sweep_interval: Duration::from_millis(20),
         bot_match_wait: Duration::from_millis(100),
+        bot_human_delay_min: Duration::from_millis(5),
+        bot_human_delay_max: Duration::from_millis(10),
+        bot_think_max: Duration::from_millis(150),
+        msg_rate: 10_000.0,
+        msg_burst: 10_000,
         ..HubConfig::default()
     }
+}
+
+/// Waits until it is `c`'s turn in an ongoing game; `Err` carries the `game_over`.
+async fn my_turn(c: &mut Client) -> Result<Value, Value> {
+    let me = serde_json::to_value(c.color.unwrap()).unwrap();
+    for _ in 0..600 {
+        if let Some(over) = c.try_next("game_over") {
+            return Err(over);
+        }
+        if let Some(state) = c.try_next("state") {
+            if state["to_move"] == me && state["outcome"]["type"] == "ongoing" {
+                return Ok(state);
+            }
+            continue;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    panic!("no turn arrived; have {:?}", c.types());
 }
 
 #[tokio::test]
@@ -325,7 +348,7 @@ async fn a_lone_ranked_player_gets_a_bot_that_looks_like_a_person() {
     assert!(opp.get("bot").is_none(), "the bot does not announce itself");
     let elo = opp["elo"].as_i64().unwrap();
     assert!((1400..=1600).contains(&elo), "level close to mine: {elo}");
-    assert_eq!(deck["rated"], false, "no Elo against a bot");
+    assert_eq!(deck["rated"], true, "a real ranked game");
 }
 
 #[tokio::test]
@@ -336,6 +359,59 @@ async fn a_lone_friendly_player_gets_a_bot_too() {
     let deck = me.wait_for("deck_select").await;
     assert_eq!(deck["opponent"]["guest"], false);
     assert!(deck["opponent"].get("bot").is_none());
+    assert_eq!(deck["rated"], false, "friendly games move no Elo");
+}
+
+#[tokio::test]
+async fn a_game_against_a_bot_moves_elo_and_the_bot_joins_the_ranking() {
+    let (app, store, db) = world(quick_bots());
+    let mut me = rated_account(&app, &store, &db, "me", 1500);
+    me.send(ranked());
+    let deck = me.wait_for("deck_select").await;
+    let bot_name = deck["opponent"]["username"].as_str().unwrap().to_string();
+    me.color = serde_json::from_value(deck["you"].clone()).ok();
+    me.pick_nothing();
+    // A few moves each, then the player resigns: long enough to be rated.
+    for _ in 0..3 {
+        let s = my_turn(&mut me).await.unwrap();
+        assert_eq!(s["clock_enabled"], true, "a bot plays on the clock");
+        let m = &s["moves"][0];
+        me.say(json!({"type": "action", "action": {"type": "move", "from": m["from"], "to": m["to"], "promo": m["promo"]}}));
+    }
+    my_turn(&mut me).await.unwrap();
+    me.send(ClientMsg::Resign);
+    let over = me.wait_for("game_over").await;
+    assert_eq!(over["rated"], true);
+    assert!(over["elo"].is_object(), "Elo moved: {over}");
+    let api = Api::new(&app);
+    let (_, board) = api.get("/api/leaderboard?limit=50", None).await;
+    let names: Vec<&str> = board["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["username"].as_str().unwrap())
+        .collect();
+    assert!(
+        names.contains(&bot_name.as_str()),
+        "{bot_name} in {names:?}"
+    );
+}
+
+#[tokio::test]
+async fn bot_accounts_cannot_be_logged_into() {
+    let (app, store, db) = world(quick_bots());
+    let mut me = rated_account(&app, &store, &db, "me", 1500);
+    me.send(ranked());
+    let deck = me.wait_for("deck_select").await;
+    let name = deck["opponent"]["username"].as_str().unwrap().to_string();
+    let api = Api::new(&app);
+    let (status, _) = api
+        .post(
+            "/api/login",
+            json!({"username": name, "password": "password"}),
+        )
+        .await;
+    assert!(status.is_client_error(), "{status}");
 }
 
 #[tokio::test]

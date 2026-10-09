@@ -926,38 +926,101 @@ impl Hub {
         }
     }
 
-    /// Nobody found for `bot_match_wait`: the player gets a bot that looks like
+    /// Nobody found for `bot_match_wait`: the player gets a bot that passes for
     /// a person, so they are never left alone (nor sent back to the one other
-    /// player online, over and over). Such a game is a Solo game, so no Elo.
+    /// player online, over and over). It is a real account of the pool (see
+    /// [`Self::bot_for`]) and the game is a real one: same clock, same Elo
+    /// rules as the queue the player waited in.
     fn fill_with_bots(&mut self) {
         let now = Instant::now();
         let wait = self.config.bot_match_wait;
         let due = |since: Instant| now.saturating_duration_since(since) >= wait;
-        let mut waiting: Vec<(PlayerId, Option<TimeControl>, i32)> = Vec::new();
+        let mut waiting: Vec<(PlayerId, Option<TimeControl>, i32, bool)> = Vec::new();
         self.ranked_queue.retain(|e| {
             let keep = !due(e.since);
             if !keep {
-                waiting.push((e.player.clone(), e.time, e.elo));
+                waiting.push((e.player.clone(), e.time, e.elo, true));
             }
             keep
         });
         self.casual_queue.retain(|e| {
             let keep = !due(e.since);
             if !keep {
-                waiting.push((e.player.clone(), e.time, e.elo));
+                waiting.push((e.player.clone(), e.time, e.elo, false));
             }
             keep
         });
-        for (player, time, elo) in waiting {
-            let spread = self.config.bot_elo_spread;
-            let level = crate::bot::match_elo(elo, spread);
+        for (player, time, elo, ranked) in waiting {
+            let Some(bot) = self.bot_for(&player, elo, ranked) else {
+                // No bot could be made: back to waiting for a person.
+                self.requeue(&player, ranked, time);
+                continue;
+            };
             let human = if rand::random_bool(0.5) {
                 Color::White
             } else {
                 Color::Black
             };
-            self.start_disguised(&player, level, human, time);
+            let kind = GameKind::Duel;
+            self.start_disguised(&player, bot, human, time, ranked, kind);
         }
+    }
+
+    /// A bot account for `player`, rated `elo`: one of the pool, close in
+    /// rating, not in a game and (in a ranked game) not one `player` has
+    /// already met too often; else a new one, rated around `elo`.
+    fn bot_for(
+        &mut self,
+        player: &str,
+        elo: i32,
+        ranked: bool,
+    ) -> Option<crate::store::BotAccount> {
+        const NEAR: i32 = 150;
+        const POOL_MAX: u32 = 60;
+        let busy: std::collections::HashSet<&str> = self
+            .games
+            .values()
+            .filter_map(|s| s.solo.as_ref()?.disguise.as_ref())
+            .map(|d| d.account.as_str())
+            .collect();
+        let pool_full = self.store.bot_account_count().ok()? >= POOL_MAX;
+        let range = if pool_full { i32::MAX / 2 } else { NEAR };
+        let mut candidates = match self.store.bot_accounts_near(elo, range) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!("bot pool lookup failed: {e}");
+                return None;
+            }
+        };
+        candidates.retain(|b| !busy.contains(b.id.as_str()));
+        if ranked {
+            candidates.retain(|b| !self.pair_capped(player, &b.id));
+        }
+        if pool_full {
+            candidates.sort_by_key(|b| (b.elo - elo).abs());
+            candidates.truncate(5);
+        }
+        if let Some(bot) = candidates.choose(&mut rand::rng()) {
+            return Some(bot.clone());
+        }
+        for attempt in 0..10 {
+            let base = crate::bot::human_name();
+            let name = if attempt < 2 {
+                base.to_string()
+            } else {
+                format!("{base}{}", rand::random_range(1..100))
+            };
+            let level = crate::bot::match_elo(elo, self.config.bot_elo_spread);
+            match self.store.create_bot_account(&name, level) {
+                Ok(Some(bot)) => return Some(bot),
+                Ok(None) => continue,
+                Err(e) => {
+                    tracing::error!("could not create a bot account: {e}");
+                    return None;
+                }
+            }
+        }
+        None
     }
 
     pub fn create_room(&mut self, player: &str, time: Option<TimeControl>) {
@@ -1067,7 +1130,11 @@ impl Hub {
                 Color::White => white = id,
                 Color::Black => black = id,
             }
-            picks[seat.bot.index()] = Some(crate::bot::pick_deck());
+            picks[seat.bot.index()] = Some(match &seat.disguise {
+                // A matchmaking bot plays the deck of its account.
+                Some(d) => self.auto_pick(&d.account),
+                None => crate::bot::pick_deck(),
+            });
             seat_solo = Some(seat);
         }
         let pair = [white.clone(), black.clone()];
@@ -1093,7 +1160,9 @@ impl Hub {
             }
         }
         let info = |hub: &Hub, color: Color| match &seat_solo {
-            Some(s) if s.bot == color => crate::bot::info(s.elo, s.disguise),
+            Some(s) if s.bot == color => {
+                crate::bot::info(s.elo, s.disguise.as_ref().map(|d| d.name.as_str()))
+            }
             _ => hub.opponent_info(&pair[color.index()]),
         };
         let connected = [
@@ -1115,10 +1184,9 @@ impl Hub {
             draw_offer: None,
             last_offer_ply: [None, None],
             recording: Recording {
-                kind: if seat_solo.is_some() {
-                    GameKind::Solo
-                } else {
-                    kind
+                kind: match &seat_solo {
+                    Some(s) if s.is_plain() => GameKind::Solo,
+                    _ => kind,
                 },
                 actions: Vec::new(),
             },
@@ -1226,8 +1294,9 @@ impl Hub {
         session.phase = Phase::Playing {
             game: Box::new(game),
         };
-        // A Solo game has no clock.
-        if session.solo.is_none() {
+        // A Solo game has no clock; one against a matchmaking bot has, like
+        // any game between two players.
+        if session.solo.as_ref().is_none_or(|s| !s.is_plain()) {
             let initial = session
                 .time
                 .map_or(self.config.clock_initial, TimeControl::initial);
@@ -1686,8 +1755,18 @@ impl Hub {
             ),
             Phase::DeckSelect { .. } => (0, None),
         };
-        let [white, black] = &session.players;
-        let solo = session.solo.is_some();
+        // The seat of a matchmaking bot is its account, as far as records,
+        // ratings and rewards go (the session's own id for it is synthetic).
+        let ids: [PlayerId; 2] = std::array::from_fn(|i| match &session.solo {
+            Some(solo::Solo {
+                bot,
+                disguise: Some(d),
+                ..
+            }) if bot.index() == i => d.account.clone(),
+            _ => session.players[i].clone(),
+        });
+        let [white, black] = &ids;
+        let solo = session.solo.as_ref().is_some_and(solo::Solo::is_plain);
         let change = match &loadouts {
             // Every game that was played is recorded, Solo ones included (they
             // stay out of the profile and the ranking, see `store`).
@@ -1704,7 +1783,11 @@ impl Hub {
                     kind: session.recording.kind,
                     loadouts,
                     actions: &session.recording.actions,
-                    solo_elo: session.solo.map(|s| s.elo),
+                    solo_elo: session
+                        .solo
+                        .as_ref()
+                        .filter(|s| s.is_plain())
+                        .map(|s| s.elo),
                 };
                 match self.store.record_game(&record) {
                     Ok(change) => change,
@@ -1721,8 +1804,12 @@ impl Hub {
             let player = &session.players[color.index()];
             // Only a rated game (ranked, between accounts, long enough) pays a skill:
             // friendly games and Solo would otherwise be farmed.
-            let reward = if !solo && change.is_some() && Some(color) == winner {
-                let loser = &session.players[color.opposite().index()];
+            let reward = if !solo
+                && !crate::bot::is_bot_id(player)
+                && change.is_some()
+                && Some(color) == winner
+            {
+                let loser = &ids[color.opposite().index()];
                 let loser_deck = self.deck_of(loser).unwrap_or_default();
                 let offer = self.offer_for(player, loser, &loser_deck).ok();
                 self.rewards.insert(
@@ -1769,7 +1856,7 @@ impl Hub {
                 },
             );
         }
-        if solo {
+        if session.solo.is_some() {
             self.offer_solo_rematch(&session);
         } else {
             self.offer_rematch(

@@ -534,7 +534,7 @@ impl Hub {
     }
 
     pub fn rematch_request(&mut self, player: &str) {
-        if let Some(setup) = self.rematches.get(player).and_then(|r| r.solo) {
+        if let Some(setup) = self.rematches.get(player).and_then(|r| r.solo.clone()) {
             return self.start_solo_rematch(player, setup);
         }
         let Some(opponent) = self.rematch_pair(player) else {

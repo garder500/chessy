@@ -62,6 +62,14 @@ pub fn classic_skills() -> Vec<SkillId> {
         .collect()
 }
 
+/// A matchmaking bot's account.
+#[derive(Clone, Debug)]
+pub struct BotAccount {
+    pub id: PlayerId,
+    pub username: String,
+    pub elo: i32,
+}
+
 /// A player's account fields, as stored.
 #[derive(Clone, Debug)]
 pub struct PlayerRow {
@@ -410,6 +418,12 @@ const MIGRATIONS: &[&str] = &[
      );
      CREATE INDEX IF NOT EXISTS reports_pair ON reports(reporter, target, created_at);
      CREATE INDEX IF NOT EXISTS reports_reporter ON reports(reporter, created_at);",
+    // Matchmaking bots (see `hub::solo`): ordinary accounts with a rating and a
+    // deck that nobody can log into (no password). A table of their own, so the
+    // step is idempotent.
+    "CREATE TABLE IF NOT EXISTS bot_accounts (
+         player_id TEXT PRIMARY KEY REFERENCES players(id)
+     );",
 ];
 
 fn migrate(conn: &mut Connection) -> StoreResult<()> {
@@ -857,6 +871,69 @@ impl Store {
     pub fn deck(&self, player: &str) -> StoreResult<Vec<SkillId>> {
         let conn = self.db();
         deck_of(&conn, player)
+    }
+
+    /// The matchmaking bots rated within `range` of `elo`.
+    pub fn bot_accounts_near(&self, elo: i32, range: i32) -> StoreResult<Vec<BotAccount>> {
+        let conn = self.db();
+        let mut stmt = conn.prepare(
+            "SELECT p.id, p.username, p.elo FROM bot_accounts b
+             JOIN players p ON p.id = b.player_id
+             WHERE ABS(p.elo - ?1) <= ?2",
+        )?;
+        let rows = stmt.query_map(params![elo, range], |r| {
+            Ok(BotAccount {
+                id: r.get(0)?,
+                username: r.get(1)?,
+                elo: r.get(2)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    pub fn bot_account_count(&self) -> StoreResult<u32> {
+        let conn = self.db();
+        Ok(conn.query_row("SELECT COUNT(*) FROM bot_accounts", [], |r| r.get(0))?)
+    }
+
+    /// Creates a matchmaking bot named `username` (a free name; `None` when it
+    /// is taken) with a starter deck and a rating of `elo`.
+    pub fn create_bot_account(&self, username: &str, elo: i32) -> StoreResult<Option<BotAccount>> {
+        let mut conn = self.db();
+        let tx = conn.transaction()?;
+        let lower = username.to_ascii_lowercase();
+        let taken: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM players WHERE username_lower = ?1)",
+            params![lower],
+            |r| r.get(0),
+        )?;
+        if taken {
+            return Ok(None);
+        }
+        let id = random_hex(8);
+        tx.execute(
+            "INSERT INTO players (id, username, username_lower, elo, peak_elo)
+             VALUES (?1, ?2, ?3, ?4, ?4)",
+            params![id, username, lower, elo],
+        )?;
+        tx.execute(
+            "INSERT INTO bot_accounts (player_id) VALUES (?1)",
+            params![id],
+        )?;
+        let pool = classic_skills();
+        for skill in pool.sample(&mut rand::rng(), STARTER_DECK_SIZE) {
+            tx.execute(
+                "INSERT INTO player_skills (player_id, skill) VALUES (?1, ?2)",
+                params![id, skill_name(*skill)],
+            )?;
+            history::log(&tx, &id, *skill, Change::Gained, Source::Starter, None)?;
+        }
+        tx.commit()?;
+        Ok(Some(BotAccount {
+            id,
+            username: username.to_string(),
+            elo,
+        }))
     }
 
     pub fn unique_owner(&self, skill: SkillId) -> StoreResult<Option<PlayerId>> {
