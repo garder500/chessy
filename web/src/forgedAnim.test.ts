@@ -6,6 +6,7 @@ describe("durationStyle", () => {
     expect(durationStyle({ plies: 2 })).toBe("short");
     expect(durationStyle({ plies: 5 })).toBe("long");
     expect(durationStyle({ permanent: true })).toBe("forever");
-    expect(durationStyle({})).toBe("short");
+    expect(durationStyle({})).toBe("none");
+    expect(durationStyle({ plies: null })).toBe("none");
   });
 });
