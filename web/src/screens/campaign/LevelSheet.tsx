@@ -13,6 +13,7 @@ interface Props {
   level: CampaignLevel | null;
   connected: boolean;
   pending: boolean;
+  guest: boolean;
   onClose: () => void;
 }
 
@@ -40,7 +41,7 @@ function Deck({ label, skills }: { label: string; skills: SkillId[] }) {
 }
 
 /** Détail d'un niveau : adversaire, objectif et défi, decks imposés, lancement. */
-export function LevelSheet({ chapter, level, connected, pending, onClose }: Props) {
+export function LevelSheet({ chapter, level, connected, pending, guest, onClose }: Props) {
   if (!level) return null;
   const locked = isLocked(chapter, level);
   const play = () => {
@@ -72,6 +73,7 @@ export function LevelSheet({ chapter, level, connected, pending, onClose }: Prop
       </dl>
       <Deck label="Votre deck" skills={level.player_deck} />
       <Deck label="Deck de Sage" skills={level.bot_deck} />
+      {level.boss && guest && <p className="muted">La récompense de forge du boss demande un compte : créez-en un pour la recevoir.</p>}
       <button type="button" className="btn pri block" disabled={locked || !connected || pending} onClick={play}>
         {locked ? "Boss verrouillé" : "Jouer"}
       </button>

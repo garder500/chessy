@@ -46,7 +46,7 @@ export function Campaign() {
         <ChapterSection key={chapter.chapter} chapter={chapter} onPick={pick(chapter)} />
       ))}
       {pickedChapter && (
-        <LevelSheet chapter={pickedChapter} level={pickedLevel} connected={connection === "open"} pending={soloPending} onClose={() => setPicked(null)} />
+        <LevelSheet chapter={pickedChapter} level={pickedLevel} connected={connection === "open"} pending={soloPending} guest={account?.guest ?? false} onClose={() => setPicked(null)} />
       )}
     </main>
   );
