@@ -14,6 +14,7 @@ pub mod limits;
 pub mod moderation;
 pub mod protocol;
 pub mod replay;
+pub mod seo;
 pub mod social;
 pub mod store;
 pub mod ws;

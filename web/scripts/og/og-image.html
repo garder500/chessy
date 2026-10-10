@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<style>
+  @font-face { font-family: "Barlow Condensed"; font-weight: 800; src: url("../../node_modules/@fontsource/barlow-condensed/files/barlow-condensed-latin-800-normal.woff2"); }
+  @font-face { font-family: "Barlow Condensed"; font-weight: 700; src: url("../../node_modules/@fontsource/barlow-condensed/files/barlow-condensed-latin-700-normal.woff2"); }
+  @font-face { font-family: "Barlow"; font-weight: 500; src: url("../../node_modules/@fontsource/barlow/files/barlow-latin-500-normal.woff2"); }
+  * { margin: 0; box-sizing: border-box; }
+  body { width: 1200px; height: 630px; overflow: hidden; background: #0f1314; position: relative; font-family: "Barlow", sans-serif; color: #eef3f1; }
+  /* Échiquier discret à droite, qui s'efface vers la gauche. */
+  .board {
+    position: absolute; right: 0; top: 0; width: 640px; height: 630px;
+    background:
+      conic-gradient(#171d1e 25%, #121718 0 50%, #171d1e 0 75%, #121718 0) 0 0 / 210px 210px;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 70%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 70%);
+  }
+  .glow { position: absolute; right: 0px; top: 70px; width: 520px; height: 520px;
+    background: radial-gradient(closest-side, rgba(31,184,154,.28), rgba(31,184,154,0)); }
+  .king { position: absolute; right: 60px; top: 130px; width: 400px; height: 400px; filter: drop-shadow(0 18px 30px rgba(0,0,0,.55)); }
+  .tag { position: absolute; left: 80px; top: 120px; padding: 8px 18px 8px 16px; font: 500 22px/1 "Barlow"; letter-spacing: .16em; text-transform: uppercase; color: #5fe0c4;
+    border: 1px solid #2d3737; background: #151a1b; clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%, 0 14px); }
+  h1 { position: absolute; left: 74px; top: 170px; font: 800 220px/1 "Barlow Condensed"; letter-spacing: .01em; text-transform: uppercase; }
+  .bar { position: absolute; left: 80px; top: 398px; width: 140px; height: 8px; background: #1fb89a; }
+  p { position: absolute; left: 80px; top: 430px; width: 600px; font: 700 56px/1.1 "Barlow Condensed"; color: #cfd8d5; letter-spacing: .01em; }
+  p b { color: #5fe0c4; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="board"></div>
+  <div class="glow"></div>
+  <img class="king" src="../../src/assets/pieces/wK.svg" alt="" />
+  <div class="tag">Jeu d’échecs en ligne</div>
+  <h1>Chessy</h1>
+  <div class="bar"></div>
+  <p>Les échecs, version <b>compétences</b>.</p>
+</body>
+</html>
