@@ -109,8 +109,12 @@ la même mesure (`switch` et `evolve` sortent en tête, `mind` à zéro) ; `ches
 
 - **Nom** : un nom commun lié à l'effet et un nom propre inventé de 2 ou 3 syllabes, tirés de l'empreinte (« Givre d'Alfen »).
 - **Description** : assemblée par gabarits depuis l'arbre, elle ne peut donc pas dire autre chose que ce que fait la compétence.
-- **Icône** (`IconSpec`) : glyphe central (un des 16 de `GLYPHS`), silhouette de la pièce concernée, badge de durée
-  (`short`, `long`, `forever`). Le client dessine le tout (`web/src/ui/forgedGlyphs.tsx`) avec un cadre à la couleur de la rareté.
+- **Icône** : UN signe à plat par verbe d'effet (les 17 de `GLYPHS`), deux ou trois couleurs (crème, or, rouge de retrait), sur un
+  fond uni à la couleur de la famille. La **rareté** ne passe que par le contour : forme (cercle, carré arrondi, hexagone, octogone,
+  soleil) et couleur. Durée, usages, zone, cible et règles ne sont PAS dans l'icône (elle doit se comprendre en une seconde à 32 px) :
+  ils vivent dans l'infobulle. Le client lit `icon.glyph`, `family` et `rarity` (`web/src/ui/forgedIcon.tsx`, table `SIGNS`).
+  Une nouvelle action générée obtient son signe en ajoutant une entrée à `SIGNS` ; un test échoue si un glyphe que le serveur
+  peut nommer n'a pas de signe (`forged.test.ts`). Contrastes vérifiés par tests (WCAG).
 - **Son** (`SoundSpec`) : effet, note de la gamme, clarté, durée. Le client l'assemble avec les briques de
   `web/src/sound/bricks.ts` (`forgedRecipe.ts`), un geste sonore par effet, au niveau réglé comme les 27.
 
