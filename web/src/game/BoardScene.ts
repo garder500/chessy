@@ -4,7 +4,7 @@ import type { ActiveEffect, Color, EffectKind, GameEvent, Piece, PieceKind, Skil
 import { FX, drawArrow, drawDashedArrow, drawEffectMark, drawDashedRing, drawHalo, drawHexRing, drawRune, drawShield, drawStrings, effectColor } from "./fx";
 import { skillEntry } from "../catalog";
 import { pieceArtAssets, pieceArtKey } from "./pieceArt";
-import { forgedDef, isForgedId, type ForgedBricks } from "../forged";
+import { durationStyle, forgedDef, isForgedId, type ForgedBricks } from "../forged";
 import { actionKey, turnsLeft } from "./logic";
 import { t } from "../i18n";
 import { accentColor, boardTheme, getTheme, hexToNum, pieceSet, premoveColor, type ThemeSettings } from "../theme";
@@ -1475,7 +1475,8 @@ export class BoardScene extends Phaser.Scene {
   /** Marque de durée du lancement : deux arcs (courte), cinq arcs (longue) ou anneau d'or (permanente). */
   private durationArcs(x: number, y: number, b: ForgedBricks, color: number) {
     const g = this.add.graphics().setDepth(12).setPosition(x, y);
-    const arcs = b.permanent ? 0 : (b.plies ?? 0) > 2 ? 5 : 2;
+    const style = durationStyle(b);
+    const arcs = style === "forever" ? 0 : style === "long" ? 5 : 2;
     if (arcs === 0) g.lineStyle(4, FX.gold, 0.95).strokeCircle(0, 0, 34);
     else for (let i = 0; i < arcs; i++) {
       const step = (Math.PI * 2) / arcs;

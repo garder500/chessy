@@ -39,6 +39,12 @@ export interface ForgedBricks {
   permanent?: boolean;
 }
 
+/** Style de la marque de durée : les mêmes trois états que les badges d'icônes. */
+export function durationStyle(b: Pick<ForgedBricks, "plies" | "permanent">): "short" | "long" | "forever" {
+  if (b.permanent) return "forever";
+  return (b.plies ?? 0) > 2 ? "long" : "short";
+}
+
 export interface ForgedDef {
   id: ForgedSkillId;
   name: string;
