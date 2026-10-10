@@ -414,6 +414,16 @@ const MIGRATIONS: &[&str] = &[
      CREATE INDEX IF NOT EXISTS reports_reporter ON reports(reporter, created_at);",
     // Game length asked for (`short`/`medium`/`long`); NULL = default clock or old game.
     "ALTER TABLE games ADD COLUMN time_control TEXT;",
+    // Campaign: `stars` is a bitmask (1 win, 2 objective, 4 challenge) cumulated
+    // over attempts; `rewarded` marks a boss forge already granted.
+    "CREATE TABLE IF NOT EXISTS campaign_progress (
+         player_id TEXT NOT NULL REFERENCES players(id),
+         chapter INTEGER NOT NULL,
+         level INTEGER NOT NULL,
+         stars INTEGER NOT NULL DEFAULT 0,
+         rewarded INTEGER NOT NULL DEFAULT 0,
+         PRIMARY KEY (player_id, chapter, level)
+     );",
 ];
 
 fn migrate(conn: &mut Connection) -> StoreResult<()> {
@@ -975,6 +985,19 @@ impl Store {
         loser_loses: Option<SkillId>,
         winner_drops: Option<SkillId>,
     ) -> StoreResult<()> {
+        self.apply_deck_change(winner, Some(loser), gain, loser_loses, winner_drops)
+    }
+
+    /// [`Self::apply_reward`] where the loser may be absent (a campaign boss
+    /// reward takes from nobody).
+    pub fn apply_deck_change(
+        &self,
+        winner: &str,
+        loser: Option<&str>,
+        gain: Option<SkillId>,
+        loser_loses: Option<SkillId>,
+        winner_drops: Option<SkillId>,
+    ) -> StoreResult<()> {
         let mut conn = self.db();
         let tx = conn.transaction()?;
         let remove = |player: &str, skill: SkillId| -> StoreResult<()> {
@@ -992,7 +1015,7 @@ impl Store {
             )?;
             Ok(())
         };
-        if let Some(skill) = loser_loses {
+        if let (Some(loser), Some(skill)) = (loser, loser_loses) {
             remove(loser, skill)?;
         }
         if let Some(skill) = winner_drops {
@@ -1014,8 +1037,8 @@ impl Store {
         }
         // The journal: who lost what, and how the winner came by the new one.
         let winner_name = history::username_of(&tx, winner);
-        let loser_name = history::username_of(&tx, loser);
-        if let Some(skill) = loser_loses {
+        let loser_name = loser.and_then(|l| history::username_of(&tx, l));
+        if let (Some(loser), Some(skill)) = (loser, loser_loses) {
             history::log(
                 &tx,
                 loser,

@@ -36,14 +36,46 @@ pub fn calibration() -> &'static Calibration {
 pub const DROP_WEIGHTS: [u64; 5] = [55, 25, 13, 6, 1];
 
 pub fn roll_rarity(rng: &mut Rng) -> Rarity {
-    let mut n = rng.below(DROP_WEIGHTS.iter().sum());
-    for (tier, &w) in Rarity::ALL.iter().zip(&DROP_WEIGHTS) {
+    roll_rarity_in(rng, Rarity::Common, Rarity::Legendary)
+}
+
+/// Like [`roll_rarity`], but only among the tiers `min..=max`, the drop weights
+/// renormalised over that range.
+pub fn roll_rarity_in(rng: &mut Rng, min: Rarity, max: Rarity) -> Rarity {
+    let tiers = || {
+        Rarity::ALL
+            .iter()
+            .zip(&DROP_WEIGHTS)
+            .filter(|(tier, _)| (min..=max).contains(tier))
+    };
+    let mut n = rng.below(tiers().map(|(_, w)| w).sum());
+    for (tier, &w) in tiers() {
         if n < w {
             return *tier;
         }
         n -= w;
     }
-    Rarity::Common
+    min
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_ranged_roll_stays_in_range() {
+        let mut rng = Rng::new(7);
+        for (min, max) in [
+            (Rarity::Uncommon, Rarity::Epic),
+            (Rarity::Rare, Rarity::Legendary),
+            (Rarity::Epic, Rarity::Legendary),
+            (Rarity::Rare, Rarity::Rare),
+        ] {
+            for _ in 0..500 {
+                assert!((min..=max).contains(&roll_rarity_in(&mut rng, min, max)));
+            }
+        }
+    }
 }
 
 fn pick<T: Copy>(rng: &mut Rng, items: &[T]) -> T {

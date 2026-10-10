@@ -40,10 +40,11 @@ pub fn routes() -> Router<Arc<App>> {
         .route("/players/{username}", get(profile))
         .route("/live", get(crate::api_live::live))
         .route("/skills/forged", get(crate::api_skills::forged))
+        .route("/campaign", get(crate::api_campaign::campaign))
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
 }
 
-struct ApiError(StatusCode, &'static str);
+pub(crate) struct ApiError(StatusCode, &'static str);
 
 impl ApiError {
     fn bad_request(code: &'static str) -> Self {
@@ -67,7 +68,7 @@ impl IntoResponse for ApiError {
     }
 }
 
-type ApiResult<T> = Result<T, ApiError>;
+pub(crate) type ApiResult<T> = Result<T, ApiError>;
 
 /// Parses a JSON body ourselves so that every failure is a JSON error.
 fn parse_body<T: DeserializeOwned>(body: Result<Bytes, BytesRejection>) -> ApiResult<T> {
@@ -85,7 +86,7 @@ fn bearer(headers: &HeaderMap) -> Option<&str> {
         .filter(|t| !t.is_empty())
 }
 
-fn authenticate(app: &App, headers: &HeaderMap) -> ApiResult<String> {
+pub(crate) fn authenticate(app: &App, headers: &HeaderMap) -> ApiResult<String> {
     let token = bearer(headers).ok_or_else(ApiError::unauthorized)?;
     let config = app.config();
     app.store()

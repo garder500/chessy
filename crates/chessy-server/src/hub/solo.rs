@@ -23,6 +23,7 @@ use chessy_engine::{Action, Color};
 use super::social::Rematch;
 use super::{Hub, Phase, Session, Timer};
 use crate::bot::{self, BotJob};
+use crate::campaign::{self, Level, LevelRef};
 use crate::games_store::GameKind;
 use crate::protocol::*;
 use crate::store::reason_of;
@@ -33,6 +34,14 @@ pub(super) struct Solo {
     pub bot: Color,
     /// The level the player chose (400..=2800).
     pub elo: i32,
+    /// Set when the game is a campaign level: its decks are imposed.
+    pub campaign: Option<LevelRef>,
+}
+
+impl Solo {
+    pub(super) fn level(&self) -> Option<&'static Level> {
+        campaign::level(self.campaign?)
+    }
 }
 
 /// What a rematch against the bot needs to remember.
@@ -41,14 +50,31 @@ pub(super) struct SoloSetup {
     pub elo: i32,
     /// The colour the human had in the game that just ended.
     pub human_color: Color,
+    pub campaign: Option<LevelRef>,
 }
 
 impl Hub {
+    /// Refuses (and says so) a player who cannot start a game against the bot.
+    pub(super) fn ensure_idle(&mut self, player: &str) -> bool {
+        let idle = !self.player_game.contains_key(player)
+            && matches!(self.lobby_status(player), LobbyStatus::Idle);
+        if !idle {
+            self.fail(player, "already_in_game", "finish your current game first");
+        }
+        idle
+    }
+
+    pub(super) fn random_color() -> Color {
+        if rand::random_bool(0.5) {
+            Color::White
+        } else {
+            Color::Black
+        }
+    }
+
     pub fn solo_start(&mut self, player: &str, elo: i64, color: SoloColor) {
-        if self.player_game.contains_key(player)
-            || !matches!(self.lobby_status(player), LobbyStatus::Idle)
-        {
-            return self.fail(player, "already_in_game", "finish your current game first");
+        if !self.ensure_idle(player) {
+            return;
         }
         if !bot::is_valid_elo(elo) {
             return self.fail(
@@ -60,20 +86,20 @@ impl Hub {
         let human = match color {
             SoloColor::White => Color::White,
             SoloColor::Black => Color::Black,
-            SoloColor::Random => {
-                if rand::random_bool(0.5) {
-                    Color::White
-                } else {
-                    Color::Black
-                }
-            }
+            SoloColor::Random => Self::random_color(),
         };
-        self.start_solo(player, elo as i32, human);
+        self.start_solo(player, elo as i32, human, None);
     }
 
-    /// Opens deck selection against a bot of level `elo`; `human` is the
-    /// player's colour.
-    fn start_solo(&mut self, player: &str, elo: i32, human: Color) {
+    /// Opens deck selection against a bot of level `elo` (a campaign level
+    /// skips it); `human` is the player's colour.
+    pub(super) fn start_solo(
+        &mut self,
+        player: &str,
+        elo: i32,
+        human: Color,
+        campaign: Option<LevelRef>,
+    ) {
         let (white, black) = match human {
             Color::White => (player.to_string(), String::new()),
             Color::Black => (String::new(), player.to_string()),
@@ -81,6 +107,7 @@ impl Hub {
         let seat = Solo {
             bot: human.opposite(),
             elo,
+            campaign,
         };
         self.open_session(white, black, false, GameKind::Solo, Some(seat), None);
     }
@@ -230,6 +257,7 @@ impl Hub {
                 SoloSetup {
                     elo: solo.elo,
                     human_color,
+                    campaign: solo.campaign,
                 },
             ),
         );
@@ -241,6 +269,9 @@ impl Hub {
             self.rematches.remove(player);
             return self.fail(player, "no_rematch", "a rematch is not possible");
         }
-        self.start_solo(player, setup.elo, setup.human_color.opposite());
+        match setup.campaign {
+            Some(at) => self.start_solo(player, at.elo(), setup.human_color, Some(at)),
+            None => self.start_solo(player, setup.elo, setup.human_color.opposite(), None),
+        }
     }
 }
