@@ -46,6 +46,28 @@ Contraintes : `only_in_check`, `forbid_mate`, `forbid_check`. `plies` va de 2 à
 `SkillDef::validate()` refuse tout ce que l'interpréteur ne promet pas de gérer ; `canonical()` trie et dédoublonne les
 listes ; `fingerprint()` (FNV-1a du JSON canonique, sans `unique`) sert à ne pas stocker deux fois la même compétence.
 
+## Briques : sélecteur et condition
+
+Au-delà de l'effet, une définition peut porter deux briques facultatives (absentes du JSON quand elles sont neutres, donc
+les définitions déjà stockées gardent la même empreinte et la même signature) :
+
+```json
+{ "version": 1, "effect": { "op": "freeze", "plies": 4 },
+  "selector": { "kinds": ["rook", "queen"], "zone": "wings" },
+  "condition": "behind", "max_uses": 1, "free_action": false, "unique": false }
+```
+
+- `selector.kinds` : seules ces pièces peuvent être visées (refusé pour les effets qui nomment déjà leurs pièces :
+  `remove`, `spawn`, `revive`, et pour les effets sans cible). Jamais le roi.
+- `selector.zone` : `own_half`, `enemy_half`, `center`, `wings`, `rim`, `light`, `dark` ; relatif au lanceur. La zone
+  s'applique à la pièce visée, à sa case d'arrivée pour un déplacement, aux deux cases pour un échange.
+- `condition` : `behind`, `ahead` (matériel), `early` (avant le 10e coup de chaque joueur), `late` (à partir du 20e),
+  `no_queen`, `wounded` (trois pièces perdues).
+
+La description, le coût (une restriction rembourse), la signature (suffixes `|of:`, `|in:`, `|when:`) et le générateur les lisent.
+Un pouvoir muni d'une de ces briques et utilisable sur moins de 15 % des positions mesurées n'est forgé qu'en dernier recours.
+`SkillDef::bricks()` donne la définition à plat, pour les icônes et les outils. Feuille de route : `docs/plan-forge-generative.md`.
+
 ## La rareté : mesurée, et relative
 
 Toute compétence forgée est techniquement unique (elle a son identifiant), mais beaucoup de combinaisons reviennent au

@@ -15,6 +15,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::bricks::{Condition, Zone};
 use super::def::{Constraint, Effect, Side, SkillDef, SwapScope};
 use super::measure::Measurement;
 use crate::types::PieceKind;
@@ -187,6 +188,21 @@ impl SkillDef {
                 Constraint::ForbidMate | Constraint::ForbidCheck => 0.5,
             };
         }
+        // Narrowing the skill down refunds some: fewer pieces, a corner of
+        // the board, a moment of the game.
+        if let Some(kinds) = &self.selector.kinds {
+            cost -= 0.35 * (5 - kinds.len().min(5)) as f64;
+        }
+        if self.selector.zone != Zone::Anywhere {
+            cost -= 0.6;
+        }
+        cost -= match self.condition {
+            None => 0.0,
+            Some(Condition::Behind) => 2.0,
+            Some(Condition::NoQueen | Condition::Wounded) => 1.5,
+            Some(Condition::Early | Condition::Late) => 0.8,
+            Some(Condition::Ahead) => 0.5,
+        };
         (cost.max(0.5) / MAX_COST * 100.0).min(100.0)
     }
 
@@ -222,10 +238,22 @@ impl SkillDef {
         let mut constraints = self.constraints.clone();
         constraints.sort_by_key(|c| *c as u8);
         constraints.dedup();
-        format!(
+        let mut signature = format!(
             "{op}:{params}|{constraints:?}|{}|{}",
             self.max_uses, self.free_action
-        )
+        );
+        // The bricks added later only show when they are used, so a skill
+        // without them keeps the signature it always had.
+        if let Some(kinds) = &self.selector.kinds {
+            signature.push_str(&format!("|of:{}", classes(kinds)));
+        }
+        if self.selector.zone != Zone::Anywhere {
+            signature.push_str(&format!("|in:{}", self.selector.zone.as_str()));
+        }
+        if let Some(condition) = self.condition {
+            signature.push_str(&format!("|when:{}", condition.as_str()));
+        }
+        signature
     }
 }
 
