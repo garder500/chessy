@@ -288,7 +288,8 @@ fn a_chosen_deck_is_played_and_ignored_on_imposed_levels() {
     p.messages();
 
     let state = p.start_with(at(0), Some(vec![SkillId::Wall]));
-    assert_ne!(skills_of(&state), vec![SkillId::Wall]);
+    let imposed = chessy_server::campaign::level(at(0)).unwrap().player_deck;
+    assert_eq!(skills_of(&state), imposed);
 }
 
 #[test]
@@ -305,8 +306,29 @@ fn a_bad_deck_is_refused() {
         None,
     ] {
         p.hub.campaign_start(&p.id.clone(), CHOICE, deck);
-        assert_eq!(p.error_code().as_deref(), Some("bad_deck"));
+        let sent = p.messages();
+        assert!(sent
+            .iter()
+            .any(|m| matches!(m, ServerMsg::Error { code, .. } if code == "bad_deck")));
+        assert!(!sent.iter().any(|m| matches!(m, ServerMsg::State(_))));
     }
+}
+
+#[test]
+fn a_rematch_is_refused_when_the_chosen_deck_is_no_longer_owned() {
+    let mut p = player_with_deck();
+    p.start_with(CHOICE, Some(vec![SkillId::Freeze]));
+    p.hub.resign(&p.id.clone());
+    p.messages();
+    p.store
+        .set_deck(&p.id, &[SkillId::Wall, SkillId::Mirage])
+        .unwrap();
+    p.hub.rematch_request(&p.id.clone());
+    let sent = p.messages();
+    assert!(sent
+        .iter()
+        .any(|m| matches!(m, ServerMsg::Error { code, .. } if code == "bad_deck")));
+    assert!(!sent.iter().any(|m| matches!(m, ServerMsg::State(_))));
 }
 
 #[test]

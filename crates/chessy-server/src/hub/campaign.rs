@@ -53,7 +53,11 @@ impl Hub {
 
     /// `deck` if it is 1 to 3 distinct skills of the player's own deck;
     /// otherwise the player is told so.
-    fn checked_deck(&mut self, player: &str, deck: Vec<SkillId>) -> Option<Vec<SkillId>> {
+    pub(super) fn checked_deck(
+        &mut self,
+        player: &str,
+        deck: Vec<SkillId>,
+    ) -> Option<Vec<SkillId>> {
         let owned = match self.deck_of(player) {
             Ok(owned) => owned,
             Err(e) => {
@@ -92,10 +96,11 @@ impl Hub {
         let player = session.players[human.index()].clone();
         let won = winner == Some(human);
         let earned = campaign::stars_earned(at, game, human, won);
-        let was_unlocked = campaign::boss_unlocked(
-            &self.store.campaign_rows(&player).unwrap_or_default(),
-            at.chapter,
-        );
+        // A read error counts as already unlocked: never announce a false unlock.
+        let was_unlocked = self
+            .store
+            .campaign_rows(&player)
+            .map_or(true, |rows| campaign::boss_unlocked(&rows, at.chapter));
         if earned != 0 {
             if let Err(e) = self.store.record_campaign(&player, at, earned) {
                 tracing::error!("could not record campaign progress: {e}");

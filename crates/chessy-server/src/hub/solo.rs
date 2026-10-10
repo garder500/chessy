@@ -281,7 +281,16 @@ impl Hub {
             return self.fail(player, "no_rematch", "a rematch is not possible");
         }
         match setup.campaign {
-            Some(at) => self.start_solo(player, at.elo(), setup.human_color, Some(at), setup.deck),
+            Some(at) => {
+                let mut deck = setup.deck;
+                if campaign::level(at).is_some_and(|level| level.deck_choice) {
+                    let Some(checked) = self.checked_deck(player, deck) else {
+                        return;
+                    };
+                    deck = checked;
+                }
+                self.start_solo(player, at.elo(), setup.human_color, Some(at), deck)
+            }
             None => self.start_solo(
                 player,
                 setup.elo,
