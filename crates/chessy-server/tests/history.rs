@@ -280,3 +280,23 @@ async fn the_rest_api_gives_a_player_their_own_history_newest_first() {
     assert!(first["at"].is_string() && first["id"].is_number());
     assert!(v["deck"].as_array().unwrap().contains(&json!("freeze")));
 }
+
+#[test]
+fn a_loser_is_refilled_with_the_reward_and_never_gets_back_the_skill_taken() {
+    let store = fresh();
+    let (alice, _) = store.register("alice", "x", None).unwrap();
+    let (bob, _) = store.register("bob", "x", None).unwrap();
+    let all = chessy_server::store::classic_skills();
+    store.set_deck(&alice, &all[..1]).unwrap();
+    store.set_deck(&bob, &all[1..4]).unwrap();
+    let taken = all[1];
+    for _ in 0..20 {
+        store.set_deck(&bob, &all[1..4]).unwrap();
+        store
+            .apply_reward(&alice, &bob, None, Some(taken), None)
+            .unwrap();
+        let deck = store.deck(&bob).unwrap();
+        assert_eq!(deck.len(), 3, "{deck:?}");
+        assert!(!deck.contains(&taken), "{deck:?}");
+    }
+}

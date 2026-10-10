@@ -11,13 +11,13 @@
     linear-gradient(var(--bg), var(--bg-2)) fixed;
   background-color: var(--bg);
 }
-:root h1, :root h2, :root h3, :root .lb-title, :root .dk-title, :root .co-title, :root .rw-title, :root .frd-title, :root .frd-card-name, :root .frd-row .frd-name, :root .page-title, :root .gm-result-title, :root .lb-h2, :root .dk-h2, :root .md-title, :root .skc-name, :root .gm-skill-name, :root .slot-name {
+:root h1, :root h2, :root h3, :root .lb-title, :root .dk-title, :root .co-title, :root .rw-title, :root .frd-title, :root .frd-card-name, :root .frd-row .frd-name, :root .page-title, :root .gm-result-title, :root .lb-h2, :root .dk-h2, :root .md-title, :root .skc-name, :root .gm-skill-name, :root .slot-name, :root .hi-name {
   font-family: var(--font-display); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.02;
 }
 :root .lb-title, :root .dk-title, :root .co-title, :root .rw-title, :root .frd-title { font-size: clamp(34px, 6vw, 52px); color: var(--text); }
 :root .lb-h2, :root .dk-h2 { font-size: 22px; }
-:root .skc-name, :root .gm-skill-name, :root .slot-name { font-size: 19px; letter-spacing: 0.04em; }
-:root .eyebrow, :root .field-label, :root .gm-h, :root .rw-label {
+:root .skc-name, :root .gm-skill-name, :root .slot-name, :root .hi-name { font-size: 19px; letter-spacing: 0.04em; }
+:root .eyebrow, :root .field-label, :root .gm-h, :root .rw-label, :root .hi-day-title {
   font-family: var(--font-sans); font-weight: 600; font-size: 14px; letter-spacing: 0; text-transform: none; color: var(--muted);
 }
 :root .eyebrow { color: var(--accent-ink); }
@@ -128,11 +128,12 @@
 :root .skc-art { width: 60px; height: 67px; }
 :root .slot-art { width: 56px; height: 63px; }
 :root .rw-slot .slot-art { width: 52px; height: 58px; }
+:root .hi-art { width: 56px; height: 63px; }
 :root .gm-skill-art { width: 48px; height: 54px; }
 :root .fr-tile { width: 110px; height: 123px; }
 
 /* ---------- Cartes de compétence, emplacements, historique ---------- */
-:root .skc, :root .gm-skill, :root .slot {
+:root .skc, :root .gm-skill, :root .slot, :root .hi-row {
   border: 1px solid var(--line-2); border-left: 4px solid var(--fam, var(--line-3)); border-radius: 0;
   background: color-mix(in srgb, var(--fam, transparent) 5%, var(--surface)); box-shadow: none;
   clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut));
@@ -140,13 +141,14 @@
 :root .skc { align-items: center; grid-template-columns: 66px 1fr; }
 :root button.skc:hover:not(:disabled), :root button.gm-skill:hover:not(:disabled) { background: color-mix(in srgb, var(--fam, var(--accent)) 10%, var(--surface)); }
 :root .skc.on, :root .gm-skill.on, :root .rw-slot.on { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); box-shadow: inset 0 0 0 2px var(--accent); }
-:root .skc-desc { color: var(--muted); font-size: 15px; }
+:root .skc-desc, :root .hi-what { color: var(--muted); font-size: 15px; }
 :root .skc-ring { border-radius: 2px; transform: rotate(45deg); border: 2px solid var(--line-3); background: var(--surface); }
 :root .skc.radio.on .skc-ring { background: var(--accent); border-color: var(--accent); }
 :root .skc-num { border-radius: 2px; background: var(--accent); color: var(--on-accent); font-family: var(--font-display); }
 :root .slot.empty { border: 1px dashed var(--line-3); clip-path: none; background: transparent; color: var(--faint); }
 :root .foil.foil { background: color-mix(in srgb, var(--rar-legendary) 10%, var(--surface)); border-left-color: var(--rar-legendary); box-shadow: none; }
 :root .foil :is(.skc-art, .co-art, .co-detail-art, .slot-art, .gm-skill-art) { background: var(--rc); border: 0; }
+:root .hi-row.lost { background: var(--surface-2); border-left-color: var(--line-3); }
 :root .co-stat { background: var(--surface); border: 1px solid var(--line-2); border-radius: 0; }
 :root .co-stat-n { font-family: var(--font-display); font-weight: 800; font-size: 32px; color: var(--text); }
 
@@ -215,9 +217,7 @@
   :root .nav-tab[aria-current="page"] { color: var(--accent-ink); box-shadow: inset 0 3px 0 var(--accent); }
   :root .nav-tab-icon { display: block; }
   :root .nav-tab .nav-count { position: absolute; top: 6px; left: calc(50% + 6px); }
-  /* La place de la barre se réserve sur #root, pas sur body : #root est plus haut que body (height: 100 %), et le
-     rembourrage de body n'entre pas dans la hauteur défilable. Sans cela, le bas des longues pages passait sous la barre. */
-  body:has(.nav-tabs) #root { height: auto; min-height: 100%; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  body:has(.nav-tabs) { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
   body:has(.nav-tabs) .toasts { bottom: calc(80px + env(safe-area-inset-bottom)); }
 }
 
@@ -229,7 +229,7 @@
 
 /* ---------- Charte v2 : moins de capitales ----------
    Condensé en capitales pour titres, boutons, onglets et chiffres. Étiquettes, intertitres et en-têtes de tableau : Barlow 600 en casse normale. */
-:root :is(.stat-label, .pf-h, .pl-label, .frd-sec-h, .frd-sub-h, .gl-result, .rk-table th, .rp-sum thead th, .rp-side-label, .st-skill-fam, .sv-pair-cap, .gm-log-who) {
+:root :is(.stat-label, .pf-h, .pl-label, .frd-sec-h, .frd-sub-h, .gl-result, .rk-table th, .rp-sum thead th, .rp-side-label, .st-skill-fam, .sv-pair-cap, .gm-log-who, .hi-day-title) {
   font-family: var(--font-sans); font-weight: 600; font-size: 14px; letter-spacing: 0; text-transform: none;
 }
 :root :is(.rk-table th, .rp-sum thead th, .rp-side-label, .sv-pair-cap, .gm-log-who) { font-size: 13px; }

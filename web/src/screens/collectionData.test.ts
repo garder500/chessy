@@ -48,7 +48,7 @@ describe("historique des compétences", () => {
     expect(describeEntry(all[3])).toContain("Remplacée");
     expect(describeEntry(all[4])).toBe("Deck de départ");
     expect(describeEntry(entry(9, { source: "earlier" }))).toContain("Déjà");
-    expect(describeEntry(entry(9, { source: "refill" }))).toContain("vide");
+    expect(describeEntry(entry(9, { source: "refill" }))).toContain("Offerte");
     expect(describeEntry(entry(9, { source: "won" }))).toContain("Gagnée");
   });
 

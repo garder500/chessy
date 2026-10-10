@@ -18,8 +18,8 @@ use crate::moderation::chat_muted;
 use crate::protocol::{Me, PlayerId};
 
 pub const STARTER_DECK_SIZE: usize = 3;
-/// A deck never stays under this many skills: a player who loses skills is
-/// given classic ones back up to it.
+/// Classic skills a deck keeps: a player who loses a game (and a matchmaking
+/// bot, at startup) is given classic ones back up to it.
 pub const MIN_DECK_SIZE: usize = 3;
 
 #[derive(Debug, Error)]
@@ -521,7 +521,9 @@ impl Store {
         store.load_forged()?;
         // Decks emptied before the minimum existed (idempotent: a deck at the
         // minimum is left alone).
-        store.top_up_bot_decks()?;
+        if let Err(e) = store.top_up_bot_decks() {
+            tracing::error!("could not top up the bot decks: {e}");
+        }
         Ok(store)
     }
 
@@ -1247,6 +1249,8 @@ impl Store {
             };
             history::log(&tx, winner, skill, Change::Gained, source, other)?;
         }
+        // Same transaction: a loser is never left under the minimum.
+        refill_tx(&tx, loser, loser_loses)?;
         tx.commit()?;
         Ok(())
     }
@@ -1285,8 +1289,16 @@ impl Store {
     /// skills they do not own yet, up to the minimum. Returns how many.
     pub fn refill_to_minimum(&self, player: &str) -> StoreResult<usize> {
         let mut conn = self.db();
+        if deck_of(&conn, player)?
+            .iter()
+            .filter(|s| is_classic(**s))
+            .count()
+            >= MIN_DECK_SIZE
+        {
+            return Ok(0);
+        }
         let tx = conn.transaction()?;
-        let given = refill_tx(&tx, player)?;
+        let given = refill_tx(&tx, player, None)?;
         tx.commit()?;
         Ok(given)
     }
@@ -1303,22 +1315,30 @@ impl Store {
         };
         let mut given = 0;
         for id in &ids {
-            given += refill_tx(&tx, id)?;
+            given += refill_tx(&tx, id, None)?;
         }
         tx.commit()?;
         Ok(given)
     }
 }
 
-fn refill_tx(tx: &rusqlite::Transaction, player: &str) -> StoreResult<usize> {
+fn is_classic(skill: SkillId) -> bool {
+    skill.kind() == SkillKind::Classic
+}
+
+/// Gives `player` classic skills up to [`MIN_DECK_SIZE`] (uniques and forged
+/// skills do not count: only classics can be picked for a game). `not` is a
+/// skill just taken from them, which must not come straight back.
+fn refill_tx(tx: &rusqlite::Transaction, player: &str, not: Option<SkillId>) -> StoreResult<usize> {
     let owned = deck_of(tx, player)?;
-    let missing = MIN_DECK_SIZE.saturating_sub(owned.len());
+    let classics = owned.iter().filter(|s| is_classic(**s)).count();
+    let missing = MIN_DECK_SIZE.saturating_sub(classics);
     if missing == 0 {
         return Ok(0);
     }
     let pool: Vec<SkillId> = classic_skills()
         .into_iter()
-        .filter(|s| !owned.contains(s))
+        .filter(|s| !owned.contains(s) && Some(*s) != not)
         .collect();
     let mut given = 0;
     for skill in pool.sample(&mut rand::rng(), missing) {
