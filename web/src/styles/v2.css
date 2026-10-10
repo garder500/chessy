@@ -60,7 +60,7 @@
 :root .rk-foot { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); border-top: 1px solid var(--accent); backdrop-filter: none; }
 :root .rk-foot-rank { font-family: var(--font-display); font-weight: 800; color: var(--accent-ink); }
 @media (max-width: 719px) {
-  :root .rk-foot { position: sticky; bottom: calc(64px + env(safe-area-inset-bottom)); }
+  :root .rk-foot { position: sticky; bottom: var(--tabbar-h); }
   :root .rk-foot-in { grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 10px 0; }
   :root .rk-foot-pos .eyebrow, :root .rk-foot-next { display: none; }
   :root .rk-foot-in > p { grid-column: 1 / -1; font-size: 14px; }
