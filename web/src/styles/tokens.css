@@ -8,6 +8,8 @@
 @import "@fontsource/barlow/600.css";
 
 :root {
+  /* Barre d'onglets du téléphone : 64 px + zone sûre du bas. Une seule source pour la barre et pour tout ce qui la contourne. */
+  --tabbar-h: calc(64px + env(safe-area-inset-bottom));
   --bg: #0f1314;
   --bg-2: #0b0e0f;
   --surface: #151a1b;
