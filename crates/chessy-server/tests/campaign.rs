@@ -139,7 +139,7 @@ fn unknown_and_locked_levels_are_refused() {
     let mut p = player(true);
     for level in [
         LevelRef {
-            chapter: 1,
+            chapter: 5,
             level: 0,
         },
         LevelRef {
@@ -211,8 +211,8 @@ async fn the_rest_api_lists_the_levels_and_the_progress() {
     assert_eq!(status, StatusCode::OK);
     let chapters = v["chapters"].as_array().unwrap();
     assert_eq!(chapters.len(), 5);
-    assert_eq!(chapters[1]["available"], false);
-    assert_eq!(chapters[1]["levels"].as_array().unwrap().len(), 0);
+    assert_eq!(chapters[1]["available"], true);
+    assert_eq!(chapters[1]["levels"].as_array().unwrap().len(), 7);
 
     let attack = &chapters[0];
     assert_eq!(attack["family"], "attack");
