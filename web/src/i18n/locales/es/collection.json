@@ -29,7 +29,7 @@
   "src_stolen": "Robada a {who}",
   "src_won": "Ganada tras una victoria",
   "src_starter": "Mazo inicial",
-  "src_refill": "Regalada: tu mazo estaba vacío",
+  "src_refill": "Regalada: tu mazo tenía menos de 3 habilidades",
   "src_earlier": "Ya estaba en tu mazo",
   "src_taken_by": "Tomada por {who} tras una derrota",
   "src_taken": "Tomada por tu rival tras una derrota",

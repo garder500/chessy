@@ -29,7 +29,7 @@
   "src_stolen": "Volée à {who}",
   "src_won": "Gagnée après une victoire",
   "src_starter": "Deck de départ",
-  "src_refill": "Offerte : votre deck était vide",
+  "src_refill": "Offerte : votre deck avait moins de 3 compétences",
   "src_earlier": "Déjà dans votre deck",
   "src_taken_by": "Prise par {who} après une défaite",
   "src_taken": "Prise par votre adversaire après une défaite",

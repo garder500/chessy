@@ -29,7 +29,7 @@
   "src_stolen": "Gestohlen von {who}",
   "src_won": "Nach einem Sieg gewonnen",
   "src_starter": "Start-Deck",
-  "src_refill": "Geschenkt: dein Deck war leer",
+  "src_refill": "Geschenkt: dein Deck hatte weniger als 3 Fähigkeiten",
   "src_earlier": "Bereits in deinem Deck",
   "src_taken_by": "Von {who} nach einer Niederlage genommen",
   "src_taken": "Von deinem Gegner nach einer Niederlage genommen",

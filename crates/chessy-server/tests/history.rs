@@ -103,15 +103,14 @@ fn a_stolen_skill_is_logged_for_both_players() {
         )
     );
     let b = lines(&store, &bob);
-    assert_eq!(
-        b.last().unwrap(),
-        &(
-            "freeze".into(),
-            "lost".into(),
-            "taken".into(),
-            Some("alice".into())
-        )
-    );
+    // Bob is then topped up to three classics (logged after the loss).
+    assert!(b.contains(&(
+        "freeze".into(),
+        "lost".into(),
+        "taken".into(),
+        Some("alice".into())
+    )));
+    assert_eq!(b.iter().filter(|l| l.2 == "refill").count(), 2);
 }
 
 #[test]
@@ -153,9 +152,61 @@ fn a_player_left_with_nothing_is_given_a_skill_and_it_is_logged() {
     let store = fresh();
     let (alice, _) = store.register("alice", "x", None).unwrap();
     store.set_deck(&alice, &[]).unwrap();
-    store.refill_if_empty(&alice).unwrap();
+    assert_eq!(store.refill_to_minimum(&alice).unwrap(), 3);
+    assert_eq!(store.deck(&alice).unwrap().len(), 3);
     let history = lines(&store, &alice);
     assert_eq!(history.last().unwrap().2, "refill");
+}
+
+#[test]
+fn a_deck_is_refilled_only_up_to_the_minimum_without_duplicates() {
+    let store = fresh();
+    let (alice, _) = store.register("alice", "x", None).unwrap();
+    let all = chessy_server::store::classic_skills();
+    store.set_deck(&alice, &all[..1]).unwrap();
+    assert_eq!(store.refill_to_minimum(&alice).unwrap(), 2);
+    let deck = store.deck(&alice).unwrap();
+    assert_eq!(deck.len(), 3);
+    assert_eq!(
+        deck.iter().collect::<std::collections::HashSet<_>>().len(),
+        3
+    );
+    // Already at the minimum: nothing changes.
+    assert_eq!(store.refill_to_minimum(&alice).unwrap(), 0);
+    // A bigger deck is never trimmed.
+    store.set_deck(&alice, &all[..5]).unwrap();
+    assert_eq!(store.refill_to_minimum(&alice).unwrap(), 0);
+    assert_eq!(store.deck(&alice).unwrap().len(), 5);
+}
+
+#[test]
+fn bots_that_lost_skills_get_them_back_at_startup_once() {
+    let db = TempDb::new();
+    let (thin, empty, full, human) = {
+        let store = Store::open(db.path_str()).unwrap();
+        let thin = store.create_bot_account("Thin", 800).unwrap().unwrap();
+        let empty = store.create_bot_account("Empty", 900).unwrap().unwrap();
+        let full = store.create_bot_account("Full", 1000).unwrap().unwrap();
+        let (human, _) = store.register("human", "x", None).unwrap();
+        let all = chessy_server::store::classic_skills();
+        store.set_deck(&thin.id, &all[..1]).unwrap();
+        store.set_deck(&empty.id, &[]).unwrap();
+        store.set_deck(&human, &all[..1]).unwrap();
+        let full_before = store.deck(&full.id).unwrap();
+        assert_eq!(full_before.len(), 3);
+        (thin.id, empty.id, (full.id, full_before), human)
+    };
+    let store = Store::open(db.path_str()).unwrap();
+    assert_eq!(store.deck(&thin).unwrap().len(), 3);
+    assert_eq!(store.deck(&empty).unwrap().len(), 3);
+    // A bot at the minimum keeps exactly its deck; a human is not touched here.
+    assert_eq!(store.deck(&full.0).unwrap(), full.1);
+    assert_eq!(store.deck(&human).unwrap().len(), 1);
+    // Idempotent.
+    let before = store.deck(&thin).unwrap();
+    assert_eq!(store.top_up_bot_decks().unwrap(), 0);
+    assert_eq!(store.deck(&thin).unwrap(), before);
+    assert_eq!(lines(&store, &thin).last().unwrap().2, "refill");
 }
 
 #[test]
@@ -227,4 +278,24 @@ async fn the_rest_api_gives_a_player_their_own_history_newest_first() {
     assert_eq!(first["other"], "bob");
     assert!(first["at"].is_string() && first["id"].is_number());
     assert!(v["deck"].as_array().unwrap().contains(&json!("freeze")));
+}
+
+#[test]
+fn a_loser_is_refilled_with_the_reward_and_never_gets_back_the_skill_taken() {
+    let store = fresh();
+    let (alice, _) = store.register("alice", "x", None).unwrap();
+    let (bob, _) = store.register("bob", "x", None).unwrap();
+    let all = chessy_server::store::classic_skills();
+    store.set_deck(&alice, &all[..1]).unwrap();
+    store.set_deck(&bob, &all[1..4]).unwrap();
+    let taken = all[1];
+    for _ in 0..20 {
+        store.set_deck(&bob, &all[1..4]).unwrap();
+        store
+            .apply_reward(&alice, &bob, None, Some(taken), None)
+            .unwrap();
+        let deck = store.deck(&bob).unwrap();
+        assert_eq!(deck.len(), 3, "{deck:?}");
+        assert!(!deck.contains(&taken), "{deck:?}");
+    }
 }

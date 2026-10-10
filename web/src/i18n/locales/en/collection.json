@@ -29,7 +29,7 @@
   "src_stolen": "Stolen from {who}",
   "src_won": "Won after a victory",
   "src_starter": "Starter deck",
-  "src_refill": "Gifted: your deck was empty",
+  "src_refill": "Gifted: your deck had fewer than 3 skills",
   "src_earlier": "Already in your deck",
   "src_taken_by": "Taken by {who} after a loss",
   "src_taken": "Taken by your opponent after a loss",

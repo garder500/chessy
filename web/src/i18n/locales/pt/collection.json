@@ -29,7 +29,7 @@
   "src_stolen": "Roubada a {who}",
   "src_won": "Ganha após uma vitória",
   "src_starter": "Deck inicial",
-  "src_refill": "Oferecida: o seu deck estava vazio",
+  "src_refill": "Oferecida: o seu deck tinha menos de 3 habilidades",
   "src_earlier": "Já estava no seu deck",
   "src_taken_by": "Tomada por {who} após uma derrota",
   "src_taken": "Tomada pelo seu adversário após uma derrota",
