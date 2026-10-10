@@ -80,7 +80,8 @@ impl Hub {
     /// The forged skill of a boss, offered until the account has resolved it
     /// (a lost offer is made again on the next win).
     fn boss_reward(&mut self, player: &str, at: LevelRef) -> Option<RewardOffer> {
-        let is_account = matches!(self.store.player_row(player), Ok(Some(row)) if row.username.is_some());
+        let is_account =
+            matches!(self.store.player_row(player), Ok(Some(row)) if row.username.is_some());
         if !is_account {
             return None;
         }

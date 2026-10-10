@@ -226,8 +226,16 @@ pub fn stars_earned(at: LevelRef, game: &Game, human: Color, won: bool) -> u8 {
     };
     let met = |goal: Option<Objective>| goal.is_some_and(|g| g.met(game, human));
     STAR_WIN
-        | if met(level.objective) { STAR_OBJECTIVE } else { 0 }
-        | if met(level.challenge) { STAR_CHALLENGE } else { 0 }
+        | if met(level.objective) {
+            STAR_OBJECTIVE
+        } else {
+            0
+        }
+        | if met(level.challenge) {
+            STAR_CHALLENGE
+        } else {
+            0
+        }
 }
 
 /// Rarities the boss of a chapter may forge.

@@ -30,7 +30,9 @@ fn player(account: bool) -> Player {
     let (id, _) = hub.connect(token, tx).unwrap();
     for level in 0..4 {
         let all = STAR_WIN | STAR_OBJECTIVE | STAR_CHALLENGE;
-        store.record_campaign(&id, LevelRef { chapter: 0, level }, all).unwrap();
+        store
+            .record_campaign(&id, LevelRef { chapter: 0, level }, all)
+            .unwrap();
     }
     Player { hub, store, id, rx }
 }
@@ -70,7 +72,10 @@ fn an_unresolved_boss_offer_is_made_again() {
     p.hub.finish_forge(&p.id.clone(), None, None);
     assert!(!p.boss_rewarded(), "a failed forge leaves the offer open");
 
-    assert!(p.beat_boss().is_some(), "a lost offer comes back on the next win");
+    assert!(
+        p.beat_boss().is_some(),
+        "a lost offer comes back on the next win"
+    );
 }
 
 #[test]

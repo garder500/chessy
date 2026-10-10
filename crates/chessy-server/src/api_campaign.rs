@@ -55,7 +55,10 @@ fn chapter_json(chapter: u8, content: &Chapter, rows: &[CampaignRow]) -> Value {
 }
 
 /// `{chapters: [...]}`; a chapter without content has `available: false` and no levels.
-pub(crate) async fn campaign(State(app): State<Arc<App>>, headers: HeaderMap) -> ApiResult<Response> {
+pub(crate) async fn campaign(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+) -> ApiResult<Response> {
     let player = authenticate(&app, &headers)?;
     let rows = app.store().campaign_rows(&player)?;
     let chapters: Vec<Value> = CHAPTERS

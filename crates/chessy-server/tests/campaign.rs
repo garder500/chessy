@@ -127,7 +127,9 @@ impl Player {
     fn open_boss(&mut self) {
         for level in 0..4 {
             let all = STAR_WIN | STAR_OBJECTIVE | STAR_CHALLENGE;
-            self.store.record_campaign(&self.id, at(level), all).unwrap();
+            self.store
+                .record_campaign(&self.id, at(level), all)
+                .unwrap();
         }
     }
 }
@@ -136,8 +138,14 @@ impl Player {
 fn unknown_and_locked_levels_are_refused() {
     let mut p = player(true);
     for level in [
-        LevelRef { chapter: 1, level: 0 },
-        LevelRef { chapter: 9, level: 0 },
+        LevelRef {
+            chapter: 1,
+            level: 0,
+        },
+        LevelRef {
+            chapter: 9,
+            level: 0,
+        },
         at(BOSS_LEVEL + 1),
     ] {
         p.hub.campaign_start(&p.id.clone(), level);
@@ -191,7 +199,9 @@ async fn the_rest_api_lists_the_levels_and_the_progress() {
     let api = Api::new(&app);
     let token = api.register("ana").await;
     let id = store.player_by_token(&token).unwrap().unwrap();
-    store.record_campaign(&id, at(2), STAR_WIN | STAR_OBJECTIVE).unwrap();
+    store
+        .record_campaign(&id, at(2), STAR_WIN | STAR_OBJECTIVE)
+        .unwrap();
 
     let (status, v) = api.get("/api/campaign", None).await;
     assert_eq!(status, StatusCode::UNAUTHORIZED);
@@ -227,7 +237,9 @@ async fn a_guest_reads_its_progress_with_its_session_token() {
     let id = store.player_by_token(&guest.token).unwrap().unwrap();
     store.record_campaign(&id, at(0), STAR_WIN).unwrap();
 
-    let (status, v) = Api::new(&app).get("/api/campaign", Some(&guest.token)).await;
+    let (status, v) = Api::new(&app)
+        .get("/api/campaign", Some(&guest.token))
+        .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(v["chapters"][0]["stars"], 1);
 }

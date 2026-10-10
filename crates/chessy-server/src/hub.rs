@@ -1814,7 +1814,13 @@ impl Hub {
             self.rewards.insert(player.to_string(), pending);
             return self.fail(player, "forging", "a skill is already being forged for you");
         }
-        match self.resolve_reward(player, pending.loser.as_deref(), &pending.loser_deck, choice, None) {
+        match self.resolve_reward(
+            player,
+            pending.loser.as_deref(),
+            &pending.loser_deck,
+            choice,
+            None,
+        ) {
             Ok(()) => self.mark_boss_rewarded(player, &pending),
             Err(msg) => {
                 // Let the player try again with a corrected choice.
