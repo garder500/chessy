@@ -103,15 +103,14 @@ fn a_stolen_skill_is_logged_for_both_players() {
         )
     );
     let b = lines(&store, &bob);
-    assert_eq!(
-        b.last().unwrap(),
-        &(
-            "freeze".into(),
-            "lost".into(),
-            "taken".into(),
-            Some("alice".into())
-        )
-    );
+    // Bob is then topped up to three classics (logged after the loss).
+    assert!(b.contains(&(
+        "freeze".into(),
+        "lost".into(),
+        "taken".into(),
+        Some("alice".into())
+    )));
+    assert_eq!(b.iter().filter(|l| l.2 == "refill").count(), 2);
 }
 
 #[test]
