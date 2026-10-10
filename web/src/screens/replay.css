@@ -152,7 +152,7 @@
   .rp-transport > .rp-play { width: 46px; }
   .rp-speed-btn { min-width: 34px; padding: 0 4px; }
   .rp-head-actions .btn { flex: none; height: 38px; padding: 0 12px; font-size: 13px; }
-  :root .rp-controls { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "t s" "p p"; gap: 6px 10px; padding: 8px 10px; position: sticky; bottom: calc(64px + env(safe-area-inset-bottom)); z-index: 20; background: var(--surface); box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.25); }
+  :root .rp-controls { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "t s" "p p"; gap: 6px 10px; padding: 8px 10px; position: sticky; bottom: var(--tabbar-h); z-index: 20; background: var(--surface); box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.25); }
 }
 
 /* Explication du coup : une phrase qui dit pourquoi l'étiquette, soulignée de la couleur de l'étiquette. */
@@ -170,7 +170,7 @@
 @media (max-width: 420px) { .rp-legend-list li { grid-template-columns: 1fr; gap: 4px; } }
 
 /* ---------- Replay, mise en page compacte (charte v2) : barre du haut, évaluation, plateau, carte du coup, contrôles en pied ---------- */
-:root .rp.rp-compact { padding: 0 0 calc(64px + env(safe-area-inset-bottom)); max-width: none; display: flex; flex-direction: column; min-height: 100dvh; }
+:root .rp.rp-compact { padding: 0 0 var(--tabbar-h); max-width: none; display: flex; flex-direction: column; min-height: 100dvh; }
 body:has(.rp-compact) { padding-bottom: 0; }
 body:has(.rp-compact) .nav { display: none; }
 .rc-top { flex: none; display: flex; align-items: center; gap: 4px; height: calc(56px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 4px 0; background: var(--surface); border-bottom: 1px solid var(--line-2); }
@@ -192,7 +192,7 @@ body:has(.rp-compact) .nav { display: none; }
 .rc-acc { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: auto; }
 .rc-acc-c { padding: 8px 12px; }
 .rc-acc-c .num { font-size: 24px; }
-.rc-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; height: calc(64px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: var(--surface); border-top: 1px solid var(--line-2); }
+.rc-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; height: var(--tabbar-h); padding-bottom: env(safe-area-inset-bottom); background: var(--surface); border-top: 1px solid var(--line-2); }
 .rc-nav-b { flex: 1; display: grid; place-items: center; border: 0; background: none; color: var(--text); cursor: pointer; }
 .rc-nav-b:disabled { opacity: 0.35; cursor: default; }
 .rc-play { color: var(--accent-ink); }
