@@ -15,21 +15,12 @@ export const RARITY_LABEL: Record<Rarity, string> = Object.defineProperties(
   Object.fromEntries(RARITIES.map((r) => [r, { enumerable: true, get: () => t(`forge.rarity_${r}`) }])),
 );
 
-/** Ce que le client dessine pour l'icône (voir `ui/ForgedArt.tsx`). */
+/** Ce que le client dessine (voir `ui/forgedIcon.tsx`) : le signe de l'effet ; la rareté et la famille viennent de la définition. */
 export interface IconSpec {
   glyph: string;
+  /** Anciens champs, envoyés par le serveur mais plus dessinés : l'icône n'est qu'un signe. */
   piece?: "pawn" | "knight" | "bishop" | "rook" | "queen";
   badge?: "short" | "long" | "forever";
-  /** Qui est visé : tes pièces (`own`) ou celles de l'adversaire (`enemy`) ; absent si les deux camps sont concernés. */
-  target?: "own" | "enemy";
-  /** Durée exacte en coups (2 à 8) ; absente si l'effet est instantané ou définitif. */
-  plies?: number;
-  /** Étendue : une pièce (`one`), une rangée (`row`) ou tout le plateau (`board`). */
-  zone?: "one" | "row" | "board";
-  /** La règle qui compte le plus : `free`, `check` (seulement en échec) ou `safe` (refusé si échec ou mat). */
-  mark?: "free" | "check" | "safe";
-  /** Graine du sigil décoratif, propre à chaque définition. */
-  seed?: number;
 }
 
 /** Ce que le client joue (voir `sound/forgedRecipe.ts`). */

@@ -19,11 +19,8 @@ pub enum Family {
     Create,
 }
 
-/// How the client draws the icon: a medallion whose hero is a chess piece the
-/// effect acts on (one scene per glyph), a ring that fills with the duration,
-/// a backdrop for the area, a chip for the rule that matters most, and a
-/// decorative sigil drawn from `seed`. Uses and the other rules stay in the
-/// description.
+/// How the client draws the icon: a central glyph, the silhouette of the
+/// piece the skill is about, and a badge for how long it lasts.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IconSpec {
     /// One of [`GLYPHS`].
@@ -34,20 +31,6 @@ pub struct IconSpec {
     /// `short`, `long` or `forever`; absent for an instant effect.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub badge: Option<String>,
-    /// Whom it targets: `own` (your pieces) or `enemy`; absent when it is about both camps.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub target: Option<String>,
-    /// Exact duration in plies (2 to 8), absent when the effect is instant or permanent.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub plies: Option<u8>,
-    /// How much of the board it concerns: `one` piece, a `row` (ranks 3 to 6) or the whole `board`.
-    pub zone: String,
-    /// The rule that matters most: `free` (does not use the turn), `check` (only in check) or `safe`
-    /// (refused if it would leave a king in check or mate).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mark: Option<String>,
-    /// Stable per definition: seeds the decorative sigil so two skills never look alike.
-    pub seed: u32,
 }
 
 /// How the client builds the sound: the effect picks the family of bricks,
@@ -412,59 +395,6 @@ fn kind_key(kind: PieceKind) -> &'static str {
     }
 }
 
-/// Whom the effect targets, when it is one camp.
-const ICON_KINDS: [PieceKind; 5] = [
-    PieceKind::Pawn,
-    PieceKind::Knight,
-    PieceKind::Bishop,
-    PieceKind::Rook,
-    PieceKind::Queen,
-];
-
-fn icon_target(effect: &Effect) -> Option<&'static str> {
-    match effect {
-        Effect::Freeze { .. }
-        | Effect::Remove { .. }
-        | Effect::Convert
-        | Effect::Silence { .. } => Some("enemy"),
-        Effect::Morph { side, .. } => Some(match side {
-            Side::Own => "own",
-            Side::Enemy => "enemy",
-        }),
-        Effect::Swap {
-            scope: SwapScope::Any,
-        }
-        | Effect::Truce { .. }
-        | Effect::Mirror
-        | Effect::Fog { .. } => None,
-        _ => Some("own"),
-    }
-}
-
-fn icon_zone(effect: &Effect) -> &'static str {
-    match effect {
-        Effect::Spawn { .. } => "row",
-        Effect::Truce { .. }
-        | Effect::Mirror
-        | Effect::Fog { .. }
-        | Effect::Silence { .. }
-        | Effect::Ambush { .. } => "board",
-        _ => "one",
-    }
-}
-
-fn icon_mark(def: &SkillDef) -> Option<&'static str> {
-    if def.free_action {
-        Some("free")
-    } else if def.constraints.contains(&Constraint::OnlyInCheck) {
-        Some("check")
-    } else if def.constraints.is_empty() {
-        None
-    } else {
-        Some("safe")
-    }
-}
-
 /// Everything about how the skill presents itself.
 pub fn identity(def: &SkillDef) -> Identity {
     let seed = def.fingerprint();
@@ -475,19 +405,8 @@ pub fn identity(def: &SkillDef) -> Identity {
         family: family(&def.effect),
         icon: IconSpec {
             glyph: GLYPHS[index].to_string(),
-            // Effects that do not name a piece show one drawn from the seed: it is an example, not a rule.
-            piece: Some(
-                kind_key(
-                    icon_piece(&def.effect).unwrap_or(ICON_KINDS[(mix(seed, 6) % 5) as usize]),
-                )
-                .to_string(),
-            ),
+            piece: icon_piece(&def.effect).map(|k| kind_key(k).to_string()),
             badge: badge(def).map(str::to_string),
-            target: icon_target(&def.effect).map(str::to_string),
-            plies: plies_of(&def.effect),
-            zone: icon_zone(&def.effect).to_string(),
-            mark: icon_mark(def).map(str::to_string),
-            seed: seed as u32,
         },
         sound: SoundSpec {
             effect: index as u8,
