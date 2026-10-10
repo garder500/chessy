@@ -5,6 +5,7 @@
 //! registered by the server under a database id and then behave like any other
 //! skill, through [`crate::skills::SkillId::Forged`].
 
+pub mod bricks;
 pub mod composite;
 pub mod def;
 pub mod generate;
@@ -13,5 +14,6 @@ pub mod measure;
 pub mod rarity;
 pub mod registry;
 
+pub use bricks::{Bricks, Condition, Selector, Zone};
 pub use def::{Constraint, DefError, Effect, Side, SkillDef, SwapScope};
 pub use rarity::{Graded, Rarity};

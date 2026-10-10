@@ -1,7 +1,7 @@
 import { memo, useSyncExternalStore } from "react";
 import { skillEntry, type Family } from "../catalog";
 import { forgedDef, forgedVersion, isForgedId, onForgedChange } from "../forged";
-import { ForgedLayers } from "./forgedGlyphs";
+import { ForgedLayers } from "./forgedIcon";
 
 /**
  * Sprite SVG des 27 compétences (`sk-<id>`), dessinées au trait dans un viewBox 120x120.

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use super::bricks::{validate_selector, Condition, Selector};
 use crate::types::PieceKind;
 
 /// The only definition format understood so far.
@@ -156,6 +157,13 @@ pub struct SkillDef {
     /// Legendary: exists in one deck only, and does not count toward the three picked.
     #[serde(default)]
     pub unique: bool,
+    /// Which pieces and squares the effect may hit. The default hits whatever
+    /// the effect allows, so it is left out of the JSON.
+    #[serde(default, skip_serializing_if = "Selector::is_default")]
+    pub selector: Selector,
+    /// When it can be used at all (`None`: any time).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub condition: Option<Condition>,
 }
 
 fn check_plies(plies: u8) -> Result<(), DefError> {
@@ -185,6 +193,47 @@ impl SkillDef {
             max_uses: 1,
             free_action: false,
             unique: false,
+            selector: Selector::default(),
+            condition: None,
+        }
+    }
+
+    /// The effect's `op` name, as it appears in the JSON.
+    pub fn action_name(&self) -> &'static str {
+        match self.effect {
+            Effect::Freeze { .. } => "freeze",
+            Effect::Shield { .. } => "shield",
+            Effect::Cloak { .. } => "cloak",
+            Effect::Morph { .. } => "morph",
+            Effect::Promote => "promote",
+            Effect::Remove { .. } => "remove",
+            Effect::Convert => "convert",
+            Effect::Teleport => "teleport",
+            Effect::Duplicate => "duplicate",
+            Effect::Swap { .. } => "swap",
+            Effect::Spawn { .. } => "spawn",
+            Effect::Revive { .. } => "revive",
+            Effect::Truce { .. } => "truce",
+            Effect::Mirror => "mirror",
+            Effect::Fog { .. } => "fog",
+            Effect::Silence { .. } => "silence",
+            Effect::Ambush { .. } => "ambush",
+        }
+    }
+
+    /// How long the effect lasts, in plies, if it has a duration.
+    pub fn plies(&self) -> Option<u8> {
+        match self.effect {
+            Effect::Freeze { plies }
+            | Effect::Shield { plies }
+            | Effect::Cloak { plies }
+            | Effect::Morph { plies, .. }
+            | Effect::Spawn { plies, .. }
+            | Effect::Truce { plies }
+            | Effect::Fog { plies }
+            | Effect::Silence { plies }
+            | Effect::Ambush { plies } => Some(plies),
+            _ => None,
         }
     }
 
@@ -200,6 +249,7 @@ impl SkillDef {
         if self.constraints.len() > MAX_CONSTRAINTS {
             return invalid("too many constraints");
         }
+        validate_selector(&self.effect, &self.selector)?;
         match &self.effect {
             Effect::Freeze { plies }
             | Effect::Shield { plies }
@@ -238,6 +288,10 @@ impl SkillDef {
             _ => None,
         };
         if let Some(kinds) = kinds {
+            kinds.sort_by_key(|k| *k as u8);
+            kinds.dedup();
+        }
+        if let Some(kinds) = &mut self.selector.kinds {
             kinds.sort_by_key(|k| *k as u8);
             kinds.dedup();
         }

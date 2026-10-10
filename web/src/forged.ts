@@ -15,9 +15,10 @@ export const RARITY_LABEL: Record<Rarity, string> = Object.defineProperties(
   Object.fromEntries(RARITIES.map((r) => [r, { enumerable: true, get: () => t(`forge.rarity_${r}`) }])),
 );
 
-/** Ce que le client dessine pour l'icône (voir `ui/ForgedArt.tsx`). */
+/** Ce que le client dessine (voir `ui/forgedIcon.tsx`) : le signe de l'effet ; la rareté et la famille viennent de la définition. */
 export interface IconSpec {
   glyph: string;
+  /** Anciens champs, envoyés par le serveur mais plus dessinés : l'icône n'est qu'un signe. */
   piece?: "pawn" | "knight" | "bishop" | "rook" | "queen";
   badge?: "short" | "long" | "forever";
 }

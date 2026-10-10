@@ -4,7 +4,9 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use chessy_engine::forge::registry;
-use chessy_engine::forge::{Constraint, DefError, Effect, Side, SkillDef, SwapScope};
+use chessy_engine::forge::{
+    Condition, Constraint, DefError, Effect, Selector, Side, SkillDef, SwapScope, Zone,
+};
 use chessy_engine::notation::skill_name;
 
 use crate::common::*;
@@ -907,6 +909,36 @@ fn random_def(rng: &mut Rng) -> SkillDef {
     if rng.chance(15) {
         d.free_action = true;
     }
+    if rng.chance(15)
+        && !matches!(
+            d.effect,
+            Effect::Remove { .. }
+                | Effect::Spawn { .. }
+                | Effect::Revive { .. }
+                | Effect::Truce { .. }
+                | Effect::Fog { .. }
+                | Effect::Silence { .. }
+                | Effect::Ambush { .. }
+                | Effect::Mirror
+        )
+    {
+        d.selector.kinds = Some(random_kinds(rng));
+    }
+    if rng.chance(20)
+        && !matches!(
+            d.effect,
+            Effect::Truce { .. }
+                | Effect::Fog { .. }
+                | Effect::Silence { .. }
+                | Effect::Ambush { .. }
+                | Effect::Mirror
+        )
+    {
+        d.selector.zone = Zone::ALL[1 + rng.below(Zone::ALL.len() - 1)];
+    }
+    if rng.chance(15) {
+        d.condition = Some(Condition::ALL[rng.below(Condition::ALL.len())]);
+    }
     d
 }
 
@@ -950,4 +982,223 @@ fn random_games_with_forged_skills_stay_consistent() {
         }
         check_invariants(&g, &format!("seed {seed} end"));
     }
+}
+
+// ---- bricks: selector and condition ------------------------------------------
+
+#[test]
+fn a_definition_without_new_bricks_keeps_its_json_and_fingerprint() {
+    // Stored before selectors and conditions existed; must not change.
+    let old = r#"{"version":1,"effect":{"op":"freeze","plies":4},"constraints":["forbid_mate"],"max_uses":1,"free_action":false,"unique":false}"#;
+    let parsed: SkillDef = serde_json::from_str(old).expect("old json still loads");
+    assert!(parsed.selector.is_default() && parsed.condition.is_none());
+    assert_eq!(serde_json::to_string(&parsed).unwrap(), old);
+    assert_eq!(
+        parsed.signature(),
+        "freeze:m|[ForbidMate]|1|false",
+        "the signature of a skill without new bricks is unchanged"
+    );
+}
+
+#[test]
+fn bricks_make_signatures_and_fingerprints_differ() {
+    let plain = def(Effect::Freeze { plies: 4 });
+    let mut zoned = plain.clone();
+    zoned.selector.zone = Zone::Center;
+    let mut when = plain.clone();
+    when.condition = Some(Condition::Behind);
+    let mut only_rooks = plain.clone();
+    only_rooks.selector.kinds = Some(vec![PieceKind::Rook]);
+    let all = [&plain, &zoned, &when, &only_rooks];
+    for (i, a) in all.iter().enumerate() {
+        for b in &all[i + 1..] {
+            assert_ne!(a.signature(), b.signature());
+            assert_ne!(a.fingerprint(), b.fingerprint());
+        }
+    }
+    let mut cheaper = plain.clone();
+    cheaper.condition = Some(Condition::Behind);
+    assert!(
+        cheaper.cost() < plain.cost(),
+        "a condition refunds some cost"
+    );
+}
+
+#[test]
+fn the_selector_narrows_targets_by_kind_and_zone() {
+    let mut d = def(Effect::Freeze { plies: 4 });
+    d.selector = Selector {
+        kinds: Some(vec![PieceKind::Rook]),
+        zone: Zone::Anywhere,
+    };
+    let id = forge(d);
+    let g = game("4k3/8/8/8/3r1n2/8/8/4K3 w - - 0 1", &[id], &[]);
+    assert_eq!(
+        targets_of(&g, id),
+        vec![piece("d4")],
+        "the knight is not a rook"
+    );
+
+    // White's own half is ranks 1 to 4; for Black it is ranks 5 to 8.
+    let mut d = def(Effect::Freeze { plies: 4 });
+    d.selector.zone = Zone::EnemyHalf;
+    let id = forge(d);
+    let g = game("4k3/8/3r4/8/3r4/8/8/4K3 w - - 0 1", &[id], &[]);
+    assert_eq!(
+        targets_of(&g, id),
+        vec![piece("d6")],
+        "d4 is on white's own half"
+    );
+    let g = game("4k3/8/3r4/8/3R4/8/8/4K3 b - - 0 1", &[], &[id]);
+    assert_eq!(
+        targets_of(&g, id),
+        vec![piece("d4")],
+        "zones follow the caster"
+    );
+}
+
+#[test]
+fn zones_cover_the_squares_they_say() {
+    let count = |zone: Zone| {
+        (0..64u8)
+            .filter(|&s| zone.contains(Color::White, s))
+            .count()
+    };
+    assert_eq!(count(Zone::Anywhere), 64);
+    assert_eq!(count(Zone::OwnHalf), 32);
+    assert_eq!(count(Zone::EnemyHalf), 32);
+    assert_eq!(count(Zone::Center), 16);
+    assert_eq!(count(Zone::Wings), 32);
+    assert_eq!(count(Zone::Rim), 28);
+    assert_eq!(count(Zone::Light), 32);
+    assert_eq!(count(Zone::Dark), 32);
+    // a1 is dark, h1 is light.
+    assert!(Zone::Dark.contains(Color::White, 0));
+    assert!(Zone::Light.contains(Color::White, 7));
+}
+
+#[test]
+fn a_zone_on_a_move_applies_to_where_the_piece_lands() {
+    let mut d = def(Effect::Teleport);
+    d.selector.zone = Zone::Center;
+    let id = forge(d);
+    let g = game("4k3/8/8/8/8/8/P7/4K3 w - - 0 1", &[id], &[]);
+    let targets = targets_of(&g, id);
+    assert!(!targets.is_empty());
+    for t in &targets {
+        match t {
+            SkillTarget::PieceTo { to, .. } => {
+                assert!(Zone::Center.contains(Color::White, *to))
+            }
+            other => panic!("unexpected target {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn conditions_gate_the_skill() {
+    let behind = |c| {
+        let mut d = def(Effect::Freeze { plies: 4 });
+        d.condition = Some(c);
+        forge(d)
+    };
+    let (b, a) = (behind(Condition::Behind), behind(Condition::Ahead));
+    // White has a lone king against a rook: behind.
+    let g = game("4k3/8/8/8/3r4/8/8/4K3 w - - 0 1", &[b, a], &[]);
+    assert!(has_skill(&g, b));
+    assert!(!has_skill(&g, a));
+    // White is a rook up, so Black (to move) is the one behind.
+    let g = game("4k3/8/8/8/3R4/8/8/4K3 b - - 0 1", &[], &[b, a]);
+    assert!(has_skill(&g, b) && !has_skill(&g, a));
+    // Equal material: neither.
+    let g = game("4k3/8/8/3r4/3R4/8/8/4K3 w - - 0 1", &[b, a], &[]);
+    assert!(!has_skill(&g, b) && !has_skill(&g, a));
+
+    let noq = behind(Condition::NoQueen);
+    let with_queen = game("4k3/8/8/8/3rQ3/8/8/4K3 w - - 0 1", &[noq], &[]);
+    assert!(!has_skill(&with_queen, noq));
+    let without = game("4k3/8/8/8/3r4/8/8/4K3 w - - 0 1", &[noq], &[]);
+    assert!(has_skill(&without, noq));
+
+    let early = behind(Condition::Early);
+    let late = behind(Condition::Late);
+    let start = game("4k3/8/8/8/3r4/8/8/4K3 w - - 0 1", &[early, late], &[]);
+    assert!(has_skill(&start, early));
+    assert!(!has_skill(&start, late));
+}
+
+#[test]
+fn invalid_bricks_are_refused() {
+    let mut globals = def(Effect::Truce { plies: 4 });
+    globals.selector.zone = Zone::Rim;
+    assert!(matches!(globals.validate(), Err(DefError::Invalid(_))));
+
+    let mut own_kinds = def(Effect::Remove {
+        kinds: vec![PieceKind::Pawn],
+    });
+    own_kinds.selector.kinds = Some(vec![PieceKind::Pawn]);
+    assert!(matches!(own_kinds.validate(), Err(DefError::Invalid(_))));
+
+    let mut king = def(Effect::Freeze { plies: 4 });
+    king.selector.kinds = Some(vec![PieceKind::King]);
+    assert!(matches!(king.validate(), Err(DefError::Invalid(_))));
+    king.selector.kinds = Some(Vec::new());
+    assert!(matches!(king.validate(), Err(DefError::Invalid(_))));
+
+    // A condition fits any effect.
+    let mut ok = def(Effect::Mirror);
+    ok.condition = Some(Condition::Behind);
+    assert!(ok.validate().is_ok());
+}
+
+#[test]
+fn the_selector_kinds_are_canonical() {
+    let mut a = def(Effect::Shield { plies: 4 });
+    a.selector.kinds = Some(vec![PieceKind::Rook, PieceKind::Pawn, PieceKind::Rook]);
+    let mut b = def(Effect::Shield { plies: 4 });
+    b.selector.kinds = Some(vec![PieceKind::Pawn, PieceKind::Rook]);
+    assert_eq!(a.fingerprint(), b.fingerprint());
+    assert_eq!(a.signature(), b.signature());
+}
+
+#[test]
+fn a_description_and_the_bricks_mention_the_new_bricks() {
+    let mut d = def(Effect::Freeze { plies: 4 });
+    d.selector.zone = Zone::Wings;
+    d.selector.kinds = Some(vec![PieceKind::Rook, PieceKind::Queen]);
+    d.condition = Some(Condition::Wounded);
+    let text = chessy_engine::forge::identity::identity(&d).description;
+    for word in ["tours ou dames", "ailes", "trois pièces"] {
+        assert!(text.contains(word), "{word} missing from: {text}");
+    }
+    let bricks = d.bricks();
+    assert_eq!(bricks.action, "freeze");
+    assert_eq!(bricks.sign, "snowflake");
+    assert_eq!(bricks.side, "enemy");
+    assert_eq!(bricks.kinds, vec![PieceKind::Rook, PieceKind::Queen]);
+    assert_eq!(bricks.zone, Zone::Wings);
+    assert_eq!(bricks.plies, Some(4));
+    assert_eq!(bricks.condition, Some(Condition::Wounded));
+    assert!(!bricks.permanent);
+    let json = serde_json::to_value(&bricks).unwrap();
+    assert_eq!(json["action"], "freeze");
+}
+
+#[test]
+fn the_generator_draws_the_new_bricks_and_they_stay_valid() {
+    use chessy_engine::forge::generate;
+    let mut rng = chessy_engine::ai::Rng::new(77);
+    let (mut zoned, mut conditioned, mut kinded) = (0, 0, 0);
+    for _ in 0..400 {
+        let d = generate::random_def(&mut rng);
+        d.validate().expect("generated definitions are valid");
+        assert_eq!(d, d.clone().canonical());
+        zoned += usize::from(d.selector.zone != Zone::Anywhere);
+        conditioned += usize::from(d.condition.is_some());
+        kinded += usize::from(d.selector.kinds.is_some());
+    }
+    assert!(
+        zoned > 20 && conditioned > 20 && kinded > 10,
+        "{zoned} {conditioned} {kinded}"
+    );
 }

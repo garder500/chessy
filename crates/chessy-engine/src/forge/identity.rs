@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::bricks::{Condition, Zone};
 use super::def::{Constraint, Effect, Side, SkillDef, SwapScope};
 use crate::types::PieceKind;
 
@@ -301,6 +302,35 @@ fn effect_sentence(effect: &Effect) -> String {
 
 fn description(def: &SkillDef) -> String {
     let mut out = effect_sentence(&def.effect);
+    if let Some(kinds) = &def.selector.kinds {
+        out.push_str(&format!(" Ne vise que : {}.", kinds_list_plural(kinds)));
+    }
+    if def.selector.zone != Zone::Anywhere {
+        out.push(' ');
+        out.push_str(match def.selector.zone {
+            Zone::Anywhere => "",
+            Zone::OwnHalf => "Seulement dans ta moitié de l'échiquier.",
+            Zone::EnemyHalf => "Seulement dans la moitié de l'adversaire.",
+            Zone::Center => "Seulement au centre de l'échiquier (colonnes c à f, rangées 3 à 6).",
+            Zone::Wings => "Seulement sur les ailes (colonnes a, b, g et h).",
+            Zone::Rim => "Seulement sur le bord de l'échiquier.",
+            Zone::Light => "Seulement sur les cases claires.",
+            Zone::Dark => "Seulement sur les cases sombres.",
+        });
+    }
+    if let Some(condition) = def.condition {
+        out.push(' ');
+        out.push_str(match condition {
+            Condition::Behind => {
+                "Utilisable seulement si tu as moins de matériel que l'adversaire."
+            }
+            Condition::Ahead => "Utilisable seulement si tu as plus de matériel que l'adversaire.",
+            Condition::Early => "Utilisable seulement avant le 10e coup de chaque joueur.",
+            Condition::Late => "Utilisable seulement à partir du 20e coup de chaque joueur.",
+            Condition::NoQueen => "Utilisable seulement si tu n'as plus de dame.",
+            Condition::Wounded => "Utilisable seulement si tu as perdu au moins trois pièces.",
+        });
+    }
     for c in &def.constraints {
         out.push(' ');
         out.push_str(match c {

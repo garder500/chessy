@@ -7,7 +7,7 @@ import { setLang } from "./i18n";
 import { forgedDef, isForgedId, loadForged, noticeForged, rememberForged, resetForged, unknownForged, type ForgedDef } from "./forged";
 import { NO_PIECE } from "./protocol";
 import { SkillArt, SkillSprite } from "./ui/SkillArt";
-import { GLYPH_PATHS } from "./ui/forgedGlyphs";
+import { GLYPH_NAMES, RARITY_EDGE, SIGNS } from "./ui/forgedIcon";
 
 /** Les glyphes que le serveur peut nommer (`GLYPHS` dans crates/chessy-engine/src/forge/identity.rs). */
 const SERVER_GLYPHS = [
@@ -23,7 +23,7 @@ const def = (n: number, over: Partial<ForgedDef> = {}): ForgedDef => ({
   unique: false,
   redundant: false,
   max_uses: 1,
-  icon: { glyph: "snowflake", piece: "knight", badge: "short" },
+  icon: { glyph: "snowflake" },
   sound: { effect: 0, degree: 2, timbre: 1, length: 1 },
   ...over,
 });
@@ -118,16 +118,15 @@ describe("fiche et icône", () => {
   });
 
   it("chaque glyphe que le serveur peut nommer a un dessin", () => {
-    for (const g of SERVER_GLYPHS) expect(GLYPH_PATHS[g], g).toBeTruthy();
-    expect(Object.keys(GLYPH_PATHS).sort()).toEqual([...SERVER_GLYPHS].sort());
+    for (const g of SERVER_GLYPHS) expect(SIGNS[g], g).toBeTruthy();
+    expect(GLYPH_NAMES.sort()).toEqual([...SERVER_GLYPHS].sort());
   });
 
-  it("dessine une icône forgée : glyphe, pièce, badge et cadre de rareté", () => {
+  it("dessine une icône forgée : le signe de l'effet et le contour de rareté", () => {
     rememberForged([def(4)]);
     const html = renderToStaticMarkup(createElement("div", null, createElement(SkillSprite), createElement(SkillArt, { id: "forged_4", size: 40 })));
-    expect(html).toContain(GLYPH_PATHS.snowflake);
-    expect(html).toContain('href="#p-knight"');
-    expect(html).toContain("var(--rar-rare)");
+    expect(html).toContain(RARITY_EDGE.rare);
+    expect(html).toContain("<path");
     expect(html).not.toContain("#sk-forged_4");
   });
 
