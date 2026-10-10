@@ -44,3 +44,10 @@ dans le briefing du boss.
 Client : `campaign_get`, `campaign_start { level, skills }`, `campaign_forge { replace }`.
 Serveur : `campaign { levels }`, `game_over.campaign`, `state.campaign` (bandeau en partie).
 Base : table `campaign_levels` (migration ordonnée).
+
+## Limites connues
+
+- Le décompte des pertes et des prises lit les évènements « pièce capturée ». Une pièce retirée par une compétence
+  (sans capture) n'est pas comptée.
+- La forge de boss tire jusqu'à six fois pour atteindre le plancher de rareté et garde la meilleure compétence
+  sinon : le plancher est très probable, pas absolu.

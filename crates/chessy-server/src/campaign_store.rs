@@ -52,20 +52,22 @@ impl Store {
         let boss = campaign::level(level).is_some_and(|l| l.boss);
         let mut conn = self.db();
         let tx = conn.transaction()?;
-        let before: u8 = tx
-            .query_row(
-                "SELECT stars FROM campaign_levels WHERE player_id = ?1 AND level = ?2",
-                params![player, level],
-                |r| r.get(0),
-            )
-            .unwrap_or(0);
+        let before: u8 = match tx.query_row(
+            "SELECT stars FROM campaign_levels WHERE player_id = ?1 AND level = ?2",
+            params![player, level],
+            |r| r.get(0),
+        ) {
+            Ok(stars) => stars,
+            Err(rusqlite::Error::QueryReturnedNoRows) => 0,
+            Err(e) => return Err(e.into()),
+        };
         let after = (before | stars) & STAR_ALL;
         let forge_due = boss && before & STAR_WIN == 0 && stars & STAR_WIN != 0;
         tx.execute(
             "INSERT INTO campaign_levels (player_id, level, stars, forge_pending)
              VALUES (?1, ?2, ?3, ?4)
              ON CONFLICT(player_id, level) DO UPDATE SET
-                 stars = excluded.stars,
+                 stars = campaign_levels.stars | excluded.stars,
                  forge_pending = campaign_levels.forge_pending OR excluded.forge_pending,
                  updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
             params![player, level, after, forge_due],

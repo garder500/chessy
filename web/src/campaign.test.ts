@@ -83,3 +83,12 @@ describe("main du joueur", () => {
     expect(readHand(deck, store)).toEqual([]);
   });
 });
+
+describe("niveau fermé", () => {
+  it("un boss de chapitre fermé annonce le chapitre, pas la porte d'étoiles", async () => {
+    const { lockedReason } = await import("./campaign");
+    const levels = [level(21), level(27, { boss: true }), level(17, { boss: true, stars: 7, unlocked: true })];
+    const reason = lockedReason(levels, levels[1]);
+    expect(reason).not.toContain("12");
+  });
+});

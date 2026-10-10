@@ -66,7 +66,7 @@ export const levelById = (levels: readonly CampaignLevel[] | null, id: number) =
 /** Pourquoi un niveau est fermé : le texte à afficher à la place du bouton de lancement. */
 export function lockedReason(levels: readonly CampaignLevel[], level: CampaignLevel): string {
   if (level.unlocked) return "";
-  if (level.index === 1 && level.chapter > 1) {
+  if ((level.index === 1 || level.boss) && level.chapter > 1 && !chapterOpen(levels, level.chapter)) {
     return t("campaign.locked_chapter", { n: level.chapter - 1, boss: bossName(level.chapter - 1) });
   }
   if (level.boss) return t("campaign.locked_gate", { need: BOSS_GATE, have: gateStars(levels, level.chapter) });
