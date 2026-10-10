@@ -11,6 +11,8 @@ use crate::campaign::{self, LevelRef, BOSS_STARS, CHAPTERS};
 use crate::protocol::{CampaignInfo, RewardOffer};
 
 const MAX_CHOSEN_SKILLS: usize = 3;
+/// Release builds (`make serve`, Docker) never end a game through `dev_finish`.
+const DEV_SHORTCUTS_ENABLED: bool = cfg!(debug_assertions);
 
 /// What `finish_game` sends the human of a finished campaign game.
 pub(super) struct CampaignResult {
@@ -131,6 +133,33 @@ impl Hub {
             player,
             reward,
         })
+    }
+
+    /// Debug builds only: ends the campaign game in progress, won or lost by the human.
+    pub fn dev_finish(&mut self, player: &str, win: bool) {
+        if !DEV_SHORTCUTS_ENABLED {
+            return self.fail(
+                player,
+                "dev_only",
+                "this shortcut exists in debug builds only",
+            );
+        }
+        let Some(game_id) = self.player_game.get(player).cloned() else {
+            return self.fail(player, "not_in_game", "you are not in a game");
+        };
+        let campaign_bot = match self.games.get(&game_id) {
+            Some(Session {
+                solo: Some(solo),
+                phase: Phase::Playing { .. },
+                ..
+            }) if solo.campaign.is_some() => Some(solo.bot),
+            _ => None,
+        };
+        let Some(bot) = campaign_bot else {
+            return self.fail(player, "not_campaign", "you are not in a campaign game");
+        };
+        let loser = if win { bot } else { bot.opposite() };
+        self.end_by_resignation(&game_id, loser, "resignation");
     }
 
     /// The forged skill of a boss, offered until the account has resolved it

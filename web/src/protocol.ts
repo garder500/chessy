@@ -458,6 +458,7 @@ export type ClientMsg =
   | { type: "select_deck"; skills: SkillId[] }
   | { type: "action"; action: Action }
   | { type: "resign" }
+  | { type: "dev_finish"; win: boolean }
   | { type: "reward_choice"; choice: RewardChoice }
   | { type: "friend_request"; username: string }
   | { type: "friend_respond"; username: string; accept: boolean }

@@ -6,7 +6,7 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 use super::{Hub, HubConfig};
 use crate::campaign::{LevelRef, BOSS_LEVEL, STAR_CHALLENGE, STAR_OBJECTIVE, STAR_WIN};
-use crate::protocol::{CampaignInfo, RewardChoice, RewardOffer, ServerMsg};
+use crate::protocol::{CampaignInfo, RewardChoice, RewardOffer, ServerMsg, SoloColor};
 use crate::store::Store;
 
 const BOSS: LevelRef = LevelRef {
@@ -64,6 +64,44 @@ impl Player {
         let rows = self.store.campaign_rows(&self.id).unwrap();
         rows.iter().any(|r| r.at.is_boss() && r.rewarded)
     }
+}
+
+const FRESH_LEVEL: LevelRef = LevelRef {
+    chapter: 1,
+    level: 0,
+};
+
+impl Player {
+    fn fresh_level_stars(&self) -> u8 {
+        let rows = self.store.campaign_rows(&self.id).unwrap();
+        rows.iter()
+            .find(|r| r.at == FRESH_LEVEL)
+            .map_or(0, |r| r.stars)
+    }
+}
+
+#[test]
+fn dev_finish_win_records_the_victory_star() {
+    let mut p = player(false);
+    p.hub.campaign_start(&p.id.clone(), FRESH_LEVEL, None);
+    p.hub.dev_finish(&p.id.clone(), true);
+    assert_ne!(p.fresh_level_stars() & STAR_WIN, 0);
+}
+
+#[test]
+fn dev_finish_loss_records_no_star() {
+    let mut p = player(false);
+    p.hub.campaign_start(&p.id.clone(), FRESH_LEVEL, None);
+    p.hub.dev_finish(&p.id.clone(), false);
+    assert_eq!(p.fresh_level_stars(), 0);
+}
+
+#[test]
+fn dev_finish_is_refused_outside_a_campaign_game() {
+    let mut p = player(false);
+    p.hub.solo_start(&p.id.clone(), 400, SoloColor::White);
+    p.hub.dev_finish(&p.id.clone(), true);
+    assert!(p.hub.player_game.contains_key(&p.id), "the game goes on");
 }
 
 #[test]

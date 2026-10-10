@@ -8,6 +8,7 @@ import { ModerationActions } from "../../ui/Moderation";
 import { SkillArt } from "../../ui/SkillArt";
 import { UniqueBadge } from "../../ui/UniqueBadge";
 import { useCompact } from "../../ui/useCompact";
+import { DevFinish } from "./DevFinish";
 import { tileRarity } from "../../ui/tileRarity";
 
 interface SkillListProps {
@@ -225,6 +226,7 @@ export function Actions({ view, over }: { view: StateView; over: boolean }) {
           </button>
         </div>
       )}
+      <DevFinish />
     </section>
   );
 }
@@ -372,6 +374,7 @@ export function Options({ view, onClose }: { view: StateView; onClose: () => voi
       <button type="button" className="btn block danger" onClick={() => setConfirm(true)}>
         Abandonner
       </button>
+      <DevFinish />
       <button type="button" className="link" onClick={onClose}>
         Reprendre la partie
       </button>

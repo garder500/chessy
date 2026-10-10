@@ -87,6 +87,10 @@ pub enum ClientMsg {
         action: Action,
     },
     Resign,
+    /// Debug builds only: ends the current campaign game as a win or a loss for the human.
+    DevFinish {
+        win: bool,
+    },
     RewardChoice {
         choice: RewardChoice,
     },

@@ -76,6 +76,8 @@ export interface AppState {
   solo: SoloSetting;
   /** `solo_start` envoyé, partie pas encore créée (le bot répond presque instantanément). */
   soloPending: boolean;
+  /** Partie en cours lancée depuis la campagne (sert aux raccourcis de dev). */
+  campaignGame: boolean;
   /** Partie regardée en tant que spectateur (v4), `null` si on ne regarde rien. */
   spectating: SpectatingState | null;
 }
@@ -141,6 +143,7 @@ const initial: AppState = {
   rematch: "none",
   solo: SOLO_DEFAULT,
   soloPending: false,
+  campaignGame: false,
   spectating: null,
 };
 
@@ -373,7 +376,7 @@ export class Store {
 
   /** Leaves a finished game and returns to the lobby. */
   leaveGame() {
-    this.set({ game: null, over: null, deckSelect: null, rematch: "none" });
+    this.set({ game: null, over: null, deckSelect: null, rematch: "none", campaignGame: false });
   }
 
   /** Lance une partie contre l'IA et mémorise le réglage. */
@@ -381,13 +384,14 @@ export class Store {
     const solo: SoloSetting = { elo: clampElo(elo), color };
     writeSolo(solo);
     this.send({ type: "solo_start", elo: solo.elo, color: solo.color });
-    this.set({ solo });
+    this.set({ solo, campaignGame: false });
     this.awaitSoloGame();
   }
 
   /** Lance un niveau de la campagne (decks imposés par le niveau, ou `deck` choisi si le niveau le demande). */
   startCampaign(chapter: number, level: number, deck?: SkillId[]) {
     this.send({ type: "campaign_start", chapter, level, deck });
+    this.set({ campaignGame: true });
     this.awaitSoloGame();
   }
 
@@ -592,7 +596,7 @@ export class Store {
         break;
       case "game_cancelled":
         this.clearSoloPending();
-        this.set({ game: null, deckSelect: null, over: null, rematch: "none" });
+        this.set({ game: null, deckSelect: null, over: null, rematch: "none", campaignGame: false });
         sfx.play("notice");
         if (msg.reason === "opponent_left_requeued") {
           this.notify("Votre adversaire est parti : nouvelle recherche en cours…");
