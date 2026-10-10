@@ -16,7 +16,7 @@ function LevelTile({ chapter, level, onPick }: { chapter: CampaignChapter; level
       <button type="button" className={`card cp-level${level.boss ? " boss" : ""}${locked ? " locked" : ""}`} onClick={() => onPick(level)}>
         <span className="cp-level-name">{level.boss ? "Boss · " : ""}{level.name}</span>
         <span className="mono muted cp-level-elo">Elo {level.elo}</span>
-        {locked ? <span className="muted">Verrouillé · {bossProgress(chapter)} ★</span> : <Stars stars={level.best} />}
+        {locked ? <span className="muted">Verrouillé · {bossProgress(chapter)} ★</span> : <Stars stars={level.best} boss={level.boss} />}
       </button>
     </li>
   );

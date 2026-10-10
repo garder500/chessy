@@ -59,7 +59,7 @@ export function LevelSheet({ chapter, level, ownDeck, connected, pending, guest,
       <p className="sheet-sub">
         {level.boss ? "Boss · " : ""}Sage · Elo {level.elo}
       </p>
-      <Stars stars={level.best} size={22} />
+      <Stars stars={level.best} size={22} boss={level.boss} />
       <dl className="cp-goals">
         <dt>{STAR_LABELS[0]}</dt>
         <dd>Gagner la partie</dd>
