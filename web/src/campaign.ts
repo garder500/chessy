@@ -24,6 +24,11 @@ export function toggleDeckPick(picked: SkillId[], skill: SkillId): SkillId[] {
   return picked.length < MAX_DECK_PICKS ? [...picked, skill] : picked;
 }
 
+/** Écarte les choix qui ne sont plus dans le deck (après un `deck_update`). */
+export function validPicks(picked: SkillId[], deck: SkillId[]): SkillId[] {
+  return picked.filter((s) => deck.includes(s));
+}
+
 export function colorLabel(color: "white" | "black"): string {
   return color === "white" ? "les blancs" : "les noirs";
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bossProgress, chapterTitle, countStars, isLocked, toggleDeckPick } from "./campaign";
+import { bossProgress, chapterTitle, countStars, isLocked, toggleDeckPick, validPicks } from "./campaign";
 import type { CampaignChapter, CampaignLevel, SkillId } from "./protocol";
 
 const level = (boss: boolean): CampaignLevel => ({
@@ -51,6 +51,10 @@ describe("campagne", () => {
   it("ajoute et retire une compétence du deck choisi", () => {
     expect(toggleDeckPick([], "freeze")).toEqual(["freeze"]);
     expect(toggleDeckPick(["freeze", "clone"], "freeze")).toEqual(["clone"]);
+  });
+
+  it("écarte les choix sortis du deck", () => {
+    expect(validPicks(["freeze", "clone"], ["clone", "trap"])).toEqual(["clone"]);
   });
 
   it("plafonne le deck choisi à trois compétences", () => {

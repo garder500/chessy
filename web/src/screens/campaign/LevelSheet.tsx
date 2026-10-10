@@ -1,5 +1,5 @@
 import { type CSSProperties, useState } from "react";
-import { colorLabel, isLocked, STAR_LABELS, toggleDeckPick } from "../../campaign";
+import { colorLabel, isLocked, STAR_LABELS, toggleDeckPick, validPicks } from "../../campaign";
 import { familyVar } from "../../catalog";
 import type { CampaignChapter, CampaignLevel, SkillId } from "../../protocol";
 import { skillInfo } from "../../skills";
@@ -44,8 +44,9 @@ function Deck({ label, skills }: { label: string; skills: SkillId[] }) {
 
 /** Détail d'un niveau : adversaire, objectif et défi, decks imposés, lancement. */
 export function LevelSheet({ chapter, level, ownDeck, connected, pending, guest, onClose }: Props) {
-  const [picked, setPicked] = useState<SkillId[]>([]);
+  const [chosen, setChosen] = useState<SkillId[]>([]);
   if (!level) return null;
+  const picked = validPicks(chosen, ownDeck);
   const locked = isLocked(chapter, level);
   const needsPick = level.deck_choice && picked.length === 0;
   const play = () => {
@@ -81,7 +82,7 @@ export function LevelSheet({ chapter, level, ownDeck, connected, pending, guest,
         </p>
       )}
       {level.deck_choice ? (
-        <DeckPicker deck={ownDeck} picked={picked} onToggle={(skill) => setPicked((cur) => toggleDeckPick(cur, skill))} />
+        <DeckPicker deck={ownDeck} picked={picked} onToggle={(skill) => setChosen((cur) => toggleDeckPick(validPicks(cur, ownDeck), skill))} />
       ) : (
         <Deck label="Votre deck" skills={level.player_deck} />
       )}
