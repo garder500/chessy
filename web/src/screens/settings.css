@@ -6,7 +6,7 @@
 
 .st-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 0; border-top: 1px solid var(--line); }
 .st-row:first-of-type { border-top: 0; }
-.st-row-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.st-row-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 220px; }
 .st-label { font-size: 15px; font-weight: 500; }
 .st-hint { font-size: 13px; line-height: 1.4; }
 .st-note { font-size: 13px; padding: 4px 0 8px; }
@@ -89,4 +89,4 @@
 @media (max-width: 720px) {
   .st-look-prev { order: 0; width: min(260px, 100%); justify-self: center; }
 }
-.st-select { width: auto; min-width: 160px; flex: none; }
+.st-row .st-select { width: auto; min-width: 200px; max-width: 100%; flex: none; }
