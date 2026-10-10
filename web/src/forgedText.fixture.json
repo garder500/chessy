@@ -1,0 +1,2520 @@
+[
+  {
+    "bricks": {
+      "action": "cloak",
+      "condition": null,
+      "constraints": [
+        "only_in_check"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 3,
+      "permanent": false,
+      "plies": 2,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "veil",
+      "zone": "enemy_half"
+    },
+    "description": "Cache une de tes pièces (pas le roi) à l'adversaire pendant 2 coups (1 de chaque camp). Seulement dans la moitié de l'adversaire. Utilisable seulement quand ton roi est en échec. Utilisable 3 fois par partie.",
+    "name": "Brume d'Iljor",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Iljor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "remove",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "bishop",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "erase",
+      "zone": "anywhere"
+    },
+    "description": "Retire de l'échiquier un(e) pion, fou ou dame ennemi(e). Refusé s'il met l'adversaire échec et mat.",
+    "name": "Purge de Xanul",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Xanul"
+    }
+  },
+  {
+    "bricks": {
+      "action": "teleport",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "portal",
+      "zone": "anywhere"
+    },
+    "description": "Déplace une de tes pièces (pas le roi) sur n'importe quelle case vide, sans tenir compte des obstacles.",
+    "name": "Bond de Karnyx",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Karnyx"
+    }
+  },
+  {
+    "bricks": {
+      "action": "shield",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 3,
+      "permanent": false,
+      "plies": 7,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "shield",
+      "zone": "anywhere"
+    },
+    "description": "Une de tes pièces (pas le roi) ne peut pas être capturée pendant 7 coups. Utilisable 3 fois par partie.",
+    "name": "Rempart de Lorjorhal",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Lorjorhal"
+    }
+  },
+  {
+    "bricks": {
+      "action": "spawn",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "rook",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 6,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "summon",
+      "zone": "anywhere"
+    },
+    "description": "Fait apparaître un(e) tour ou dame temporaire sur une case libre des rangées 3 à 6, pendant 6 coups (3 de chaque camp).",
+    "name": "Levée de Sylalar",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Sylalar"
+    }
+  },
+  {
+    "bricks": {
+      "action": "freeze",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 3,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "snowflake",
+      "zone": "anywhere"
+    },
+    "description": "Immobilise une pièce ennemie (pas le roi) pendant 3 coups. Une pièce gelée ne peut pas bouger et ne donne pas échec.",
+    "name": "Gel de Raskarbor",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Raskarbor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "spawn",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "knight",
+        "bishop",
+        "rook",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 7,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "summon",
+      "zone": "own_half"
+    },
+    "description": "Fait apparaître un(e) cavalier, fou, tour ou dame temporaire sur une case libre des rangées 3 à 6, pendant 7 coups. Seulement dans ta moitié de l'échiquier.",
+    "name": "Levée de Calxandra",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Calxandra"
+    }
+  },
+  {
+    "bricks": {
+      "action": "swap",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 3,
+      "permanent": false,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "any",
+      "sign": "swap",
+      "zone": "center"
+    },
+    "description": "Échange la place de deux pièces, quel que soit leur camp (pas les rois). Seulement au centre de l'échiquier (colonnes c à f, rangées 3 à 6). Refusé s'il laisse un roi en échec. Utilisable 3 fois par partie.",
+    "name": "Troc de Fenoldra",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Fenoldra"
+    }
+  },
+  {
+    "bricks": {
+      "action": "fog",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 7,
+      "selector_kinds": [],
+      "side": "none",
+      "sign": "fog",
+      "zone": "anywhere"
+    },
+    "description": "Brouillard : pendant 7 coups, chaque joueur ne voit que les pièces ennemies à deux cases ou moins des siennes.",
+    "name": "Brume épaisse d'Yljor",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Yljor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "cloak",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 5,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "veil",
+      "zone": "anywhere"
+    },
+    "description": "Cache une de tes pièces (pas le roi) à l'adversaire pendant 5 coups. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Voile de Vorxan",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Vorxan"
+    }
+  },
+  {
+    "bricks": {
+      "action": "shield",
+      "condition": null,
+      "constraints": [
+        "only_in_check"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 7,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "shield",
+      "zone": "anywhere"
+    },
+    "description": "Une de tes pièces (pas le roi) ne peut pas être capturée pendant 7 coups. Utilisable seulement quand ton roi est en échec.",
+    "name": "Sauvegarde de Sylxanpyr",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Sylxanpyr"
+    }
+  },
+  {
+    "bricks": {
+      "action": "promote",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "crown",
+      "zone": "anywhere"
+    },
+    "description": "Une de tes pièces (ni le roi ni une dame) devient une dame, pour de bon. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Ascension de Jorkayl",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Jorkayl"
+    }
+  },
+  {
+    "bricks": {
+      "action": "remove",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "rook"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "erase",
+      "zone": "anywhere"
+    },
+    "description": "Retire de l'échiquier un(e) pion ou tour ennemi(e). Refusé s'il met l'adversaire échec et mat.",
+    "name": "Bannissement de Zerar",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Zerar"
+    }
+  },
+  {
+    "bricks": {
+      "action": "morph",
+      "condition": null,
+      "constraints": [
+        "forbid_check"
+      ],
+      "free_action": false,
+      "into": "queen",
+      "kinds": [
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 3,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "morph",
+      "zone": "anywhere"
+    },
+    "description": "Transforme une pièce ennemie (pas le roi) en dame pendant 3 coups, puis elle reprend sa forme. Refusé s'il laisse un roi en échec.",
+    "name": "Mue de Zerrasis",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Zerrasis"
+    }
+  },
+  {
+    "bricks": {
+      "action": "ambush",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 2,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "domain",
+      "zone": "anywhere"
+    },
+    "description": "Expansion de domaine : pendant 2 coups (1 de chaque camp), la première fois que l'adversaire met ton roi en échec, des fous surgissent et capturent les pièces qui l'attaquent. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Guet-apens de Gorul",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Gorul"
+    }
+  },
+  {
+    "bricks": {
+      "action": "freeze",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 8,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "snowflake",
+      "zone": "anywhere"
+    },
+    "description": "Immobilise une pièce ennemie (pas le roi) pendant 8 coups (4 de chaque camp). Une pièce gelée ne peut pas bouger et ne donne pas échec.",
+    "name": "Givre d'Ulgorar",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Ulgorar"
+    }
+  },
+  {
+    "bricks": {
+      "action": "spawn",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "knight",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 4,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "summon",
+      "zone": "anywhere"
+    },
+    "description": "Fait apparaître un(e) cavalier ou dame temporaire sur une case libre des rangées 3 à 6, pendant 4 coups (2 de chaque camp).",
+    "name": "Invocation d'Elsyl",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Elsyl"
+    }
+  },
+  {
+    "bricks": {
+      "action": "cloak",
+      "condition": "wounded",
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 5,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "veil",
+      "zone": "anywhere"
+    },
+    "description": "Cache une de tes pièces (pas le roi) à l'adversaire pendant 5 coups. Utilisable seulement si tu as perdu au moins trois pièces.",
+    "name": "Ombre de Wynhal",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Wynhal"
+    }
+  },
+  {
+    "bricks": {
+      "action": "spawn",
+      "condition": "wounded",
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "knight"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 8,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "summon",
+      "zone": "anywhere"
+    },
+    "description": "Fait apparaître un(e) cavalier temporaire sur une case libre des rangées 3 à 6, pendant 8 coups (4 de chaque camp). Utilisable seulement si tu as perdu au moins trois pièces. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Convocation de Wynvoral",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Wynvoral"
+    }
+  },
+  {
+    "bricks": {
+      "action": "truce",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 6,
+      "selector_kinds": [],
+      "side": "none",
+      "sign": "dove",
+      "zone": "anywhere"
+    },
+    "description": "Armistice : pendant 6 coups (3 de chaque camp), plus rien n'attaque rien. Aucune capture, aucun échec.",
+    "name": "Trêve de Quelrasjor",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Quelrasjor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "spawn",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "knight",
+        "bishop",
+        "rook",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 3,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "summon",
+      "zone": "anywhere"
+    },
+    "description": "Fait apparaître un(e) cavalier, fou, tour ou dame temporaire sur une case libre des rangées 3 à 6, pendant 3 coups.",
+    "name": "Renfort d'Ispyrras",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Ispyrras"
+    }
+  },
+  {
+    "bricks": {
+      "action": "remove",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "knight",
+        "bishop",
+        "rook"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "erase",
+      "zone": "anywhere"
+    },
+    "description": "Retire de l'échiquier un(e) pion, cavalier, fou ou tour ennemi(e). Refusé s'il met l'adversaire échec et mat.",
+    "name": "Purge de Fenwyn",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Fenwyn"
+    }
+  },
+  {
+    "bricks": {
+      "action": "shield",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "bishop",
+        "rook"
+      ],
+      "max_uses": 3,
+      "permanent": false,
+      "plies": 2,
+      "selector_kinds": [
+        "bishop",
+        "rook"
+      ],
+      "side": "own",
+      "sign": "shield",
+      "zone": "anywhere"
+    },
+    "description": "Une de tes pièces (pas le roi) ne peut pas être capturée pendant 2 coups (1 de chaque camp). Ne vise que : fous ou tours. Utilisable 3 fois par partie.",
+    "name": "Rempart d'Ispyr",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Ispyr"
+    }
+  },
+  {
+    "bricks": {
+      "action": "promote",
+      "condition": "early",
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "queen"
+      ],
+      "max_uses": 2,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [
+        "queen"
+      ],
+      "side": "own",
+      "sign": "crown",
+      "zone": "anywhere"
+    },
+    "description": "Une de tes pièces (ni le roi ni une dame) devient une dame, pour de bon. Ne vise que : dames. Utilisable seulement avant le 10e coup de chaque joueur. Utilisable 2 fois par partie.",
+    "name": "Apothéose de Dragoryl",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Dragoryl"
+    }
+  },
+  {
+    "bricks": {
+      "action": "truce",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 4,
+      "selector_kinds": [],
+      "side": "none",
+      "sign": "dove",
+      "zone": "anywhere"
+    },
+    "description": "Armistice : pendant 4 coups (2 de chaque camp), plus rien n'attaque rien. Aucune capture, aucun échec.",
+    "name": "Paix blanche de Karulis",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Karulis"
+    }
+  },
+  {
+    "bricks": {
+      "action": "shield",
+      "condition": "wounded",
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 6,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "shield",
+      "zone": "rim"
+    },
+    "description": "Une de tes pièces (pas le roi) ne peut pas être capturée pendant 6 coups (3 de chaque camp). Seulement sur le bord de l'échiquier. Utilisable seulement si tu as perdu au moins trois pièces.",
+    "name": "Rempart de Rasmorhal",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Rasmorhal"
+    }
+  },
+  {
+    "bricks": {
+      "action": "teleport",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "portal",
+      "zone": "center"
+    },
+    "description": "Déplace une de tes pièces (pas le roi) sur n'importe quelle case vide, sans tenir compte des obstacles. Seulement au centre de l'échiquier (colonnes c à f, rangées 3 à 6).",
+    "name": "Brèche d'Ilelbor",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Ilelbor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "convert",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "banner",
+      "zone": "anywhere"
+    },
+    "description": "Une pièce ennemie (pas le roi) qui n'en attaque aucune des tiennes passe de ton côté, pour de bon. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Ralliement d'Omtor",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Omtor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "mirror",
+      "condition": null,
+      "constraints": [],
+      "free_action": true,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "none",
+      "sign": "mirror",
+      "zone": "anywhere"
+    },
+    "description": "Les deux camps échangent leurs armées : chaque joueur hérite des pièces de l'autre, à la place symétrique. Ne consomme pas ton tour.",
+    "name": "Palindrome de Lorlor",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Lorlor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "silence",
+      "condition": "wounded",
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 8,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "mute",
+      "zone": "anywhere"
+    },
+    "description": "L'adversaire ne peut utiliser aucun pouvoir pendant 8 coups (4 de chaque camp). Utilisable seulement si tu as perdu au moins trois pièces.",
+    "name": "Mutisme d'Alquelcal",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Alquelcal"
+    }
+  },
+  {
+    "bricks": {
+      "action": "promote",
+      "condition": null,
+      "constraints": [
+        "only_in_check"
+      ],
+      "free_action": false,
+      "kinds": [
+        "queen"
+      ],
+      "max_uses": 2,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "crown",
+      "zone": "own_half"
+    },
+    "description": "Une de tes pièces (ni le roi ni une dame) devient une dame, pour de bon. Seulement dans ta moitié de l'échiquier. Utilisable seulement quand ton roi est en échec. Utilisable 2 fois par partie.",
+    "name": "Sacre d'Ethgorun",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Ethgorun"
+    }
+  },
+  {
+    "bricks": {
+      "action": "promote",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "crown",
+      "zone": "own_half"
+    },
+    "description": "Une de tes pièces (ni le roi ni une dame) devient une dame, pour de bon. Seulement dans ta moitié de l'échiquier.",
+    "name": "Couronnement de Vorel",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Vorel"
+    }
+  },
+  {
+    "bricks": {
+      "action": "spawn",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "knight",
+        "rook",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 6,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "summon",
+      "zone": "anywhere"
+    },
+    "description": "Fait apparaître un(e) cavalier, tour ou dame temporaire sur une case libre des rangées 3 à 6, pendant 6 coups (3 de chaque camp). Refusé s'il met l'adversaire échec et mat.",
+    "name": "Invocation d'Alkaras",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Alkaras"
+    }
+  },
+  {
+    "bricks": {
+      "action": "convert",
+      "condition": "late",
+      "constraints": [
+        "forbid_mate",
+        "forbid_check"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "banner",
+      "zone": "anywhere"
+    },
+    "description": "Une pièce ennemie (pas le roi) qui n'en attaque aucune des tiennes passe de ton côté, pour de bon. Utilisable seulement à partir du 20e coup de chaque joueur. Refusé s'il met l'adversaire échec et mat. Refusé s'il laisse un roi en échec.",
+    "name": "Défection d'Ulka",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Ulka"
+    }
+  },
+  {
+    "bricks": {
+      "action": "remove",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "knight",
+        "bishop",
+        "rook",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "erase",
+      "zone": "anywhere"
+    },
+    "description": "Retire de l'échiquier un(e) pion, cavalier, fou, tour ou dame ennemi(e). Refusé s'il met l'adversaire échec et mat.",
+    "name": "Bannissement de Xanom",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Xanom"
+    }
+  },
+  {
+    "bricks": {
+      "action": "spawn",
+      "condition": null,
+      "constraints": [
+        "only_in_check"
+      ],
+      "free_action": true,
+      "kinds": [
+        "knight",
+        "bishop",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 6,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "summon",
+      "zone": "anywhere"
+    },
+    "description": "Fait apparaître un(e) cavalier, fou ou dame temporaire sur une case libre des rangées 3 à 6, pendant 6 coups (3 de chaque camp). Utilisable seulement quand ton roi est en échec. Ne consomme pas ton tour.",
+    "name": "Levée de Tortorkar",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Tortorkar"
+    }
+  },
+  {
+    "bricks": {
+      "action": "morph",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "into": "rook",
+      "kinds": [
+        "rook"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 6,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "morph",
+      "zone": "anywhere"
+    },
+    "description": "Transforme une pièce ennemie (pas le roi) en tour pendant 6 coups (3 de chaque camp), puis elle reprend sa forme.",
+    "name": "Métamorphose de Calka",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Calka"
+    }
+  },
+  {
+    "bricks": {
+      "action": "teleport",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "bishop",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": null,
+      "selector_kinds": [
+        "pawn",
+        "bishop",
+        "queen"
+      ],
+      "side": "own",
+      "sign": "portal",
+      "zone": "anywhere"
+    },
+    "description": "Déplace une de tes pièces (pas le roi) sur n'importe quelle case vide, sans tenir compte des obstacles. Ne vise que : pions, fous ou dames.",
+    "name": "Faille de Lorzercal",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Lorzercal"
+    }
+  },
+  {
+    "bricks": {
+      "action": "revive",
+      "condition": null,
+      "constraints": [
+        "only_in_check"
+      ],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "bishop"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "ankh",
+      "zone": "dark"
+    },
+    "description": "Ramène sur l'échiquier une de tes pièces capturées (pions ou fous), sur sa case d'origine ou la plus proche. Seulement sur les cases sombres. Utilisable seulement quand ton roi est en échec.",
+    "name": "Nécromancie de Raseth",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Raseth"
+    }
+  },
+  {
+    "bricks": {
+      "action": "morph",
+      "condition": null,
+      "constraints": [
+        "only_in_check"
+      ],
+      "free_action": false,
+      "into": "queen",
+      "kinds": [
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 2,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "morph",
+      "zone": "anywhere"
+    },
+    "description": "Transforme une de tes pièces (pas le roi) en dame pendant 2 coups (1 de chaque camp), puis elle reprend sa forme. Utilisable seulement quand ton roi est en échec.",
+    "name": "Transmutation de Calvoril",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Calvoril"
+    }
+  },
+  {
+    "bricks": {
+      "action": "revive",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "rook"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "ankh",
+      "zone": "anywhere"
+    },
+    "description": "Ramène sur l'échiquier une de tes pièces capturées (pions ou tours), sur sa case d'origine ou la plus proche.",
+    "name": "Renaissance de Morgorjor",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Morgorjor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "morph",
+      "condition": null,
+      "constraints": [],
+      "free_action": true,
+      "into": "bishop",
+      "kinds": [
+        "bishop"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 8,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "morph",
+      "zone": "anywhere"
+    },
+    "description": "Transforme une pièce ennemie (pas le roi) en fou pendant 8 coups (4 de chaque camp), puis elle reprend sa forme. Ne consomme pas ton tour.",
+    "name": "Métamorphose de Jorulka",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Jorulka"
+    }
+  },
+  {
+    "bricks": {
+      "action": "cloak",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 6,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "veil",
+      "zone": "center"
+    },
+    "description": "Cache une de tes pièces (pas le roi) à l'adversaire pendant 6 coups (3 de chaque camp). Seulement au centre de l'échiquier (colonnes c à f, rangées 3 à 6).",
+    "name": "Linceul de Gorfenfen",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Gorfenfen"
+    }
+  },
+  {
+    "bricks": {
+      "action": "fog",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 3,
+      "selector_kinds": [],
+      "side": "none",
+      "sign": "fog",
+      "zone": "anywhere"
+    },
+    "description": "Brouillard : pendant 3 coups, chaque joueur ne voit que les pièces ennemies à deux cases ou moins des siennes.",
+    "name": "Purée de pois d'Olcalkar",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Olcalkar"
+    }
+  },
+  {
+    "bricks": {
+      "action": "morph",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "into": "queen",
+      "kinds": [
+        "queen"
+      ],
+      "max_uses": 2,
+      "permanent": false,
+      "plies": 6,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "morph",
+      "zone": "anywhere"
+    },
+    "description": "Transforme une pièce ennemie (pas le roi) en dame pendant 6 coups (3 de chaque camp), puis elle reprend sa forme. Utilisable 2 fois par partie.",
+    "name": "Avatar de Loris",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Loris"
+    }
+  },
+  {
+    "bricks": {
+      "action": "freeze",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "knight",
+        "bishop",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 6,
+      "selector_kinds": [
+        "pawn",
+        "knight",
+        "bishop",
+        "queen"
+      ],
+      "side": "enemy",
+      "sign": "snowflake",
+      "zone": "light"
+    },
+    "description": "Immobilise une pièce ennemie (pas le roi) pendant 6 coups (3 de chaque camp). Une pièce gelée ne peut pas bouger et ne donne pas échec. Ne vise que : pions, cavaliers, fous ou dames. Seulement sur les cases claires.",
+    "name": "Gel de Sylylun",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Sylylun"
+    }
+  },
+  {
+    "bricks": {
+      "action": "swap",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "swap",
+      "zone": "anywhere"
+    },
+    "description": "Échange la place de deux de tes pièces. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Troc de Xanalol",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Xanalol"
+    }
+  },
+  {
+    "bricks": {
+      "action": "freeze",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 8,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "snowflake",
+      "zone": "anywhere"
+    },
+    "description": "Immobilise une pièce ennemie (pas le roi) pendant 8 coups (4 de chaque camp). Une pièce gelée ne peut pas bouger et ne donne pas échec. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Frimas d'Unar",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Unar"
+    }
+  },
+  {
+    "bricks": {
+      "action": "swap",
+      "condition": "early",
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "any",
+      "sign": "swap",
+      "zone": "anywhere"
+    },
+    "description": "Échange la place de deux pièces, quel que soit leur camp (pas les rois). Utilisable seulement avant le 10e coup de chaque joueur. Refusé s'il laisse un roi en échec.",
+    "name": "Échange de Voralcal",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Voralcal"
+    }
+  },
+  {
+    "bricks": {
+      "action": "duplicate",
+      "condition": "behind",
+      "constraints": [
+        "only_in_check",
+        "forbid_mate",
+        "forbid_check"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "echo",
+      "zone": "anywhere"
+    },
+    "description": "Copie une de tes pièces (pas le roi) sur une case vide voisine. Utilisable seulement si tu as moins de matériel que l'adversaire. Utilisable seulement quand ton roi est en échec. Refusé s'il met l'adversaire échec et mat. Refusé s'il laisse un roi en échec.",
+    "name": "Écho d'Altormor",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Altormor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "shield",
+      "condition": "late",
+      "constraints": [
+        "only_in_check",
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 7,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "shield",
+      "zone": "anywhere"
+    },
+    "description": "Une de tes pièces (pas le roi) ne peut pas être capturée pendant 7 coups. Utilisable seulement à partir du 20e coup de chaque joueur. Utilisable seulement quand ton roi est en échec. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Égide d'Ethomal",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Ethomal"
+    }
+  },
+  {
+    "bricks": {
+      "action": "morph",
+      "condition": "no_queen",
+      "constraints": [],
+      "free_action": false,
+      "into": "rook",
+      "kinds": [
+        "rook"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 5,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "morph",
+      "zone": "anywhere"
+    },
+    "description": "Transforme une de tes pièces (pas le roi) en tour pendant 5 coups, puis elle reprend sa forme. Utilisable seulement si tu n'as plus de dame.",
+    "name": "Mue de Rassylar",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Rassylar"
+    }
+  },
+  {
+    "bricks": {
+      "action": "truce",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 8,
+      "selector_kinds": [],
+      "side": "none",
+      "sign": "dove",
+      "zone": "anywhere"
+    },
+    "description": "Armistice : pendant 8 coups (4 de chaque camp), plus rien n'attaque rien. Aucune capture, aucun échec.",
+    "name": "Armistice de Jorxanka",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Jorxanka"
+    }
+  },
+  {
+    "bricks": {
+      "action": "teleport",
+      "condition": "ahead",
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 3,
+      "permanent": false,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "portal",
+      "zone": "light"
+    },
+    "description": "Déplace une de tes pièces (pas le roi) sur n'importe quelle case vide, sans tenir compte des obstacles. Seulement sur les cases claires. Utilisable seulement si tu as plus de matériel que l'adversaire. Utilisable 3 fois par partie.",
+    "name": "Brèche de Quelun",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Quelun"
+    }
+  },
+  {
+    "bricks": {
+      "action": "freeze",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 2,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "snowflake",
+      "zone": "light"
+    },
+    "description": "Immobilise une pièce ennemie (pas le roi) pendant 2 coups (1 de chaque camp). Une pièce gelée ne peut pas bouger et ne donne pas échec. Seulement sur les cases claires.",
+    "name": "Glace de Vorar",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Vorar"
+    }
+  },
+  {
+    "bricks": {
+      "action": "fog",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 8,
+      "selector_kinds": [],
+      "side": "none",
+      "sign": "fog",
+      "zone": "anywhere"
+    },
+    "description": "Brouillard : pendant 8 coups (4 de chaque camp), chaque joueur ne voit que les pièces ennemies à deux cases ou moins des siennes. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Brouillard de Vorlor",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Vorlor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "swap",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 3,
+      "permanent": false,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "swap",
+      "zone": "light"
+    },
+    "description": "Échange la place de deux de tes pièces. Seulement sur les cases claires. Utilisable 3 fois par partie.",
+    "name": "Chassé-croisé de Jorwyn",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Jorwyn"
+    }
+  },
+  {
+    "bricks": {
+      "action": "remove",
+      "condition": "late",
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "bishop",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "erase",
+      "zone": "anywhere"
+    },
+    "description": "Retire de l'échiquier un(e) fou ou dame ennemi(e). Utilisable seulement à partir du 20e coup de chaque joueur. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Faucheuse de Loralmor",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Loralmor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "duplicate",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "echo",
+      "zone": "anywhere"
+    },
+    "description": "Copie une de tes pièces (pas le roi) sur une case vide voisine.",
+    "name": "Doublon d'Arnyx",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Arnyx"
+    }
+  },
+  {
+    "bricks": {
+      "action": "morph",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "into": "bishop",
+      "kinds": [
+        "bishop"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 5,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "morph",
+      "zone": "anywhere"
+    },
+    "description": "Transforme une de tes pièces (pas le roi) en fou pendant 5 coups, puis elle reprend sa forme.",
+    "name": "Transmutation d'Ethissyl",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Ethissyl"
+    }
+  },
+  {
+    "bricks": {
+      "action": "silence",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 2,
+      "permanent": false,
+      "plies": 3,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "mute",
+      "zone": "anywhere"
+    },
+    "description": "L'adversaire ne peut utiliser aucun pouvoir pendant 3 coups. Utilisable 2 fois par partie.",
+    "name": "Serment du taciturne d'Ethjor",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Ethjor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "duplicate",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "echo",
+      "zone": "anywhere"
+    },
+    "description": "Copie une de tes pièces (pas le roi) sur une case vide voisine. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Reflet d'Issylal",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Issylal"
+    }
+  },
+  {
+    "bricks": {
+      "action": "swap",
+      "condition": null,
+      "constraints": [
+        "forbid_check"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "any",
+      "sign": "swap",
+      "zone": "anywhere"
+    },
+    "description": "Échange la place de deux pièces, quel que soit leur camp (pas les rois). Refusé s'il laisse un roi en échec. Refusé s'il laisse un roi en échec.",
+    "name": "Permutation de Borwyn",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Borwyn"
+    }
+  },
+  {
+    "bricks": {
+      "action": "freeze",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 7,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "snowflake",
+      "zone": "wings"
+    },
+    "description": "Immobilise une pièce ennemie (pas le roi) pendant 7 coups. Une pièce gelée ne peut pas bouger et ne donne pas échec. Seulement sur les ailes (colonnes a, b, g et h).",
+    "name": "Givre d'Ylun",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Ylun"
+    }
+  },
+  {
+    "bricks": {
+      "action": "mirror",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "none",
+      "sign": "mirror",
+      "zone": "anywhere"
+    },
+    "description": "Les deux camps échangent leurs armées : chaque joueur hérite des pièces de l'autre, à la place symétrique.",
+    "name": "Miroir d'Olommor",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Olommor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "morph",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "into": "knight",
+      "kinds": [
+        "knight"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 4,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "morph",
+      "zone": "anywhere"
+    },
+    "description": "Transforme une pièce ennemie (pas le roi) en cavalier pendant 4 coups (2 de chaque camp), puis elle reprend sa forme.",
+    "name": "Métamorphose de Pyrjorel",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Pyrjorel"
+    }
+  },
+  {
+    "bricks": {
+      "action": "remove",
+      "condition": "ahead",
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "knight"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "erase",
+      "zone": "anywhere"
+    },
+    "description": "Retire de l'échiquier un(e) cavalier ennemi(e). Utilisable seulement si tu as plus de matériel que l'adversaire. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Effacement de Xankardra",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Xankardra"
+    }
+  },
+  {
+    "bricks": {
+      "action": "truce",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 2,
+      "permanent": false,
+      "plies": 2,
+      "selector_kinds": [],
+      "side": "none",
+      "sign": "dove",
+      "zone": "anywhere"
+    },
+    "description": "Armistice : pendant 2 coups (1 de chaque camp), plus rien n'attaque rien. Aucune capture, aucun échec. Utilisable 2 fois par partie.",
+    "name": "Cessez-le-feu de Kararnyx",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Kararnyx"
+    }
+  },
+  {
+    "bricks": {
+      "action": "convert",
+      "condition": "no_queen",
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "banner",
+      "zone": "anywhere"
+    },
+    "description": "Une pièce ennemie (pas le roi) qui n'en attaque aucune des tiennes passe de ton côté, pour de bon. Utilisable seulement si tu n'as plus de dame. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Allégeance de Sylul",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Sylul"
+    }
+  },
+  {
+    "bricks": {
+      "action": "remove",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "knight",
+        "rook"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "erase",
+      "zone": "anywhere"
+    },
+    "description": "Retire de l'échiquier un(e) cavalier ou tour ennemi(e). Refusé s'il met l'adversaire échec et mat.",
+    "name": "Bannissement d'Ethnyx",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Ethnyx"
+    }
+  },
+  {
+    "bricks": {
+      "action": "duplicate",
+      "condition": "behind",
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "echo",
+      "zone": "anywhere"
+    },
+    "description": "Copie une de tes pièces (pas le roi) sur une case vide voisine. Utilisable seulement si tu as moins de matériel que l'adversaire.",
+    "name": "Essaim de Pyrwyn",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Pyrwyn"
+    }
+  },
+  {
+    "bricks": {
+      "action": "ambush",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 2,
+      "permanent": false,
+      "plies": 7,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "domain",
+      "zone": "anywhere"
+    },
+    "description": "Expansion de domaine : pendant 7 coups, la première fois que l'adversaire met ton roi en échec, des fous surgissent et capturent les pièces qui l'attaquent. Utilisable 2 fois par partie.",
+    "name": "Expansion du domaine d'Alelar",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Alelar"
+    }
+  },
+  {
+    "bricks": {
+      "action": "fog",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 4,
+      "selector_kinds": [],
+      "side": "none",
+      "sign": "fog",
+      "zone": "anywhere"
+    },
+    "description": "Brouillard : pendant 4 coups (2 de chaque camp), chaque joueur ne voit que les pièces ennemies à deux cases ou moins des siennes. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Nuit blanche de Kayl",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Kayl"
+    }
+  },
+  {
+    "bricks": {
+      "action": "silence",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 7,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "mute",
+      "zone": "anywhere"
+    },
+    "description": "L'adversaire ne peut utiliser aucun pouvoir pendant 7 coups.",
+    "name": "Bâillon de Quelun",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Quelun"
+    }
+  },
+  {
+    "bricks": {
+      "action": "remove",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "erase",
+      "zone": "anywhere"
+    },
+    "description": "Retire de l'échiquier un(e) pion ou dame ennemi(e). Refusé s'il met l'adversaire échec et mat.",
+    "name": "Bannissement de Xanlorpyr",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Xanlorpyr"
+    }
+  },
+  {
+    "bricks": {
+      "action": "spawn",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "bishop",
+        "rook",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 2,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "summon",
+      "zone": "anywhere"
+    },
+    "description": "Fait apparaître un(e) fou, tour ou dame temporaire sur une case libre des rangées 3 à 6, pendant 2 coups (1 de chaque camp).",
+    "name": "Renfort d'Alyl",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Alyl"
+    }
+  },
+  {
+    "bricks": {
+      "action": "revive",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "knight",
+        "rook",
+        "queen"
+      ],
+      "max_uses": 3,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "ankh",
+      "zone": "anywhere"
+    },
+    "description": "Ramène sur l'échiquier une de tes pièces capturées (cavaliers, tours ou dames), sur sa case d'origine ou la plus proche. Utilisable 3 fois par partie.",
+    "name": "Rappel de Karquelel",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Karquelel"
+    }
+  },
+  {
+    "bricks": {
+      "action": "teleport",
+      "condition": null,
+      "constraints": [
+        "forbid_mate",
+        "forbid_check"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "portal",
+      "zone": "dark"
+    },
+    "description": "Déplace une de tes pièces (pas le roi) sur n'importe quelle case vide, sans tenir compte des obstacles. Seulement sur les cases sombres. Refusé s'il met l'adversaire échec et mat. Refusé s'il laisse un roi en échec.",
+    "name": "Passage de Zerzerfen",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Zerzerfen"
+    }
+  },
+  {
+    "bricks": {
+      "action": "ambush",
+      "condition": null,
+      "constraints": [
+        "forbid_check"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 8,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "domain",
+      "zone": "anywhere"
+    },
+    "description": "Expansion de domaine : pendant 8 coups (4 de chaque camp), la première fois que l'adversaire met ton roi en échec, des fous surgissent et capturent les pièces qui l'attaquent. Refusé s'il laisse un roi en échec.",
+    "name": "Cathédrale des fous de Torulbor",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Torulbor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "ambush",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 2,
+      "permanent": false,
+      "plies": 3,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "domain",
+      "zone": "anywhere"
+    },
+    "description": "Expansion de domaine : pendant 3 coups, la première fois que l'adversaire met ton roi en échec, des fous surgissent et capturent les pièces qui l'attaquent. Utilisable 2 fois par partie.",
+    "name": "Domaine de Rasom",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Rasom"
+    }
+  },
+  {
+    "bricks": {
+      "action": "revive",
+      "condition": null,
+      "constraints": [
+        "only_in_check"
+      ],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "rook",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "ankh",
+      "zone": "anywhere"
+    },
+    "description": "Ramène sur l'échiquier une de tes pièces capturées (pions, tours ou dames), sur sa case d'origine ou la plus proche. Utilisable seulement quand ton roi est en échec.",
+    "name": "Rappel d'Alilun",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Alilun"
+    }
+  },
+  {
+    "bricks": {
+      "action": "revive",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "pawn"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "ankh",
+      "zone": "anywhere"
+    },
+    "description": "Ramène sur l'échiquier une de tes pièces capturées (pions), sur sa case d'origine ou la plus proche.",
+    "name": "Nécromancie de Halom",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Halom"
+    }
+  },
+  {
+    "bricks": {
+      "action": "shield",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "knight",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 3,
+      "selector_kinds": [
+        "pawn",
+        "knight",
+        "queen"
+      ],
+      "side": "own",
+      "sign": "shield",
+      "zone": "dark"
+    },
+    "description": "Une de tes pièces (pas le roi) ne peut pas être capturée pendant 3 coups. Ne vise que : pions, cavaliers ou dames. Seulement sur les cases sombres.",
+    "name": "Sauvegarde de Gorka",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Gorka"
+    }
+  },
+  {
+    "bricks": {
+      "action": "revive",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "bishop",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "ankh",
+      "zone": "anywhere"
+    },
+    "description": "Ramène sur l'échiquier une de tes pièces capturées (pions, fous ou dames), sur sa case d'origine ou la plus proche. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Résurrection de Zerlorzer",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Zerlorzer"
+    }
+  },
+  {
+    "bricks": {
+      "action": "swap",
+      "condition": null,
+      "constraints": [],
+      "free_action": true,
+      "kinds": [],
+      "max_uses": 3,
+      "permanent": false,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "any",
+      "sign": "swap",
+      "zone": "center"
+    },
+    "description": "Échange la place de deux pièces, quel que soit leur camp (pas les rois). Seulement au centre de l'échiquier (colonnes c à f, rangées 3 à 6). Refusé s'il laisse un roi en échec. Ne consomme pas ton tour. Utilisable 3 fois par partie.",
+    "name": "Chassé-croisé de Lorzerxan",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Lorzerxan"
+    }
+  },
+  {
+    "bricks": {
+      "action": "morph",
+      "condition": "no_queen",
+      "constraints": [],
+      "free_action": false,
+      "into": "knight",
+      "kinds": [
+        "knight"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 3,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "morph",
+      "zone": "anywhere"
+    },
+    "description": "Transforme une de tes pièces (pas le roi) en cavalier pendant 3 coups, puis elle reprend sa forme. Utilisable seulement si tu n'as plus de dame.",
+    "name": "Avatar d'Ethyl",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Ethyl"
+    }
+  },
+  {
+    "bricks": {
+      "action": "morph",
+      "condition": "wounded",
+      "constraints": [],
+      "free_action": false,
+      "into": "knight",
+      "kinds": [
+        "pawn",
+        "bishop",
+        "rook",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 8,
+      "selector_kinds": [
+        "pawn",
+        "bishop",
+        "rook",
+        "queen"
+      ],
+      "side": "enemy",
+      "sign": "morph",
+      "zone": "anywhere"
+    },
+    "description": "Transforme une pièce ennemie (pas le roi) en cavalier pendant 8 coups (4 de chaque camp), puis elle reprend sa forme. Ne vise que : pions, fous, tours ou dames. Utilisable seulement si tu as perdu au moins trois pièces.",
+    "name": "Métamorphose d'Arras",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Arras"
+    }
+  },
+  {
+    "bricks": {
+      "action": "promote",
+      "condition": null,
+      "constraints": [],
+      "free_action": true,
+      "kinds": [
+        "pawn",
+        "knight",
+        "bishop"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [
+        "pawn",
+        "knight",
+        "bishop"
+      ],
+      "side": "own",
+      "sign": "crown",
+      "zone": "anywhere"
+    },
+    "description": "Une de tes pièces (ni le roi ni une dame) devient une dame, pour de bon. Ne vise que : pions, cavaliers ou fous. Ne consomme pas ton tour.",
+    "name": "Ascension de Vorethal",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Vorethal"
+    }
+  },
+  {
+    "bricks": {
+      "action": "shield",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 3,
+      "permanent": false,
+      "plies": 6,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "shield",
+      "zone": "anywhere"
+    },
+    "description": "Une de tes pièces (pas le roi) ne peut pas être capturée pendant 6 coups (3 de chaque camp). Utilisable 3 fois par partie.",
+    "name": "Bastion de Calnyx",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Calnyx"
+    }
+  },
+  {
+    "bricks": {
+      "action": "revive",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "knight",
+        "rook",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "ankh",
+      "zone": "anywhere"
+    },
+    "description": "Ramène sur l'échiquier une de tes pièces capturées (pions, cavaliers, tours ou dames), sur sa case d'origine ou la plus proche. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Nécromancie d'Omrasgor",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Omrasgor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "convert",
+      "condition": null,
+      "constraints": [
+        "forbid_mate"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "banner",
+      "zone": "light"
+    },
+    "description": "Une pièce ennemie (pas le roi) qui n'en attaque aucune des tiennes passe de ton côté, pour de bon. Seulement sur les cases claires. Refusé s'il met l'adversaire échec et mat.",
+    "name": "Trahison de Fenis",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Fenis"
+    }
+  },
+  {
+    "bricks": {
+      "action": "shield",
+      "condition": null,
+      "constraints": [],
+      "free_action": true,
+      "kinds": [],
+      "max_uses": 2,
+      "permanent": false,
+      "plies": 4,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "shield",
+      "zone": "anywhere"
+    },
+    "description": "Une de tes pièces (pas le roi) ne peut pas être capturée pendant 4 coups (2 de chaque camp). Ne consomme pas ton tour. Utilisable 2 fois par partie.",
+    "name": "Égide de Lorraslor",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Lorraslor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "spawn",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "knight",
+        "bishop"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 6,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "summon",
+      "zone": "anywhere"
+    },
+    "description": "Fait apparaître un(e) cavalier ou fou temporaire sur une case libre des rangées 3 à 6, pendant 6 coups (3 de chaque camp).",
+    "name": "Renfort d'Ethiska",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Ethiska"
+    }
+  },
+  {
+    "bricks": {
+      "action": "silence",
+      "condition": "wounded",
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 7,
+      "selector_kinds": [],
+      "side": "enemy",
+      "sign": "mute",
+      "zone": "anywhere"
+    },
+    "description": "L'adversaire ne peut utiliser aucun pouvoir pendant 7 coups. Utilisable seulement si tu as perdu au moins trois pièces.",
+    "name": "Silence de Morlor",
+    "name_parts": {
+      "noun": 0,
+      "proper": "Morlor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "mirror",
+      "condition": "wounded",
+      "constraints": [],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 2,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "none",
+      "sign": "mirror",
+      "zone": "anywhere"
+    },
+    "description": "Les deux camps échangent leurs armées : chaque joueur hérite des pièces de l'autre, à la place symétrique. Utilisable seulement si tu as perdu au moins trois pièces. Utilisable 2 fois par partie.",
+    "name": "Contre-champ de Lorcal",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Lorcal"
+    }
+  },
+  {
+    "bricks": {
+      "action": "freeze",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "knight"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 7,
+      "selector_kinds": [
+        "pawn",
+        "knight"
+      ],
+      "side": "enemy",
+      "sign": "snowflake",
+      "zone": "anywhere"
+    },
+    "description": "Immobilise une pièce ennemie (pas le roi) pendant 7 coups. Une pièce gelée ne peut pas bouger et ne donne pas échec. Ne vise que : pions ou cavaliers.",
+    "name": "Glace d'Omil",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Omil"
+    }
+  },
+  {
+    "bricks": {
+      "action": "duplicate",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "knight",
+        "rook"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [
+        "pawn",
+        "knight",
+        "rook"
+      ],
+      "side": "own",
+      "sign": "echo",
+      "zone": "anywhere"
+    },
+    "description": "Copie une de tes pièces (pas le roi) sur une case vide voisine. Ne vise que : pions, cavaliers ou tours.",
+    "name": "Essaim de Wyntor",
+    "name_parts": {
+      "noun": 3,
+      "proper": "Wyntor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "revive",
+      "condition": null,
+      "constraints": [],
+      "free_action": true,
+      "kinds": [
+        "pawn",
+        "bishop",
+        "rook"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "own",
+      "sign": "ankh",
+      "zone": "anywhere"
+    },
+    "description": "Ramène sur l'échiquier une de tes pièces capturées (pions, fous ou tours), sur sa case d'origine ou la plus proche. Ne consomme pas ton tour.",
+    "name": "Rappel de Lornyx",
+    "name_parts": {
+      "noun": 2,
+      "proper": "Lornyx"
+    }
+  },
+  {
+    "bricks": {
+      "action": "shield",
+      "condition": null,
+      "constraints": [],
+      "free_action": false,
+      "kinds": [
+        "knight",
+        "bishop",
+        "rook"
+      ],
+      "max_uses": 1,
+      "permanent": false,
+      "plies": 7,
+      "selector_kinds": [
+        "knight",
+        "bishop",
+        "rook"
+      ],
+      "side": "own",
+      "sign": "shield",
+      "zone": "wings"
+    },
+    "description": "Une de tes pièces (pas le roi) ne peut pas être capturée pendant 7 coups. Ne vise que : cavaliers, fous ou tours. Seulement sur les ailes (colonnes a, b, g et h).",
+    "name": "Rempart de Borcal",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Borcal"
+    }
+  },
+  {
+    "bricks": {
+      "action": "promote",
+      "condition": null,
+      "constraints": [
+        "forbid_check"
+      ],
+      "free_action": false,
+      "kinds": [
+        "pawn",
+        "knight",
+        "bishop",
+        "rook",
+        "queen"
+      ],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [
+        "pawn",
+        "knight",
+        "bishop",
+        "rook",
+        "queen"
+      ],
+      "side": "own",
+      "sign": "crown",
+      "zone": "anywhere"
+    },
+    "description": "Une de tes pièces (ni le roi ni une dame) devient une dame, pour de bon. Ne vise que : pions, cavaliers, fous, tours ou dames. Refusé s'il laisse un roi en échec.",
+    "name": "Couronnement de Xanethmor",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Xanethmor"
+    }
+  },
+  {
+    "bricks": {
+      "action": "mirror",
+      "condition": null,
+      "constraints": [
+        "forbid_check"
+      ],
+      "free_action": false,
+      "kinds": [],
+      "max_uses": 1,
+      "permanent": true,
+      "plies": null,
+      "selector_kinds": [],
+      "side": "none",
+      "sign": "mirror",
+      "zone": "anywhere"
+    },
+    "description": "Les deux camps échangent leurs armées : chaque joueur hérite des pièces de l'autre, à la place symétrique. Refusé s'il laisse un roi en échec.",
+    "name": "Inversion de Calkarlor",
+    "name_parts": {
+      "noun": 1,
+      "proper": "Calkarlor"
+    }
+  }
+]

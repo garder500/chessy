@@ -255,6 +255,13 @@ pub struct Bricks {
     /// Which kinds of piece it is about, when it has a say in it: the
     /// selector's, or the effect's own list.
     pub kinds: Vec<PieceKind>,
+    /// The kinds the selector restricts the action to (empty: any the action
+    /// allows). Unlike `kinds`, it never holds the effect's own list.
+    #[serde(default)]
+    pub selector_kinds: Vec<PieceKind>,
+    /// What a morph turns the piece into.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub into: Option<PieceKind>,
     pub zone: Zone,
     /// How long it lasts, in plies; `None` for an instant effect.
     pub plies: Option<u8>,
@@ -319,6 +326,11 @@ impl SkillDef {
             sign: def.sign(),
             side,
             kinds,
+            selector_kinds: def.selector.kinds.clone().unwrap_or_default(),
+            into: match &def.effect {
+                Effect::Morph { into, .. } => Some(*into),
+                _ => None,
+            },
             zone: def.selector.zone,
             plies: def.plies(),
             permanent: def.irreversible(),

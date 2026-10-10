@@ -38,6 +38,22 @@ export interface ForgedBricks {
   kinds?: string[];
   plies?: number | null;
   permanent?: boolean;
+  /** `own`, `enemy`, `any` ou `none` : qui l'effet touche. */
+  side?: string;
+  /** Les types de pièce auxquels le sélecteur limite l'effet (vide : tous ceux que l'effet permet). */
+  selector_kinds?: string[];
+  /** Ce en quoi une métamorphose transforme la pièce. */
+  into?: string;
+  condition?: string | null;
+  constraints?: string[];
+  max_uses?: number;
+  free_action?: boolean;
+}
+
+/** Les deux morceaux d'un nom : lequel des quatre noms de l'effet, et le nom propre inventé. */
+export interface NameParts {
+  noun: number;
+  proper: string;
 }
 
 /** Style de la marque de durée : les mêmes trois états que les badges d'icônes. */
@@ -48,7 +64,10 @@ export function durationStyle(b: Pick<ForgedBricks, "plies" | "permanent">): "sh
 
 export interface ForgedDef {
   id: ForgedSkillId;
+  /** Nom français du serveur : repli quand `name_parts` ou les briques manquent. */
   name: string;
+  name_parts?: NameParts;
+  /** Description française du serveur : repli quand les briques manquent. */
   description: string;
   family: Family;
   rarity: Rarity;
