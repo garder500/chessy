@@ -38,6 +38,8 @@ pub(super) struct Solo {
     pub campaign: Option<LevelRef>,
     /// The human's skills in a campaign level (imposed, or chosen).
     pub deck: Vec<SkillId>,
+    /// Set by the debug-only `dev_finish`: the win records every star of the level.
+    pub dev_all_stars: bool,
 }
 
 impl Solo {
@@ -118,6 +120,7 @@ impl Hub {
             elo,
             campaign,
             deck,
+            dev_all_stars: false,
         };
         self.open_session(white, black, false, GameKind::Solo, Some(seat), None);
     }

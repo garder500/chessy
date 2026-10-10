@@ -65,7 +65,7 @@ Les boss des chapitres 2 à 5 ont une position de départ (FEN, Blancs au trait)
   1 à 3 compétences distinctes du deck actuel du joueur.
 - `game_over` gagne `campaign: {chapter, level, stars:[3 bool], best:[3 bool], chapter_stars, boss_unlocked, boss_stars_required, boss_just_unlocked, title} | null`.
   `boss_just_unlocked` est vrai quand cette partie ouvre le boss ; `title` (texte ou `null`) est renseigné sur une victoire contre un boss.
-- Client (builds de debug uniquement, erreur `dev_only` sinon) : `{"type":"dev_finish","win":true}` termine la partie de campagne en cours par une victoire (`true`) ou une défaite (`false`) du joueur ; erreur `not_campaign` hors partie de campagne.
+- Client (builds de debug uniquement, erreur `dev_only` sinon) : `{"type":"dev_finish","result":"win"}` termine la partie de campagne en cours par une victoire (`win`), une défaite (`loss`) ou une victoire qui enregistre toutes les étoiles du niveau (`all_stars`, la victoire seule pour un boss) ; erreur `not_campaign` hors partie de campagne.
 - `GET /api/campaign` (authentifié) : `{chapters:[{chapter, family, name, title, title_earned, available, stars, boss_stars_required, boss_unlocked, levels:[{level, name, elo, boss, player_deck, bot_deck, deck_choice, start_fen, human_color, objective, challenge, best, rewarded}]}]}`.
   `objective` et `challenge` sont des textes français (ou `null`) ; `start_fen` est une chaîne ou `null` ; `human_color` vaut `"white"`, `"black"` ou `null`.
 - Le profil public gagne `title` (texte ou `null`) : le meilleur titre du joueur.
