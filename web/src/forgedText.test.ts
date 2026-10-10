@@ -104,8 +104,11 @@ describe("texte des compétences forgées", () => {
     expect(forgedName(old)).toBe("Givre d'Alfen");
     expect(forgedDescription(old)).toBe("Immobilise une pièce ennemie.");
     // Une métamorphose dont le serveur n'a pas dit en quoi : on ne devine pas.
-    const morph = { ...old, bricks: { action: "morph", side: "own", constraints: [] } };
+    const morph = { ...old, bricks: { action: "morph", side: "own", constraints: [], selector_kinds: [] } };
     expect(forgedDescription(morph)).toBe(old.description);
+    // Un serveur qui ne dit pas le sélecteur : on ne tait pas sa restriction.
+    const old2 = { ...old, bricks: { action: "remove", side: "enemy", kinds: ["rook"], constraints: [] } };
+    expect(forgedDescription(old2)).toBe(old.description);
     // Une action que ce client ne connaît pas.
     expect(forgedDescription({ ...old, bricks: { action: "levitate", side: "own", constraints: [] } })).toBe(old.description);
     setLang("fr");

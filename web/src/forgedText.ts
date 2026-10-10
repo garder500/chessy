@@ -39,7 +39,7 @@ function kindsList(kinds: string[], plural: boolean): string {
 
 /** Les briques décrivent-elles assez la compétence pour que le client l'écrive lui-même ? */
 function readable(b: ForgedBricks | undefined): b is ForgedBricks & { side: string } {
-  if (!b || !isAction(b.action) || typeof b.side !== "string" || !Array.isArray(b.constraints)) return false;
+  if (!b || !isAction(b.action) || typeof b.side !== "string" || !Array.isArray(b.constraints) || !Array.isArray(b.selector_kinds)) return false;
   if (b.action === "morph" && !(b.into && PIECES.includes(b.into))) return false;
   if (b.action === "swap" && b.side !== "own" && b.side !== "any") return false;
   const all = [...(b.kinds ?? []), ...(b.selector_kinds ?? []), ...(b.into ? [b.into] : [])];
