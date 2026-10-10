@@ -57,9 +57,10 @@ export interface NameParts {
 }
 
 /** Style de la marque de durée : les mêmes trois états que les badges d'icônes. */
-export function durationStyle(b: Pick<ForgedBricks, "plies" | "permanent">): "short" | "long" | "forever" {
+export function durationStyle(b: Pick<ForgedBricks, "plies" | "permanent">): "none" | "short" | "long" | "forever" {
   if (b.permanent) return "forever";
-  return (b.plies ?? 0) > 2 ? "long" : "short";
+  if (b.plies == null) return "none";
+  return b.plies > 2 ? "long" : "short";
 }
 
 export interface ForgedDef {

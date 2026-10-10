@@ -1203,6 +1203,14 @@ export class BoardScene extends Phaser.Scene {
           this.castFlourish(e.skill, e.target, e.color);
           break;
         case "teleported": {
+          if (this.forgedAction(ctx.skill) === "teleport") {
+            // Pouvoir forgé : une fente de lumière se referme au départ, une autre s'ouvre à l'arrivée.
+            const a = this.center(e.from);
+            const b = this.center(e.to);
+            this.slit(a.x, a.y, FX.portal, "close", 0);
+            this.slit(b.x, b.y, FX.portal, "open", 260);
+            break;
+          }
           // Portail : anneaux violets qui se referment au départ et s'ouvrent à l'arrivée.
           const a = this.center(e.from);
           const b = this.center(e.to);
@@ -1244,6 +1252,10 @@ export class BoardScene extends Phaser.Scene {
         }
         case "spawned": {
           const c = this.center(e.square);
+          if (this.forgedAction(ctx.skill) === "spawn") {
+            this.rise(c.x, c.y, FX.trail);
+            break;
+          }
           if (e.piece.wall) this.puffs(c.x, c.y + 24, FX.stone, 8);
           else if (e.piece.mirage) {
             this.rings(c.x, c.y, FX.mirage, 40, 8, 520);
@@ -1270,6 +1282,10 @@ export class BoardScene extends Phaser.Scene {
         }
         case "switched": {
           const c = this.center(e.square);
+          if (this.forgedAction(ctx.skill) === "convert") {
+            this.colorSweep(c.x, c.y, FX.clone);
+            break;
+          }
           this.rings(c.x, c.y, FX.attack, 44, 8, 420);
           this.rings(c.x, c.y, ACCENT, 8, 46, 480, 260);
           break;
@@ -1454,11 +1470,11 @@ export class BoardScene extends Phaser.Scene {
       case "morph": this.swirl(x, y, FX.morph); break;
       case "promote": this.ascend(this.squareAt(x, y) ?? 0, FX.gold); break;
       case "remove": this.rings(x, y, FX.attack, 44, 4, 420); break;
-      case "convert": this.rings(x, y, FX.clone, 8, 54, 520); this.rings(x, y, FX.clone, 4, 38, 520, 120); break;
-      case "teleport": this.rings(x, y, FX.portal, 46, 6, 460); break;
-      case "duplicate": this.rings(x, y, FX.clone, 14, 44, 420); this.rings(x, y, FX.clone, 8, 30, 420, 100); break;
-      case "swap": this.rings(x, y, FX.thread, 40, 8, 420); break;
-      case "spawn": this.rings(x, y, FX.trail, 8, 48, 480); break;
+      case "convert": break; // le mouvement vient de ses événements (playEffects)
+      case "teleport": break; // le mouvement vient de ses événements (playEffects)
+      case "duplicate": break; // le mouvement vient de ses événements (playEffects)
+      case "swap": break; // le mouvement vient de ses événements (playEffects)
+      case "spawn": break; // le mouvement vient de ses événements (playEffects)
       case "revive": this.beam(this.squareAt(x, y) ?? 0, FX.gold, 0); this.rings(x, y, FX.gold, 6, 52, 520, 260); break;
       case "truce": this.flash(FX.shield, 0.16, 640); this.rings(SIZE / 2, SIZE / 2, FX.shield, 20, SIZE * 0.55, 720); break;
       case "mirror": this.sweepLine(); break;
@@ -1472,10 +1488,53 @@ export class BoardScene extends Phaser.Scene {
     return true;
   }
 
+  private forgedAction(skill: SkillId | null): string | null {
+    return skill !== null && isForgedId(skill) ? (forgedDef(skill)?.bricks?.action ?? null) : null;
+  }
+
+  /** Fente verticale de lumière : elle se resserre en trait (départ) ou s'ouvre depuis un trait (arrivée). */
+  private slit(x: number, y: number, color: number, mode: "close" | "open", delay: number) {
+    const bar = this.add.rectangle(x, y, 22, TILE * 0.95, color, 0).setDepth(12);
+    const open = mode === "open";
+    bar.setScale(open ? 0.05 : 1, open ? 0.4 : 1);
+    this.tweens.add({
+      targets: bar,
+      scaleX: open ? 1 : 0.05,
+      scaleY: 1,
+      fillAlpha: { from: open ? 0.15 : 0.7, to: open ? 0.7 : 0 },
+      duration: 320,
+      delay,
+      ease: "Cubic.Out",
+      yoyo: open,
+      onStart: () => bar.setFillStyle(color, open ? 0.15 : 0.7),
+      onComplete: () => bar.destroy(),
+    });
+  }
+
+  /** Une bande de couleur balaie la case de gauche à droite (Convertir). */
+  private colorSweep(x: number, y: number, color: number) {
+    const half = TILE * 0.42;
+    for (let i = 0; i < 2; i++) {
+      const band = this.add.rectangle(x - half, y, i === 0 ? 14 : 6, TILE * 0.86, color, 0.8).setDepth(12);
+      this.tweens.add({ targets: band, x: x + half, fillAlpha: { from: 0.85, to: 0.1 }, duration: 520, delay: i * 90, ease: "Sine.InOut", onComplete: () => band.destroy() });
+    }
+  }
+
+  /** La pièce monte du sol : un trait au sol s'élargit, une colonne de lumière se dresse puis s'éteint (Invoquer). */
+  private rise(x: number, y: number, color: number) {
+    const base = y + TILE * 0.4;
+    const line = this.add.rectangle(x, base, TILE * 0.8, 4, color, 0.9).setDepth(12).setScale(0.1, 1);
+    this.tweens.add({ targets: line, scaleX: 1, fillAlpha: { from: 0.9, to: 0 }, duration: 560, ease: "Cubic.Out", onComplete: () => line.destroy() });
+    const col = this.add.rectangle(x, base, TILE * 0.5, TILE * 0.8, color, 0.3).setOrigin(0.5, 1).setDepth(11);
+    col.setScale(1, 0.05);
+    this.tweens.add({ targets: col, scaleY: 1, fillAlpha: { from: 0.4, to: 0 }, duration: 560, ease: "Cubic.Out", onComplete: () => col.destroy() });
+  }
+
   /** Marque de durée du lancement : deux arcs (courte), cinq arcs (longue) ou anneau d'or (permanente). */
   private durationArcs(x: number, y: number, b: ForgedBricks, color: number) {
     const g = this.add.graphics().setDepth(12).setPosition(x, y);
     const style = durationStyle(b);
+    if (style === "none") { g.destroy(); return; }
     const arcs = style === "forever" ? 0 : style === "long" ? 5 : 2;
     if (arcs === 0) g.lineStyle(4, FX.gold, 0.95).strokeCircle(0, 0, 34);
     else for (let i = 0; i < arcs; i++) {
