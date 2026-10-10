@@ -9,10 +9,14 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::bot;
+use crate::campaign::LevelRef;
 use crate::hub::{ForgeJob, Hub, HubConfig, Timer};
 use crate::limits::{bucket, ConnSlot, ConnectionLimiter, FailureWindow, Refusal};
 use crate::protocol::{ClientMsg, PlayerId, RewardChoice, ServerMsg};
 use crate::store::{Store, StoreError};
+
+/// Forges tried for a reward bound to a rarity range before settling.
+const MAX_RANGE_FORGES: u32 = 6;
 
 /// Failed logins allowed per username within [`LOGIN_WINDOW`] before it is locked out.
 const LOGIN_MAX_FAILURES: u32 = 8;
@@ -328,6 +332,9 @@ impl App {
                 }
                 ClientMsg::ChallengeCancel => hub.challenge_cancel(player),
                 ClientMsg::SoloStart { elo, color } => hub.solo_start(player, elo, color),
+                ClientMsg::CampaignStart { chapter, level } => {
+                    hub.campaign_start(player, LevelRef { chapter, level })
+                }
                 ClientMsg::Spectate { game_id } => hub.spectate(player, &game_id),
                 ClientMsg::Unspectate => hub.unspectate(player),
             }
@@ -352,12 +359,11 @@ impl App {
                 seed,
                 known,
                 store,
+                range,
             } = job;
             let made = tokio::task::spawn_blocking(move || {
                 let mut rng = chessy_engine::ai::Rng::new(seed);
-                let budget = chessy_engine::forge::generate::Budget::live();
-                let forged =
-                    chessy_engine::forge::generate::forge(&mut rng, target, &known, budget);
+                let forged = forge_in_range(&mut rng, target, &known, &range)?;
                 store
                     .insert_forged(&forged.def, &forged.graded)
                     .ok()
@@ -374,4 +380,19 @@ impl App {
             app.schedule(timers);
         });
     }
+}
+
+/// Forges aiming at `target`; the forge may settle for a neighbouring tier, so
+/// a reward bound to a rarity range tries again a few times and, failing
+/// that, forges nothing (the reward stays on offer).
+fn forge_in_range(
+    rng: &mut chessy_engine::ai::Rng,
+    target: chessy_engine::forge::Rarity,
+    known: &std::collections::HashSet<String>,
+    range: &std::ops::RangeInclusive<chessy_engine::forge::Rarity>,
+) -> Option<chessy_engine::forge::generate::Forged> {
+    use chessy_engine::forge::generate::{forge, Budget};
+    (0..MAX_RANGE_FORGES)
+        .map(|_| forge(rng, target, known, Budget::live()))
+        .find(|forged| range.contains(&forged.graded.rarity))
 }

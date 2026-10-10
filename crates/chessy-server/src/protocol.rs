@@ -153,6 +153,11 @@ pub enum ClientMsg {
         #[serde(default)]
         color: SoloColor,
     },
+    /// Starts a campaign level against the bot (`level` 6 is the boss).
+    CampaignStart {
+        chapter: u8,
+        level: u8,
+    },
     /// Watches a running game (not allowed while playing).
     Spectate {
         game_id: String,
@@ -322,6 +327,19 @@ pub struct RewardOffer {
     pub deck_full: bool,
 }
 
+/// How a finished campaign game went (stars are `[win, objective, challenge]`).
+#[derive(Clone, Debug, Serialize)]
+pub struct CampaignInfo {
+    pub chapter: u8,
+    pub level: u8,
+    /// Earned in this game.
+    pub stars: [bool; 3],
+    /// Best so far, this game included.
+    pub best: [bool; 3],
+    pub chapter_stars: u8,
+    pub boss_unlocked: bool,
+}
+
 /// A skill and everywhere it can currently be aimed.
 #[derive(Clone, Debug, Serialize)]
 pub struct SkillOptions {
@@ -448,6 +466,7 @@ pub enum ServerMsg {
         rated: bool,
         elo: Option<EloView>,
         reason: String,
+        campaign: Option<CampaignInfo>,
     },
     /// Your deck changed (reward applied, or you lost a skill).
     DeckUpdate {
@@ -537,7 +556,8 @@ impl ClientMsg {
             | ClientMsg::ReportUser { .. }
             | ClientMsg::Challenge { .. }
             | ClientMsg::ChallengeRespond { .. }
-            | ClientMsg::SoloStart { .. } => expensive,
+            | ClientMsg::SoloStart { .. }
+            | ClientMsg::CampaignStart { .. } => expensive,
             _ => 1,
         }
     }

@@ -233,6 +233,43 @@ export interface StateView {
   history?: HistoryEntry[];
 }
 
+/** Étoiles d'un niveau de campagne : [victoire, objectif, défi]. */
+export type CampaignStars = [boolean, boolean, boolean];
+
+export interface CampaignResult {
+  chapter: number;
+  level: number;
+  stars: CampaignStars;
+  best: CampaignStars;
+  chapter_stars: number;
+  boss_unlocked: boolean;
+}
+
+/** Un niveau de `GET /api/campaign` (le boss a `level` 6 et `boss: true`). */
+export interface CampaignLevel {
+  level: number;
+  name: string;
+  elo: number;
+  boss: boolean;
+  player_deck: SkillId[];
+  bot_deck: SkillId[];
+  objective: string | null;
+  challenge: string | null;
+  best: CampaignStars;
+  rewarded: boolean;
+}
+
+export interface CampaignChapter {
+  chapter: number;
+  family: string;
+  name: string;
+  available: boolean;
+  stars: number;
+  boss_stars_required: number;
+  boss_unlocked: boolean;
+  levels: CampaignLevel[];
+}
+
 export interface RewardOffer {
   deck: SkillId[];
   steal_options: SkillId[];
@@ -381,7 +418,7 @@ export type ServerMsg =
   | ({ type: "deck_select" } & DeckSelectInfo)
   | ({ type: "state" } & StateView)
   | { type: "opponent_status"; connected: boolean }
-  | { type: "game_over"; outcome: Outcome; reward: RewardOffer | null; rated: boolean; elo: EloChange | null; reason: string }
+  | { type: "game_over"; outcome: Outcome; reward: RewardOffer | null; rated: boolean; elo: EloChange | null; reason: string; campaign?: CampaignResult | null }
   | { type: "deck_update"; deck: SkillId[]; gained: SkillId | null; lost: SkillId | null }
   | { type: "game_cancelled"; reason: string }
   | { type: "spectate_state"; view: SpectatorView }
@@ -401,6 +438,7 @@ export type ClientMsg =
   | { type: "hello"; token?: string }
   | { type: "queue_join"; ranked?: boolean; time?: TimeControl }
   | { type: "solo_start"; elo: number; color: SoloColor }
+  | { type: "campaign_start"; chapter: number; level: number }
   | { type: "create_room"; time?: TimeControl }
   | { type: "join_room"; code: string }
   | { type: "leave_lobby" }

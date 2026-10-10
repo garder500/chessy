@@ -1,10 +1,13 @@
 pub mod analysis;
 pub mod api;
+pub mod api_campaign;
 pub mod api_games;
 pub mod api_live;
 pub mod api_skills;
 pub mod app;
 pub mod bot;
+pub mod campaign;
+pub mod campaign_store;
 pub mod elo;
 pub mod forged_store;
 pub mod games_store;
