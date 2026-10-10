@@ -150,7 +150,15 @@ impl Replay {
 }
 
 pub fn new_game(loadouts: &Loadouts) -> Game {
-    Game::new(&loadouts.white, &loadouts.black)
+    game_at(loadouts.start.as_deref(), &loadouts.white, &loadouts.black)
+}
+
+/// A game from the standard position, or from `start` (a FEN) when given.
+pub fn game_at(start: Option<&str>, white: &[SkillId], black: &[SkillId]) -> Game {
+    match start.map(Position::from_fen) {
+        Some(Ok(pos)) => Game::from_position(pos, white, black),
+        _ => Game::new(white, black),
+    }
 }
 
 /// Plays `action` and describes it (notation, events, resulting position).

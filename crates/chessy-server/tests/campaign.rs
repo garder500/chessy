@@ -3,15 +3,27 @@
 mod common;
 
 use axum::http::StatusCode;
-use chessy_engine::{parse_square, Action, Color};
+use chessy_engine::{parse_square, Action, Color, SkillId};
 use chessy_server::campaign::{LevelRef, BOSS_LEVEL, STAR_CHALLENGE, STAR_OBJECTIVE, STAR_WIN};
+use chessy_server::hub::Timer;
 use chessy_server::hub::{Hub, HubConfig};
-use chessy_server::protocol::{CampaignInfo, RewardOffer, ServerMsg};
+use chessy_server::protocol::{CampaignInfo, ClientMsg, RewardOffer, ServerMsg, StateView};
 use chessy_server::store::Store;
 use common::*;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 const ATTACK: u8 = 0;
+const DEFENSE: u8 = 1;
+const MOBILITY: u8 = 2;
+const CREATE: u8 = 4;
+const ALL_STARS: u8 = STAR_WIN | STAR_OBJECTIVE | STAR_CHALLENGE;
+const OWNED: [SkillId; 4] = [
+    SkillId::Mirage,
+    SkillId::Wall,
+    SkillId::Freeze,
+    SkillId::Morph,
+];
+const DEFENSE_BOSS_FEN: &str = "rnbqkbnr/pppppppp/2p2p2/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 fn at(level: u8) -> LevelRef {
     LevelRef {
@@ -55,11 +67,16 @@ impl Player {
     }
 
     fn start(&mut self, level: LevelRef) -> (String, Color) {
-        self.hub.campaign_start(&self.id.clone(), level);
+        let state = self.start_with(level, None);
+        (state.game_id, state.you)
+    }
+
+    fn start_with(&mut self, level: LevelRef, deck: Option<Vec<SkillId>>) -> StateView {
+        self.hub.campaign_start(&self.id.clone(), level, deck);
         self.messages()
             .into_iter()
             .find_map(|m| match m {
-                ServerMsg::State(s) => Some((s.game_id, s.you)),
+                ServerMsg::State(s) => Some(*s),
                 _ => None,
             })
             .expect("the game starts without deck selection")
@@ -125,11 +142,13 @@ impl Player {
     }
 
     fn open_boss(&mut self) {
+        self.open_boss_of(ATTACK);
+    }
+
+    fn open_boss_of(&mut self, chapter: u8) {
         for level in 0..4 {
-            let all = STAR_WIN | STAR_OBJECTIVE | STAR_CHALLENGE;
-            self.store
-                .record_campaign(&self.id, at(level), all)
-                .unwrap();
+            let at = LevelRef { chapter, level };
+            self.store.record_campaign(&self.id, at, ALL_STARS).unwrap();
         }
     }
 }
@@ -148,10 +167,10 @@ fn unknown_and_locked_levels_are_refused() {
         },
         at(BOSS_LEVEL + 1),
     ] {
-        p.hub.campaign_start(&p.id.clone(), level);
+        p.hub.campaign_start(&p.id.clone(), level, None);
         assert_eq!(p.error_code().as_deref(), Some("unknown_level"));
     }
-    p.hub.campaign_start(&p.id.clone(), at(BOSS_LEVEL));
+    p.hub.campaign_start(&p.id.clone(), at(BOSS_LEVEL), None);
     assert_eq!(p.error_code().as_deref(), Some("boss_locked"));
 }
 
@@ -242,4 +261,174 @@ async fn a_guest_reads_its_progress_with_its_session_token() {
         .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(v["chapters"][0]["stars"], 1);
+}
+
+const CHOICE: LevelRef = LevelRef {
+    chapter: MOBILITY,
+    level: 0,
+};
+
+fn player_with_deck() -> Player {
+    let p = player(true);
+    p.store.set_deck(&p.id, &OWNED).unwrap();
+    p
+}
+
+fn skills_of(state: &StateView) -> Vec<SkillId> {
+    state.my_skills.iter().map(|s| s.skill).collect()
+}
+
+#[test]
+fn a_chosen_deck_is_played_and_ignored_on_imposed_levels() {
+    let mut p = player_with_deck();
+    let chosen = vec![SkillId::Wall, SkillId::Mirage];
+    let state = p.start_with(CHOICE, Some(chosen.clone()));
+    assert_eq!(skills_of(&state), chosen);
+    p.hub.resign(&p.id.clone());
+    p.messages();
+
+    let state = p.start_with(at(0), Some(vec![SkillId::Wall]));
+    assert_ne!(skills_of(&state), vec![SkillId::Wall]);
+}
+
+#[test]
+fn a_bad_deck_is_refused() {
+    let mut p = player_with_deck();
+    let not_owned = vec![SkillId::Godhelp];
+    let too_many = OWNED.to_vec();
+    let twice = vec![SkillId::Wall, SkillId::Wall];
+    for deck in [
+        Some(vec![]),
+        Some(too_many),
+        Some(twice),
+        Some(not_owned),
+        None,
+    ] {
+        p.hub.campaign_start(&p.id.clone(), CHOICE, deck);
+        assert_eq!(p.error_code().as_deref(), Some("bad_deck"));
+    }
+}
+
+#[test]
+fn a_rematch_keeps_the_chosen_deck() {
+    let mut p = player_with_deck();
+    let chosen = vec![SkillId::Freeze];
+    p.start_with(CHOICE, Some(chosen.clone()));
+    p.hub.resign(&p.id.clone());
+    p.messages();
+    p.hub.rematch_request(&p.id.clone());
+    let state = p
+        .messages()
+        .into_iter()
+        .find_map(|m| match m {
+            ServerMsg::State(s) => Some(*s),
+            _ => None,
+        })
+        .expect("the rematch starts");
+    assert_eq!(skills_of(&state), chosen);
+}
+
+#[test]
+fn a_custom_start_boss_begins_on_its_position_and_the_bot_moves_first() {
+    let mut p = player_with_deck();
+    p.open_boss_of(CREATE);
+    let boss = LevelRef {
+        chapter: CREATE,
+        level: BOSS_LEVEL,
+    };
+    p.hub.take_timers();
+    let state = p.start_with(boss, Some(vec![SkillId::Wall]));
+    assert_eq!(state.you, Color::Black);
+    assert_eq!(state.to_move, Color::White);
+    assert!(state.board[18].is_some() && state.board[21].is_some());
+    let timers = p.hub.take_timers();
+    assert!(timers
+        .iter()
+        .any(|(_, t)| matches!(t, Timer::BotMove { ply: 0, .. })));
+}
+
+#[tokio::test]
+async fn the_replay_of_a_custom_start_boss_starts_from_its_position() {
+    let (app, store) = new_app(HubConfig::default());
+    let mut c = account(&app, &store, "ana");
+    for level in 0..4 {
+        let at = LevelRef {
+            chapter: DEFENSE,
+            level,
+        };
+        store.record_campaign(&c.id, at, ALL_STARS).unwrap();
+    }
+    c.send(ClientMsg::CampaignStart {
+        chapter: DEFENSE,
+        level: BOSS_LEVEL,
+        deck: None,
+    });
+    let state = c.next("state");
+    assert_eq!(state["you"], "white");
+    assert!(!state["board"][42].is_null());
+    c.mv("e2", "e4");
+    c.send(ClientMsg::Resign);
+
+    let id = state["game_id"].as_str().unwrap();
+    let (status, replay) = Api::new(&app)
+        .get(&format!("/api/games/{id}"), Some(&c.token))
+        .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(replay["loadouts"]["start"], DEFENSE_BOSS_FEN);
+    assert!(!replay["frames"][0]["board"][42].is_null());
+    assert_eq!(replay["moves"][0]["notation"], "e4");
+}
+
+#[test]
+fn a_lost_boss_game_gives_no_title() {
+    let mut p = player(true);
+    p.open_boss();
+    assert_eq!(p.lose(at(BOSS_LEVEL)).campaign.unwrap().title, None);
+    assert_eq!(p.store.public_profile("ana").unwrap().unwrap().title, None);
+}
+
+#[test]
+fn the_boss_unlock_is_announced_once() {
+    let mut p = player(true);
+    for level in 1..4 {
+        p.store
+            .record_campaign(&p.id, at(level), ALL_STARS)
+            .unwrap();
+    }
+    p.store
+        .record_campaign(&p.id, at(0), STAR_WIN | STAR_OBJECTIVE)
+        .unwrap();
+    let first = p.win(at(0)).campaign.unwrap();
+    assert!(first.boss_unlocked && first.boss_just_unlocked);
+    assert_eq!(first.boss_stars_required, 12);
+    let second = p.win(at(0)).campaign.unwrap();
+    assert!(second.boss_unlocked && !second.boss_just_unlocked);
+}
+
+#[tokio::test]
+async fn the_rest_api_describes_titles_decks_and_starts() {
+    let (app, store) = new_app(HubConfig::default());
+    let api = Api::new(&app);
+    let token = api.register("ana").await;
+    let id = store.player_by_token(&token).unwrap().unwrap();
+    for level in 0..4 {
+        store.record_campaign(&id, at(level), ALL_STARS).unwrap();
+    }
+    store
+        .record_campaign(&id, at(BOSS_LEVEL), STAR_WIN)
+        .unwrap();
+
+    let (_, v) = api.get("/api/campaign", Some(&token)).await;
+    let chapters = v["chapters"].as_array().unwrap();
+    assert_eq!(chapters[0]["title"], "Fer de Lance");
+    assert_eq!(chapters[0]["title_earned"], true);
+    assert_eq!(chapters[1]["title_earned"], false);
+    let boss = |c: usize| &chapters[c]["levels"][usize::from(BOSS_LEVEL)];
+    assert_eq!(boss(0)["deck_choice"], false);
+    assert!(boss(0)["start_fen"].is_null() && boss(0)["human_color"].is_null());
+    assert_eq!(boss(1)["start_fen"], DEFENSE_BOSS_FEN);
+    assert_eq!(boss(1)["human_color"], "white");
+    assert_eq!(boss(4)["deck_choice"], true);
+    assert_eq!(boss(4)["human_color"], "black");
+    assert_eq!(chapters[2]["levels"][0]["deck_choice"], true);
 }

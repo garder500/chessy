@@ -332,9 +332,11 @@ impl App {
                 }
                 ClientMsg::ChallengeCancel => hub.challenge_cancel(player),
                 ClientMsg::SoloStart { elo, color } => hub.solo_start(player, elo, color),
-                ClientMsg::CampaignStart { chapter, level } => {
-                    hub.campaign_start(player, LevelRef { chapter, level })
-                }
+                ClientMsg::CampaignStart {
+                    chapter,
+                    level,
+                    deck,
+                } => hub.campaign_start(player, LevelRef { chapter, level }, deck),
                 ClientMsg::Spectate { game_id } => hub.spectate(player, &game_id),
                 ClientMsg::Unspectate => hub.unspectate(player),
             }

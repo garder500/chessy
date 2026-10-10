@@ -11,7 +11,8 @@ use serde_json::{json, Value};
 use crate::api::{authenticate, ApiResult};
 use crate::app::App;
 use crate::campaign::{
-    boss_unlocked, chapter_stars, star_flags, Chapter, Level, LevelRef, BOSS_STARS, CHAPTERS,
+    boss_unlocked, chapter_stars, star_flags, title_earned, Chapter, Level, LevelRef, BOSS_STARS,
+    CHAPTERS,
 };
 use crate::campaign_store::CampaignRow;
 
@@ -28,6 +29,9 @@ fn level_json(chapter: u8, index: usize, level: &Level, rows: &[CampaignRow]) ->
         "boss": at.is_boss(),
         "player_deck": level.player_deck,
         "bot_deck": level.bot_deck,
+        "deck_choice": level.deck_choice,
+        "start_fen": level.start.as_ref().map(|s| s.fen),
+        "human_color": level.start.as_ref().map(|s| s.human),
         "objective": level.objective.map(|o| o.text()),
         "challenge": level.challenge.map(|o| o.text()),
         "best": star_flags(row.map_or(0, |r| r.stars)),
@@ -46,6 +50,8 @@ fn chapter_json(chapter: u8, content: &Chapter, rows: &[CampaignRow]) -> Value {
         "chapter": chapter,
         "family": content.family,
         "name": content.name,
+        "title": content.title,
+        "title_earned": title_earned(rows, chapter),
         "available": content.available(),
         "stars": chapter_stars(rows, chapter),
         "boss_stars_required": BOSS_STARS,

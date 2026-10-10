@@ -26,6 +26,7 @@ fn record(store: &Store, id: &str, w: &str, b: &str, tc: Option<TimeControl>) {
             started_unix: 0,
             kind: GameKind::Room,
             loadouts: &[vec![], vec![]],
+            start_fen: None,
             actions: &none,
             solo_elo: None,
             time_control: tc,
