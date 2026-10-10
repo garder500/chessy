@@ -1,5 +1,6 @@
 import { t } from "./i18n";
 import { forgedDef, isForgedId, type Rarity } from "./forged";
+import { forgedDescription, forgedName } from "./forgedText";
 import type { BuiltinSkillId, SkillId } from "./protocol";
 
 // Catalogue des 27 compétences (source : docs/skills.md). Les identifiants sont ceux du serveur
@@ -88,10 +89,10 @@ export function skillEntry(id: string): CatalogEntry {
     if (def) {
       return {
         id,
-        name: def.name,
+        name: forgedName(def),
         family: def.family,
         unique: def.unique,
-        description: def.description,
+        description: forgedDescription(def),
         implemented: true,
         rarity: def.rarity,
       };

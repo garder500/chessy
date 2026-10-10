@@ -5,7 +5,7 @@
 use std::collections::HashSet;
 
 use chessy_engine::forge::bricks::Bricks;
-use chessy_engine::forge::identity::{identity, Family, IconSpec, SoundSpec};
+use chessy_engine::forge::identity::{identity, Family, IconSpec, NameParts, SoundSpec};
 use chessy_engine::forge::{registry, Graded, Rarity, SkillDef};
 use chessy_engine::SkillId;
 use rusqlite::{params, OptionalExtension};
@@ -21,6 +21,8 @@ pub const GEN_VERSION: u8 = 1;
 pub struct SkillDefView {
     pub id: SkillId,
     pub name: String,
+    /// The name's pieces, which a client puts together in its own language.
+    pub name_parts: NameParts,
     pub description: String,
     pub family: Family,
     pub rarity: Rarity,
@@ -51,6 +53,7 @@ fn view(row: &Row) -> SkillDefView {
     SkillDefView {
         id: SkillId::Forged(row.id),
         name: id.name,
+        name_parts: id.name_parts,
         description: id.description,
         family: id.family,
         rarity: row.rarity,

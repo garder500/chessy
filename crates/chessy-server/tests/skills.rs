@@ -257,6 +257,13 @@ async fn forged_skills_are_listed_by_the_rest_api_and_survive_a_restart() {
     let json = serde_json::to_value(&views[0]).unwrap();
     assert_eq!(json["bricks"]["action"], views[0].bricks.action);
     assert!(json["bricks"]["permanent"].is_boolean());
+    // The client says the name and the description in its own language, from their parts.
+    assert!(json["name_parts"]["noun"].is_u64());
+    assert!(json["name_parts"]["proper"]
+        .as_str()
+        .is_some_and(|p| !p.is_empty()));
+    assert!(json["bricks"]["selector_kinds"].is_array());
+    assert!(json["bricks"]["side"].is_string());
     let _ = std::fs::remove_dir_all(&dir);
 }
 
