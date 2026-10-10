@@ -74,7 +74,7 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
             ))}
           </div>
           {offer.steal_options.length === 0 && (
-            <p className="muted rw-empty">Votre adversaire n'a rien que vous n'ayez déjà : seul le tirage au hasard reste possible.</p>
+            <p className="muted rw-empty">Aucune compétence à récupérer ici : seule la forge reste possible.</p>
           )}
         </div>
 

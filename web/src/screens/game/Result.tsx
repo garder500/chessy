@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
-import type { Color, EloChange, Outcome } from "../../protocol";
+import type { CampaignResult, Color, EloChange, Outcome } from "../../protocol";
+import { CampaignRecap } from "./CampaignRecap";
 import { formatDelta, resultFor, resultHeadline } from "../../outcome";
 import { navigate } from "../../router";
 import { store } from "../../store";
@@ -18,6 +19,8 @@ interface Props {
   /** Partie contre l'IA : ni Elo ni récompense, revanche immédiate. */
   solo?: boolean;
   elo: EloChange | null;
+  /** Partie de campagne : étoiles et progression à la place de l'Elo. */
+  campaign?: CampaignResult | null;
   rematch: "none" | "offered" | "received";
   /** Une récompense attend d'être choisie (victoire classée). */
   reward: boolean;
@@ -27,7 +30,7 @@ interface Props {
 }
 
 /** Fin de partie plein écran : la pièce sous le faisceau, le titre, l'Elo, puis l'étape suivante (récompense, revanche, analyse). */
-export function Result({ outcome, you, rated, solo = false, elo, rematch, reward, gameId, onReward, onHide }: Props) {
+export function Result({ outcome, you, rated, solo = false, elo, campaign = null, rematch, reward, gameId, onReward, onHide }: Props) {
   const { title, reason } = resultHeadline(outcome, you);
   const result = resultFor(outcome, you);
   const delta = elo ? elo.you_after - elo.you_before : null;
@@ -36,8 +39,12 @@ export function Result({ outcome, you, rated, solo = false, elo, rematch, reward
     first.current?.focus();
   }, []);
 
-  const cadence = solo ? "Entraînement" : `${rated ? "Classée" : "Amicale"} · 10 min`;
+  const cadence = campaign ? "Campagne" : solo ? "Entraînement" : `${rated ? "Classée" : "Amicale"} · 10 min`;
   const leave = () => store.leaveGame();
+  const backToCampaign = () => {
+    store.leaveGame();
+    navigate({ name: "campaign" });
+  };
   const analyse = (sub?: "analyse") => {
     store.leaveGame();
     navigate({ name: "replay", param: gameId, ...(sub ? { sub } : {}) });
@@ -69,7 +76,9 @@ export function Result({ outcome, you, rated, solo = false, elo, rematch, reward
         <p className="rs-reason">{reason}</p>
 
         <div className="rs-chips">
-          {!solo && rated && elo && delta !== null ? (
+          {campaign ? (
+            <CampaignRecap campaign={campaign} />
+          ) : !solo && rated && elo && delta !== null ? (
             <span className="card rs-elo">
               <CountUp className="num rs-elo-n" to={elo.you_after} />
               <span className={`rs-delta ${delta > 0 ? "up" : delta < 0 ? "down" : ""}`}>{formatDelta(delta)}</span>
@@ -109,7 +118,7 @@ export function Result({ outcome, you, rated, solo = false, elo, rematch, reward
           ) : (
             <div className="rs-pair">
               <button type="button" className={`btn${reward ? "" : " pri"}`} disabled={rematch === "offered"} onClick={() => store.requestRematch()}>
-                {rematch === "offered" ? (solo ? "Nouvelle partie…" : "Revanche proposée…") : "Revanche"}
+                {rematch === "offered" ? (solo ? "Nouvelle partie…" : "Revanche proposée…") : campaign ? "Rejouer" : "Revanche"}
               </button>
               <button type="button" className="btn" onClick={() => analyse("analyse")}>
                 Analyser
@@ -127,9 +136,15 @@ export function Result({ outcome, you, rated, solo = false, elo, rematch, reward
             <span aria-hidden="true" className="rs-home-sep">
               ·
             </span>
-            <button type="button" className="link rs-home" onClick={leave}>
-              Retour à l'accueil
-            </button>
+            {campaign ? (
+              <button type="button" className="link rs-home" onClick={backToCampaign}>
+                Retour à la campagne
+              </button>
+            ) : (
+              <button type="button" className="link rs-home" onClick={leave}>
+                Retour à l'accueil
+              </button>
+            )}
           </div>
         </div>
       </main>

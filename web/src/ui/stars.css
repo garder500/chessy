@@ -1,0 +1,4 @@
+.stars { display: inline-flex; gap: 2px; }
+.star { fill: none; stroke: var(--line-3); stroke-width: 1.6; stroke-linejoin: round; }
+.star.kept { fill: color-mix(in srgb, var(--rar-legendary) 35%, transparent); stroke: var(--rar-legendary); }
+.star.on { fill: var(--rar-legendary); stroke: var(--rar-legendary); }

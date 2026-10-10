@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type {
+  CampaignResult,
   ClientMsg,
   DeckSelectInfo,
   EloChange,
@@ -38,6 +39,8 @@ export interface GameOver {
   rated: boolean;
   elo: EloChange | null;
   reason: string;
+  /** Résultat d'une partie de campagne ; `null` ailleurs. */
+  campaign: CampaignResult | null;
 }
 
 export interface AppState {
@@ -156,6 +159,8 @@ const ERROR_TEXT: Record<string, string> = {
   account_required: "Un compte est nécessaire pour cette action.",
   spectate_full: "Cette partie a atteint son maximum de spectateurs.",
   no_such_game: "Cette partie n'existe pas ou est terminée.",
+  unknown_level: "Ce niveau de campagne n'existe pas encore.",
+  boss_locked: "Le boss est verrouillé : gagnez plus d'étoiles dans ce chapitre.",
   invalid_target: "Action impossible sur votre propre compte.",
   blocked: "Vous avez bloqué ce joueur : débloquez-le d'abord.",
   block_list_full: "Votre liste de joueurs bloqués est pleine.",
@@ -375,7 +380,18 @@ export class Store {
     const solo: SoloSetting = { elo: clampElo(elo), color };
     writeSolo(solo);
     this.send({ type: "solo_start", elo: solo.elo, color: solo.color });
-    this.set({ solo, soloPending: true });
+    this.set({ solo });
+    this.awaitSoloGame();
+  }
+
+  /** Lance un niveau de la campagne (decks imposés par le niveau). */
+  startCampaign(chapter: number, level: number) {
+    this.send({ type: "campaign_start", chapter, level });
+    this.awaitSoloGame();
+  }
+
+  private awaitSoloGame() {
+    this.set({ soloPending: true });
     if (this.soloTimer) clearTimeout(this.soloTimer);
     this.soloTimer = setTimeout(() => this.clearSoloPending(), SOLO_PENDING_MS);
   }
@@ -550,7 +566,7 @@ export class Store {
         break;
       case "game_over":
         this.set({
-          over: { outcome: msg.outcome, reward: msg.reward, rated: msg.rated, elo: msg.elo, reason: msg.reason },
+          over: { outcome: msg.outcome, reward: msg.reward, rated: msg.rated, elo: msg.elo, reason: msg.reason, campaign: msg.campaign ?? null },
           rewardOpen: false,
           // L'Elo affiché dans la barre de navigation suit la partie classée.
           account:
