@@ -18,6 +18,9 @@ use crate::moderation::chat_muted;
 use crate::protocol::{Me, PlayerId};
 
 pub const STARTER_DECK_SIZE: usize = 3;
+/// A deck never stays under this many skills: a player who loses skills is
+/// given classic ones back up to it.
+pub const MIN_DECK_SIZE: usize = 3;
 
 #[derive(Debug, Error)]
 pub enum StoreError {
@@ -516,6 +519,9 @@ impl Store {
             conn: Arc::new(Mutex::new(conn)),
         };
         store.load_forged()?;
+        // Decks emptied before the minimum existed (idempotent: a deck at the
+        // minimum is left alone).
+        store.top_up_bot_decks()?;
         Ok(store)
     }
 
@@ -1275,24 +1281,55 @@ impl Store {
         Ok(())
     }
 
-    /// A player left with no skills gets one random classic skill.
-    pub fn refill_if_empty(&self, player: &str) -> StoreResult<()> {
-        let conn = self.db();
-        if !deck_of(&conn, player)?.is_empty() {
-            return Ok(());
-        }
-        let pool = classic_skills();
-        let skill = pool
-            .choose(&mut rand::rng())
-            .copied()
-            .ok_or(StoreError::Invalid("no classic skills"))?;
-        conn.execute(
-            "INSERT INTO player_skills (player_id, skill) VALUES (?1, ?2)",
-            params![player, skill_name(skill)],
-        )?;
-        history::log(&conn, player, skill, Change::Gained, Source::Refill, None)?;
-        Ok(())
+    /// A player left under [`MIN_DECK_SIZE`] skills is given random classic
+    /// skills they do not own yet, up to the minimum. Returns how many.
+    pub fn refill_to_minimum(&self, player: &str) -> StoreResult<usize> {
+        let mut conn = self.db();
+        let tx = conn.transaction()?;
+        let given = refill_tx(&tx, player)?;
+        tx.commit()?;
+        Ok(given)
     }
+
+    /// Brings every matchmaking bot under the minimum back up to it. Safe to
+    /// run at every start: a bot that already has enough is not touched.
+    pub fn top_up_bot_decks(&self) -> StoreResult<usize> {
+        let mut conn = self.db();
+        let tx = conn.transaction()?;
+        let ids: Vec<String> = {
+            let mut stmt = tx.prepare("SELECT player_id FROM bot_accounts")?;
+            let rows = stmt.query_map([], |r| r.get(0))?;
+            rows.collect::<Result<_, _>>()?
+        };
+        let mut given = 0;
+        for id in &ids {
+            given += refill_tx(&tx, id)?;
+        }
+        tx.commit()?;
+        Ok(given)
+    }
+}
+
+fn refill_tx(tx: &rusqlite::Transaction, player: &str) -> StoreResult<usize> {
+    let owned = deck_of(tx, player)?;
+    let missing = MIN_DECK_SIZE.saturating_sub(owned.len());
+    if missing == 0 {
+        return Ok(0);
+    }
+    let pool: Vec<SkillId> = classic_skills()
+        .into_iter()
+        .filter(|s| !owned.contains(s))
+        .collect();
+    let mut given = 0;
+    for skill in pool.sample(&mut rand::rng(), missing) {
+        tx.execute(
+            "INSERT INTO player_skills (player_id, skill) VALUES (?1, ?2)",
+            params![player, skill_name(*skill)],
+        )?;
+        history::log(tx, player, *skill, Change::Gained, Source::Refill, None)?;
+        given += 1;
+    }
+    Ok(given)
 }
 
 fn deck_of(conn: &Connection, player: &str) -> StoreResult<Vec<SkillId>> {

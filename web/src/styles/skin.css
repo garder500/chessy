@@ -215,7 +215,9 @@
   :root .nav-tab[aria-current="page"] { color: var(--accent-ink); box-shadow: inset 0 3px 0 var(--accent); }
   :root .nav-tab-icon { display: block; }
   :root .nav-tab .nav-count { position: absolute; top: 6px; left: calc(50% + 6px); }
-  body:has(.nav-tabs) { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  /* La place de la barre se réserve sur #root, pas sur body : #root est plus haut que body (height: 100 %), et le
+     rembourrage de body n'entre pas dans la hauteur défilable. Sans cela, le bas des longues pages passait sous la barre. */
+  body:has(.nav-tabs) #root { height: auto; min-height: 100%; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
   body:has(.nav-tabs) .toasts { bottom: calc(80px + env(safe-area-inset-bottom)); }
 }
 

@@ -2098,7 +2098,7 @@ impl Hub {
         self.store
             .apply_reward(winner, loser, gain, loser_loses, winner_drops)
             .map_err(|_| "could not apply that reward")?;
-        let _ = self.store.refill_if_empty(loser);
+        let _ = self.store.refill_to_minimum(loser);
 
         let winner_after = self.deck_of(winner).map_err(db)?;
         self.send(
