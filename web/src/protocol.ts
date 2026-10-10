@@ -588,7 +588,7 @@ export interface GameRecord {
   plies: number;
   time_control: TimeControl | null;
   at: string;
-  loadouts: { white: SkillId[]; black: SkillId[] };
+  loadouts: { white: SkillId[]; black: SkillId[]; start?: string | null };
   moves: MoveInfo[];
   /** `frames.length == plies + 1`. */
   frames: Frame[];
