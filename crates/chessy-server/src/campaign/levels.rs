@@ -180,7 +180,12 @@ const MOBILITY: &[Level] = &[
         KeepPiece(PieceKind::Rook),
         WinWithin(45),
     ),
-    chosen("Faille", &[Transposition, Bench], UseAnySkill, NoSkillUsed),
+    chosen(
+        "Faille",
+        &[Transposition, Bench],
+        UseAnySkill,
+        WinWithin(42),
+    ),
     chosen(
         "Écho",
         &[DestinySwapper, Rollback],
@@ -220,7 +225,7 @@ const CONTROL: &[Level] = &[
         KeepPiece(PieceKind::Rook),
         WinWithin(45),
     ),
-    chosen("Givre", &[Freeze, Canceller], UseAnySkill, NoSkillUsed),
+    chosen("Givre", &[Freeze, Canceller], UseAnySkill, WinWithin(42)),
     chosen(
         "Fracture",
         &[Tornado, Geomancy],
@@ -260,7 +265,7 @@ const CREATE: &[Level] = &[
         KeepPiece(PieceKind::Rook),
         WinWithin(45),
     ),
-    chosen("Mirage", &[Mirage, Wall], UseAnySkill, NoSkillUsed),
+    chosen("Mirage", &[Mirage, Wall], UseAnySkill, WinWithin(42)),
     chosen(
         "Métamorphose",
         &[Morph, Evolve],

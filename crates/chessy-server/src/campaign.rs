@@ -294,6 +294,18 @@ mod tests {
     }
 
     #[test]
+    fn no_level_pairs_a_skill_use_with_no_skill_used() {
+        let uses_skill = |goal: Option<Objective>| {
+            matches!(goal, Some(Objective::UseSkill(_) | Objective::UseAnySkill))
+        };
+        let no_skill = |goal: Option<Objective>| matches!(goal, Some(Objective::NoSkillUsed));
+        for level in all_levels() {
+            let (a, b) = (level.objective, level.challenge);
+            assert!(!(uses_skill(a) && no_skill(b)) && !(no_skill(a) && uses_skill(b)));
+        }
+    }
+
+    #[test]
     fn decks_are_small_and_the_bot_never_gets_mind_or_control() {
         for level in all_levels() {
             assert!(level.player_deck.len() <= 3 && level.bot_deck.len() <= 3);
