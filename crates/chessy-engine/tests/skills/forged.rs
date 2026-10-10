@@ -1173,6 +1173,7 @@ fn a_description_and_the_bricks_mention_the_new_bricks() {
     }
     let bricks = d.bricks();
     assert_eq!(bricks.action, "freeze");
+    assert_eq!(bricks.sign, "snowflake");
     assert_eq!(bricks.side, "enemy");
     assert_eq!(bricks.kinds, vec![PieceKind::Rook, PieceKind::Queen]);
     assert_eq!(bricks.zone, Zone::Wings);

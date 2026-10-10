@@ -247,6 +247,9 @@ pub(crate) fn validate_selector(effect: &Effect, selector: &Selector) -> Result<
 pub struct Bricks {
     /// What it does: the effect's `op` name (`freeze`, `morph`…).
     pub action: &'static str,
+    /// The key of the sign that stands for the action (one of `identity::GLYPHS`).
+    /// Only the action picks it: no other brick changes the sign.
+    pub sign: &'static str,
     /// Whom it touches: `own`, `enemy`, `any` (either side) or `none` (the whole game).
     pub side: &'static str,
     /// Which kinds of piece it is about, when it has a say in it: the
@@ -264,6 +267,12 @@ pub struct Bricks {
 }
 
 impl SkillDef {
+    /// The key of the sign standing for the action, from the closed list
+    /// `identity::GLYPHS`; a new action must be added to that list.
+    pub fn sign(&self) -> &'static str {
+        super::identity::GLYPHS[super::identity::effect_index(&self.effect)]
+    }
+
     /// Whether a brick beyond the effect narrows down when or where it can be used.
     pub fn is_narrowed(&self) -> bool {
         !self.selector.is_default() || self.condition.is_some()
@@ -307,6 +316,7 @@ impl SkillDef {
         };
         Bricks {
             action: def.action_name(),
+            sign: def.sign(),
             side,
             kinds,
             zone: def.selector.zone,
