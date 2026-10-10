@@ -193,30 +193,40 @@ const CAMPAIGN_FAMILIES = [
   ["create", "Création"],
 ] as const;
 
-/** Chapitre 1 jouable (boss encore fermé), les autres « à venir ». */
+const DECK_CHOICE_FROM_CHAPTER = 2;
+
+/** Cinq chapitres complets ; le premier a un titre gagné, les suivants laissent choisir le deck, le boss démarre d'une position imposée. */
 function fixtureCampaign(): CampaignChapter[] {
-  const levels: CampaignLevel[] = Array.from({ length: 7 }, (_, i) => ({
-    level: i,
-    name: i === 6 ? "Le Maître d'armes" : `Niveau ${i + 1}`,
-    elo: 400 + 50 * i + (i === 6 ? 50 : 0),
-    boss: i === 6,
-    player_deck: ["trap", "terminator"],
-    bot_deck: i === 0 ? [] : ["trap"],
-    objective: i === 6 ? null : "Utiliser Terminator",
-    challenge: i === 6 ? null : "Gagner en 40 coups",
-    best: i < 3 ? [true, i < 2, i < 1] : [false, false, false],
-    rewarded: false,
-  }));
-  return CAMPAIGN_FAMILIES.map(([family, name], chapter) => ({
-    chapter,
-    family,
-    name,
-    available: chapter === 0,
-    stars: chapter === 0 ? 6 : 0,
-    boss_stars_required: 12,
-    boss_unlocked: false,
-    levels: chapter === 0 ? levels : [],
-  }));
+  return CAMPAIGN_FAMILIES.map(([family, name], chapter) => {
+    const choice = chapter >= DECK_CHOICE_FROM_CHAPTER;
+    const levels: CampaignLevel[] = Array.from({ length: 7 }, (_, i) => ({
+      level: i,
+      name: i === 6 ? "Le Maître d'armes" : `Niveau ${i + 1}`,
+      elo: 400 + 50 * i + (i === 6 ? 50 : 0) + 200 * chapter,
+      boss: i === 6,
+      player_deck: choice ? [] : ["trap", "terminator"],
+      bot_deck: i === 0 ? [] : ["trap"],
+      deck_choice: choice,
+      start_fen: i === 6 ? "4k3/8/8/8/8/8/4P3/4K2R w K - 0 1" : null,
+      human_color: i === 6 ? "black" : null,
+      objective: i === 6 ? null : "Utiliser Terminator",
+      challenge: i === 6 ? null : "Gagner en 40 coups",
+      best: chapter === 0 && i < 3 ? [true, i < 2, i < 1] : [false, false, false],
+      rewarded: false,
+    }));
+    return {
+      chapter,
+      family,
+      name,
+      title: `Maître ${name.toLowerCase()}`,
+      title_earned: chapter === 0,
+      available: true,
+      stars: chapter === 0 ? 6 : 0,
+      boss_stars_required: 12,
+      boss_unlocked: false,
+      levels,
+    };
+  });
 }
 
 function installFetch() {

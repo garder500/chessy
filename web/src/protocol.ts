@@ -244,6 +244,10 @@ export interface CampaignResult {
   best: CampaignStars;
   chapter_stars: number;
   boss_unlocked: boolean;
+  boss_stars_required: number;
+  boss_just_unlocked: boolean;
+  /** Titre gagné par cette partie (victoire contre le boss). */
+  title: string | null;
 }
 
 /** Un niveau de `GET /api/campaign` (le boss a `level` 6 et `boss: true`). */
@@ -252,8 +256,12 @@ export interface CampaignLevel {
   name: string;
   elo: number;
   boss: boolean;
+  /** Vide quand `deck_choice` : le joueur compose son deck parmi le sien. */
   player_deck: SkillId[];
   bot_deck: SkillId[];
+  deck_choice: boolean;
+  start_fen: string | null;
+  human_color: "white" | "black" | null;
   objective: string | null;
   challenge: string | null;
   best: CampaignStars;
@@ -264,6 +272,8 @@ export interface CampaignChapter {
   chapter: number;
   family: Family;
   name: string;
+  title: string;
+  title_earned: boolean;
   available: boolean;
   stars: number;
   boss_stars_required: number;
@@ -339,6 +349,7 @@ export interface RecentGame {
 
 export interface PublicProfile {
   username: string;
+  title: string | null;
   elo: number;
   peak_elo: number;
   rank: number | null;
@@ -439,7 +450,7 @@ export type ClientMsg =
   | { type: "hello"; token?: string }
   | { type: "queue_join"; ranked?: boolean; time?: TimeControl }
   | { type: "solo_start"; elo: number; color: SoloColor }
-  | { type: "campaign_start"; chapter: number; level: number }
+  | { type: "campaign_start"; chapter: number; level: number; deck?: SkillId[] }
   | { type: "create_room"; time?: TimeControl }
   | { type: "join_room"; code: string }
   | { type: "leave_lobby" }

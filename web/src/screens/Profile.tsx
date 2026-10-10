@@ -83,6 +83,7 @@ export function Profile({ username }: Props) {
         <span className="avatar solid pf-avatar">{initialOf(p.username)}</span>
         <div className="pf-id">
           <h1 className="pf-name">{p.username}</h1>
+          {p.title && <p className="pf-title">{p.title}</p>}
           <p className="pf-meta">
             <span className="tag">{tierOf(p.elo).name}</span>
             {p.rank && <span className="mono">Rang #{p.rank}</span>}

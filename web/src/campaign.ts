@@ -1,4 +1,4 @@
-import type { CampaignChapter, CampaignLevel, CampaignStars } from "./protocol";
+import type { CampaignChapter, CampaignLevel, CampaignStars, SkillId } from "./protocol";
 
 /** Intitulés des trois étoiles d'un niveau, dans l'ordre du fil. */
 export const STAR_LABELS = ["Victoire", "Objectif", "Défi"] as const;
@@ -14,6 +14,23 @@ export function isLocked(chapter: CampaignChapter, level: CampaignLevel): boolea
 
 export function bossProgress(chapter: CampaignChapter): string {
   return `${chapter.stars}/${chapter.boss_stars_required}`;
+}
+
+/** Nombre maximal de compétences emmenées dans un niveau à deck au choix. */
+export const MAX_DECK_PICKS = 3;
+
+export function toggleDeckPick(picked: SkillId[], skill: SkillId): SkillId[] {
+  if (picked.includes(skill)) return picked.filter((s) => s !== skill);
+  return picked.length < MAX_DECK_PICKS ? [...picked, skill] : picked;
+}
+
+/** Écarte les choix qui ne sont plus dans le deck (après un `deck_update`). */
+export function validPicks(picked: SkillId[], deck: SkillId[]): SkillId[] {
+  return picked.filter((s) => deck.includes(s));
+}
+
+export function colorLabel(color: "white" | "black"): string {
+  return color === "white" ? "les blancs" : "les noirs";
 }
 
 export function chapterTitle(chapter: CampaignChapter): string {

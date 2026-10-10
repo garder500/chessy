@@ -1,5 +1,5 @@
-import type { CSSProperties } from "react";
-import { isLocked, STAR_LABELS } from "../../campaign";
+import { type CSSProperties, useState } from "react";
+import { colorLabel, isLocked, STAR_LABELS, toggleDeckPick, validPicks } from "../../campaign";
 import { familyVar } from "../../catalog";
 import type { CampaignChapter, CampaignLevel, SkillId } from "../../protocol";
 import { skillInfo } from "../../skills";
@@ -7,10 +7,12 @@ import { store } from "../../store";
 import { SkillArt } from "../../ui/SkillArt";
 import { Sheet } from "../../ui/Sheet";
 import { Stars } from "../../ui/Stars";
+import { DeckPicker } from "./DeckPicker";
 
 interface Props {
   chapter: CampaignChapter;
   level: CampaignLevel | null;
+  ownDeck: SkillId[];
   connected: boolean;
   pending: boolean;
   guest: boolean;
@@ -41,11 +43,14 @@ function Deck({ label, skills }: { label: string; skills: SkillId[] }) {
 }
 
 /** Détail d'un niveau : adversaire, objectif et défi, decks imposés, lancement. */
-export function LevelSheet({ chapter, level, connected, pending, guest, onClose }: Props) {
+export function LevelSheet({ chapter, level, ownDeck, connected, pending, guest, onClose }: Props) {
+  const [chosen, setChosen] = useState<SkillId[]>([]);
   if (!level) return null;
+  const picked = validPicks(chosen, ownDeck);
   const locked = isLocked(chapter, level);
+  const needsPick = level.deck_choice && picked.length === 0;
   const play = () => {
-    store.startCampaign(chapter.chapter, level.level);
+    store.startCampaign(chapter.chapter, level.level, level.deck_choice ? picked : undefined);
     onClose();
   };
 
@@ -71,10 +76,19 @@ export function LevelSheet({ chapter, level, connected, pending, guest, onClose 
           </>
         )}
       </dl>
-      <Deck label="Votre deck" skills={level.player_deck} />
+      {level.start_fen && (
+        <p className="muted">
+          Position de départ spéciale{level.human_color && <> · vous jouez {colorLabel(level.human_color)}</>}
+        </p>
+      )}
+      {level.deck_choice ? (
+        <DeckPicker deck={ownDeck} picked={picked} onToggle={(skill) => setChosen((cur) => toggleDeckPick(validPicks(cur, ownDeck), skill))} />
+      ) : (
+        <Deck label="Votre deck" skills={level.player_deck} />
+      )}
       <Deck label="Deck de Sage" skills={level.bot_deck} />
       {level.boss && guest && <p className="muted">La récompense de forge du boss demande un compte : créez-en un pour la recevoir.</p>}
-      <button type="button" className="btn pri block" disabled={locked || !connected || pending} onClick={play}>
+      <button type="button" className="btn pri block" disabled={locked || needsPick || !connected || pending} onClick={play}>
         {locked ? "Boss verrouillé" : "Jouer"}
       </button>
     </Sheet>
