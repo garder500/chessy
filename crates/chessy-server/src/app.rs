@@ -300,7 +300,7 @@ impl App {
                 ClientMsg::SelectDeck { skills } => hub.select_deck(player, skills),
                 ClientMsg::Action { action } => hub.action(player, action),
                 ClientMsg::Resign => hub.resign(player),
-                ClientMsg::DevFinish { win } => hub.dev_finish(player, win),
+                ClientMsg::DevFinish { result } => hub.dev_finish(player, result),
                 ClientMsg::RewardChoice {
                     choice: RewardChoice::Random { replace },
                 } => return hub.begin_forge(player, replace),

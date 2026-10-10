@@ -6,7 +6,7 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 use super::{Hub, HubConfig};
 use crate::campaign::{LevelRef, BOSS_LEVEL, STAR_CHALLENGE, STAR_OBJECTIVE, STAR_WIN};
-use crate::protocol::{CampaignInfo, RewardChoice, RewardOffer, ServerMsg, SoloColor};
+use crate::protocol::{CampaignInfo, DevResult, RewardChoice, RewardOffer, ServerMsg, SoloColor};
 use crate::store::Store;
 
 const BOSS: LevelRef = LevelRef {
@@ -84,15 +84,40 @@ impl Player {
 fn dev_finish_win_records_the_victory_star() {
     let mut p = player(false);
     p.hub.campaign_start(&p.id.clone(), FRESH_LEVEL, None);
-    p.hub.dev_finish(&p.id.clone(), true);
+    p.hub.dev_finish(&p.id.clone(), DevResult::Win);
     assert_ne!(p.fresh_level_stars() & STAR_WIN, 0);
+}
+
+#[test]
+fn dev_finish_all_stars_records_every_star_of_the_level() {
+    let mut p = player(false);
+    p.hub.campaign_start(&p.id.clone(), FRESH_LEVEL, None);
+    p.hub.dev_finish(&p.id.clone(), DevResult::AllStars);
+    assert_eq!(
+        p.fresh_level_stars(),
+        STAR_WIN | STAR_OBJECTIVE | STAR_CHALLENGE
+    );
+}
+
+#[test]
+fn dev_finish_all_stars_on_a_boss_records_only_the_victory_star() {
+    let mut p = player(true);
+    p.hub.campaign_start(&p.id.clone(), BOSS, None);
+    p.hub.dev_finish(&p.id.clone(), DevResult::AllStars);
+    let rows = p.store.campaign_rows(&p.id).unwrap();
+    let boss = rows.iter().find(|r| r.at == BOSS).unwrap();
+    assert_eq!(boss.stars, STAR_WIN);
+    assert!(
+        p.hub.rewards.contains_key(&p.id),
+        "the boss reward is offered"
+    );
 }
 
 #[test]
 fn dev_finish_loss_records_no_star() {
     let mut p = player(false);
     p.hub.campaign_start(&p.id.clone(), FRESH_LEVEL, None);
-    p.hub.dev_finish(&p.id.clone(), false);
+    p.hub.dev_finish(&p.id.clone(), DevResult::Loss);
     assert_eq!(p.fresh_level_stars(), 0);
 }
 
@@ -100,7 +125,7 @@ fn dev_finish_loss_records_no_star() {
 fn dev_finish_is_refused_outside_a_campaign_game() {
     let mut p = player(false);
     p.hub.solo_start(&p.id.clone(), 400, SoloColor::White);
-    p.hub.dev_finish(&p.id.clone(), true);
+    p.hub.dev_finish(&p.id.clone(), DevResult::Win);
     assert!(p.hub.player_game.contains_key(&p.id), "the game goes on");
 }
 

@@ -182,18 +182,17 @@ pub fn stars_earned(at: LevelRef, game: &Game, human: Color, won: bool) -> u8 {
     let Some(level) = level(at).filter(|_| won) else {
         return 0;
     };
-    let met = |goal: Option<Objective>| goal.is_some_and(|g| g.met(game, human));
-    STAR_WIN
-        | if met(level.objective) {
-            STAR_OBJECTIVE
-        } else {
-            0
-        }
-        | if met(level.challenge) {
-            STAR_CHALLENGE
-        } else {
-            0
-        }
+    level_stars(level, |goal| goal.met(game, human))
+}
+
+/// Every star the level offers (a boss has no objective nor challenge).
+pub fn all_stars(at: LevelRef) -> u8 {
+    level(at).map_or(0, |level| level_stars(level, |_| true))
+}
+
+fn level_stars(level: &Level, reached: impl Fn(Objective) -> bool) -> u8 {
+    let star = |goal: Option<Objective>, bit: u8| if goal.is_some_and(&reached) { bit } else { 0 };
+    STAR_WIN | star(level.objective, STAR_OBJECTIVE) | star(level.challenge, STAR_CHALLENGE)
 }
 
 /// Rarities the boss of a chapter may forge.

@@ -54,6 +54,15 @@ impl TimeControl {
     }
 }
 
+/// How `DevFinish` ends a campaign game; `AllStars` is a win that records every star of the level.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DevResult {
+    Win,
+    Loss,
+    AllStars,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ClientMsg {
@@ -87,9 +96,9 @@ pub enum ClientMsg {
         action: Action,
     },
     Resign,
-    /// Debug builds only: ends the current campaign game as a win or a loss for the human.
+    /// Debug builds only: ends the current campaign game for the human.
     DevFinish {
-        win: bool,
+        result: DevResult,
     },
     RewardChoice {
         choice: RewardChoice,
