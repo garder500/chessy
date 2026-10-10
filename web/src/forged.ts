@@ -36,7 +36,7 @@ export interface ForgedBricks {
   action: string;
   zone?: string;
   kinds?: string[];
-  plies?: number;
+  plies?: number | null;
   permanent?: boolean;
 }
 

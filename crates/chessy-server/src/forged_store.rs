@@ -4,6 +4,7 @@
 
 use std::collections::HashSet;
 
+use chessy_engine::forge::bricks::Bricks;
 use chessy_engine::forge::identity::{identity, Family, IconSpec, SoundSpec};
 use chessy_engine::forge::{registry, Graded, Rarity, SkillDef};
 use chessy_engine::SkillId;
@@ -30,6 +31,8 @@ pub struct SkillDefView {
     pub max_uses: u8,
     pub icon: IconSpec,
     pub sound: SoundSpec,
+    /// The flat view of the definition, which the client reads to animate it.
+    pub bricks: Bricks,
 }
 
 struct Row {
@@ -56,6 +59,7 @@ fn view(row: &Row) -> SkillDefView {
         max_uses: row.def.max_uses,
         icon: id.icon,
         sound: id.sound,
+        bricks: row.def.bricks(),
     }
 }
 
