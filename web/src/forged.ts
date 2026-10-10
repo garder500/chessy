@@ -31,6 +31,21 @@ export interface SoundSpec {
   length: number;
 }
 
+/** Vue plate de la définition (`SkillDef::bricks()`), lue par l'animation. Absente tant que le serveur ne l'envoie pas. */
+export interface ForgedBricks {
+  action: string;
+  zone?: string;
+  kinds?: string[];
+  plies?: number | null;
+  permanent?: boolean;
+}
+
+/** Style de la marque de durée : les mêmes trois états que les badges d'icônes. */
+export function durationStyle(b: Pick<ForgedBricks, "plies" | "permanent">): "short" | "long" | "forever" {
+  if (b.permanent) return "forever";
+  return (b.plies ?? 0) > 2 ? "long" : "short";
+}
+
 export interface ForgedDef {
   id: ForgedSkillId;
   name: string;
@@ -42,6 +57,7 @@ export interface ForgedDef {
   max_uses: number;
   icon: IconSpec;
   sound: SoundSpec;
+  bricks?: ForgedBricks;
 }
 
 const FORGED_ID = /forged_\d+/g;
