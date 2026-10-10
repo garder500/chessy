@@ -194,7 +194,7 @@ async fn sitemap(State(seo): State<Shared>, headers: HeaderMap) -> Response {
     (
         [(header::CONTENT_TYPE, "application/xml; charset=utf-8")],
         format!(
-            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.w3.org/2000/sitemap/0.9\">\n  <url><loc>{base}/</loc></url>\n</urlset>\n"
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <url><loc>{base}/</loc></url>\n</urlset>\n"
         ),
     )
         .into_response()
@@ -244,6 +244,19 @@ mod tests {
         assert!(out.contains("ajedrez"));
         assert!(out.contains("https://x.test&quot;&gt;&lt;b&gt;"));
         assert!(!out.contains("{{"));
+    }
+
+    #[tokio::test]
+    async fn sitemap_uses_the_standard_namespace() {
+        let seo: Shared = Arc::new(Seo {
+            template: String::new(),
+            public_url: Some("https://c.test".into()),
+        });
+        let res = sitemap(State(seo), HeaderMap::new()).await;
+        let body = axum::body::to_bytes(res.into_body(), 4096).await.unwrap();
+        let body = String::from_utf8(body.to_vec()).unwrap();
+        assert!(body.contains("xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\""));
+        assert!(body.contains("<loc>https://c.test/</loc>"));
     }
 
     #[test]
