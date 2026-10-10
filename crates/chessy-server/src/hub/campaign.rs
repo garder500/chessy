@@ -133,6 +133,9 @@ impl Hub {
                 boss_just_unlocked: boss_unlocked && !was_unlocked,
                 title: (won && at.is_boss())
                     .then(|| CHAPTERS[usize::from(at.chapter)].title.to_string()),
+                total_stars: 0,
+                hint_available: false,
+                boss_forge: None,
             },
             player,
             reward,

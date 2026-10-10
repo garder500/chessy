@@ -232,7 +232,31 @@ export interface StateView {
    * joueur rejoint sa partie (rechargement de la page, reconnexion) ; absent des états en direct.
    */
   history?: HistoryEntry[];
+  /** Niveau de campagne de la partie ; `null` ou absent hors campagne. */
+  campaign?: CampaignContext | null;
 }
+
+/** Niveau de campagne d'une partie et ce qu'il faut en savoir pendant qu'on la joue. */
+export interface CampaignContext {
+  chapter: number;
+  level: number;
+  move_limit: number | null;
+  objective: string | null;
+  challenge: string | null;
+}
+
+export type BossForgeState = "forging" | "pending" | "placed";
+
+/** Où en est la compétence forgée pour le boss d'un chapitre. */
+export interface BossForgeInfo {
+  chapter: number;
+  state: BossForgeState;
+  skill: SkillId | null;
+  deck_full: boolean;
+  legendary_unavailable: boolean;
+}
+
+export type RewardOutcomeKind = "stolen" | "forged" | "spared";
 
 /** Étoiles d'un niveau de campagne : [victoire, objectif, défi]. */
 export type CampaignStars = [boolean, boolean, boolean];
@@ -248,6 +272,9 @@ export interface CampaignResult {
   boss_just_unlocked: boolean;
   /** Titre gagné par cette partie (victoire contre le boss). */
   title: string | null;
+  total_stars: number;
+  hint_available: boolean;
+  boss_forge: BossForgeInfo | null;
 }
 
 /** Un niveau de `GET /api/campaign` (le boss a `level` 6 et `boss: true`). */
@@ -432,6 +459,8 @@ export type ServerMsg =
   | { type: "opponent_status"; connected: boolean }
   | { type: "game_over"; outcome: Outcome; reward: RewardOffer | null; rated: boolean; elo: EloChange | null; reason: string; campaign?: CampaignResult | null }
   | { type: "deck_update"; deck: SkillId[]; gained: SkillId | null; lost: SkillId | null }
+  | { type: "reward_outcome"; by: string; kind: RewardOutcomeKind; skill: SkillId | null; refilled: SkillId | null }
+  | { type: "boss_forge"; info: BossForgeInfo }
   | { type: "game_cancelled"; reason: string }
   | { type: "spectate_state"; view: SpectatorView }
   | { type: "spectate_over"; view: SpectatorView }
@@ -451,6 +480,8 @@ export type ClientMsg =
   | { type: "queue_join"; ranked?: boolean; time?: TimeControl }
   | { type: "solo_start"; elo: number; color: SoloColor }
   | { type: "campaign_start"; chapter: number; level: number; deck?: SkillId[] }
+  | { type: "boss_forge_claim"; chapter: number }
+  | { type: "boss_forge_place"; chapter: number; replace?: SkillId }
   | { type: "create_room"; time?: TimeControl }
   | { type: "join_room"; code: string }
   | { type: "leave_lobby" }

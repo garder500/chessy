@@ -340,6 +340,7 @@ impl App {
                 } => hub.campaign_start(player, LevelRef { chapter, level }, deck),
                 ClientMsg::Spectate { game_id } => hub.spectate(player, &game_id),
                 ClientMsg::Unspectate => hub.unspectate(player),
+                ClientMsg::BossForgeClaim { .. } | ClientMsg::BossForgePlace { .. } => {}
             }
             None
         });
