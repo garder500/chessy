@@ -88,6 +88,12 @@ export function dayLabel(value: string, now: Date = new Date()): string {
   return new Intl.DateTimeFormat(intlLocale(), { day: "numeric", month: "long", year: "numeric" }).format(d);
 }
 
+/** L'heure d'une date serveur (« 14:02 ») : le jour est déjà dans l'en-tête du groupe. */
+export function clockTime(value: string): string {
+  const d = parseServerDate(value);
+  return d ? new Intl.DateTimeFormat(intlLocale(), { hour: "2-digit", minute: "2-digit" }).format(d) : "";
+}
+
 export interface HistoryDay {
   label: string;
   entries: SkillHistoryEntry[];
