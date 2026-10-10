@@ -1405,7 +1405,7 @@ impl Hub {
         }
     }
 
-    fn end_by_resignation(&mut self, game_id: &str, color: Color, reason: &str) {
+    pub(super) fn end_by_resignation(&mut self, game_id: &str, color: Color, reason: &str) {
         let Some(Session {
             phase: Phase::Playing { game },
             ..
