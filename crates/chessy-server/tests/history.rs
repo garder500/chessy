@@ -200,6 +200,8 @@ async fn the_rest_api_gives_a_player_their_own_history_newest_first() {
     assert_eq!(v["deck"].as_array().unwrap().len(), 3);
 
     let (alice, _) = (store.player_by_token(&token).unwrap().unwrap(), ());
+    // Alice's starter deck is random and may already hold Freeze: empty it first.
+    store.set_deck(&alice, &[]).unwrap();
     let (bob, _) = store.register("bob", "x", None).unwrap();
     store.set_deck(&bob, &[SkillId::Freeze]).unwrap();
     store
