@@ -27,6 +27,8 @@ Les règles des compétences sont décrites dans [docs/skills.md](docs/skills.md
 
 Le contrat serveur/client est décrit dans [docs/spec-v2.md](docs/spec-v2.md).
 
+- **SEO et partage de lien** : le serveur remplit les balises de `web/index.html` (titre, description, Open Graph, Twitter Card, canonical) dans la langue du navigateur (`Accept-Language` : en, fr, de, es, pt) et sert `robots.txt` et `sitemap.xml`. L'image de partage 1200×630 est `web/public/og-image.png`, régénérée avec `node web/scripts/og/render.mjs` (Playwright requis) depuis `web/scripts/og/og-image.html` ; les icônes avec `render-icons.mjs`.
+
 ## Structure
 
 - `crates/chessy-engine` — moteur de règles (échecs standard + compétences), sans I/O
@@ -59,7 +61,7 @@ Pour jouer seul, ouvrez deux navigateurs (ou profils) : le jeton de session est 
 Les routes de l'API REST (`/api/...`) et la WebSocket (`/ws`) sont proxifiées par Vite vers le serveur.
 
 Variables d'environnement du serveur : `CHESSY_ADDR` (défaut `127.0.0.1:3000`),
-`CHESSY_DB` (défaut `chessy.sqlite`), `CHESSY_WEB_DIR` (défaut `web/dist`, servi s'il existe),
+`CHESSY_DB` (défaut `chessy.sqlite`), `CHESSY_WEB_DIR` (défaut `web/dist`, servi s'il existe), `CHESSY_PUBLIC_URL` (URL publique, ex. `https://chessy.example`, pour les URL absolues du SEO ; sinon déduite de `Host` / `X-Forwarded-Proto`),
 `CHESSY_SESSION_TTL_DAYS` (inactivité au bout de laquelle une session expire, défaut `30`), `CHESSY_SESSION_PURGE_SECS`
 (période de la purge des sessions expirées, défaut `3600`), `CHESSY_MAX_CONNECTIONS` (défaut `5000`, `0` = illimité), `CHESSY_MAX_CONNECTIONS_PER_IP` (défaut `0` = illimité),
 `CHESSY_RECOVERY_MAX_FAILURES_PER_IP` (échecs de récupération de compte par adresse et par 15 min, défaut `0` = désactivé)

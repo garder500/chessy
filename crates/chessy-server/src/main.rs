@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use chessy_server::hub::HubConfig;
 use chessy_server::store::Store;
-use chessy_server::{router, spawn_session_purge, App};
-use tower_http::services::{ServeDir, ServeFile};
+use chessy_server::{router, seo, spawn_session_purge, App};
+use tower_http::services::ServeDir;
 
 #[tokio::main]
 async fn main() {
@@ -53,9 +53,11 @@ async fn main() {
     let mut app = router(App::new(store, config));
 
     // Serve the built client when present; in development Vite serves it instead.
-    if Path::new(&web_dir).join("index.html").exists() {
-        let index = ServeFile::new(Path::new(&web_dir).join("index.html"));
-        app = app.fallback_service(ServeDir::new(&web_dir).not_found_service(index));
+    // `/`, `robots.txt` and `sitemap.xml` come from the SEO module (metadata in the page).
+    if let Some((pages, not_found)) = seo::routes(Path::new(&web_dir)) {
+        app = app
+            .merge(pages)
+            .fallback_service(ServeDir::new(&web_dir).not_found_service(not_found.into_service()));
         tracing::info!("serving client from {web_dir}");
     }
 
