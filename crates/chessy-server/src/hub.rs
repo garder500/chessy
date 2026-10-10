@@ -1856,9 +1856,7 @@ impl Hub {
             }
         };
         let seed: u64 = rand::random();
-        let Some(pending) = self.rewards.get_mut(player) else {
-            return None;
-        };
+        let pending = self.rewards.get_mut(player)?;
         pending.forging = true;
         let range = pending.range.clone();
         let target = chessy_engine::forge::generate::roll_rarity_in(
