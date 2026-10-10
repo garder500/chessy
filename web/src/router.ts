@@ -2,10 +2,10 @@ import { useSyncExternalStore } from "react";
 
 /**
  * Routes par hash : #/, #/auth, #/ranking, #/friends, #/profile/<pseudo>, #/collection,
- * #/live, #/watch/<partie>, #/games, #/replay/<partie>[/analyse]
+ * #/live, #/watch/<partie>, #/games, #/replay/<partie>[/analyse], #/campaign[/<niveau>]
  */
 export interface Route {
-  name: "home" | "auth" | "ranking" | "friends" | "profile" | "collection" | "settings" | "live" | "watch" | "games" | "replay";
+  name: "home" | "auth" | "ranking" | "friends" | "profile" | "collection" | "settings" | "live" | "watch" | "games" | "replay" | "campaign";
   param?: string;
   /** `#/replay/<id>/analyse` : ouvre le replay en lançant tout de suite l'analyse. */
   sub?: "analyse";
@@ -35,6 +35,8 @@ export function parseHash(hash: string): Route {
       return { name: "live" };
     case "games":
       return { name: "games" };
+    case "campaign":
+      return parts[1] ? { name: "campaign", param: id(1) } : { name: "campaign" };
     case "watch":
       return parts[1] ? { name: "watch", param: id(1) } : { name: "live" };
     case "replay":
@@ -56,6 +58,8 @@ export function hrefFor(route: Route): string {
       return `#/${route.name}/${encodeURIComponent(route.param ?? "")}`;
     case "replay":
       return `#/replay/${encodeURIComponent(route.param ?? "")}${route.sub === "analyse" ? "/analyse" : ""}`;
+    case "campaign":
+      return route.param ? `#/campaign/${encodeURIComponent(route.param)}` : "#/campaign";
     default:
       return `#/${route.name}`;
   }

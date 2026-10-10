@@ -50,7 +50,7 @@ export function NavBar({ state, route }: { state: AppState; route: Route["name"]
   const { account, friends } = state;
   const pending = friends.incoming.length;
   const activeTab =
-    route === "watch" ? "live" : route === "profile" || route === "auth" || route === "settings" || route === "games" || route === "replay" ? null : route;
+    route === "watch" ? "live" : route === "campaign" ? "home" : route === "profile" || route === "auth" || route === "settings" || route === "games" || route === "replay" ? null : route;
 
   return (
     <header className="nav">

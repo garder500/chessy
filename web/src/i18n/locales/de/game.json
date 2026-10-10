@@ -196,5 +196,6 @@
   "amb_domain_opp_name": "Gegnerische Domäne",
   "amb_silenced_own": "Stille: Du kannst keine Fähigkeiten mehr einsetzen",
   "amb_silenced_opp": "Stille: Der Gegner kann keine Fähigkeiten mehr einsetzen",
-  "amb_silenced_name": "Stille"
+  "amb_silenced_name": "Stille",
+  "cad_campaign": "Kampagne"
 }

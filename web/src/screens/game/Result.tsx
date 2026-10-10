@@ -1,13 +1,15 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
-import type { Color, EloChange, Outcome, PlacementView } from "../../protocol";
+import { levelById } from "../../campaign";
+import type { CampaignResult, Color, EloChange, Outcome, PlacementView } from "../../protocol";
 import { useT } from "../../i18n";
 import { formatDelta, resultFor, resultHeadline } from "../../outcome";
 import { navigate } from "../../router";
-import { store } from "../../store";
+import { store, useAppState } from "../../store";
 import { Beam } from "../../ui/Beam";
 import { Confetti } from "../../ui/Confetti";
 import { CountUp } from "../../ui/CountUp";
 import { HeroPiece } from "../../ui/HeroPiece";
+import { CampaignActions, CampaignSummary } from "./CampaignOver";
 import "./result.css";
 
 const HeroPiece3D = lazy(() => import("../../ui/HeroPiece3D"));
@@ -21,6 +23,8 @@ interface Props {
   elo: EloChange | null;
   /** Partie d'évaluation : pas de revanche, la suivante se lance d'ici. */
   placement?: PlacementView | null;
+  /** Niveau de campagne : étoiles gagnées ; pas de revanche, la suite se lance d'ici. */
+  campaign?: CampaignResult | null;
   rematch: "none" | "offered" | "received";
   /** Une récompense attend d'être choisie (victoire classée). */
   reward: boolean;
@@ -30,7 +34,7 @@ interface Props {
 }
 
 /** Fin de partie plein écran : la pièce sous le faisceau, le titre, l'Elo, puis l'étape suivante (récompense, revanche, analyse). */
-export function Result({ outcome, you, rated, solo = false, elo, placement = null, rematch, reward, gameId, onReward, onHide }: Props) {
+export function Result({ outcome, you, rated, solo = false, elo, placement = null, campaign = null, rematch, reward, gameId, onReward, onHide }: Props) {
   const t = useT();
   const { title, reason } = resultHeadline(outcome, you);
   const result = resultFor(outcome, you);
@@ -40,8 +44,10 @@ export function Result({ outcome, you, rated, solo = false, elo, placement = nul
     first.current?.focus();
   }, []);
 
+  const levels = useAppState().campaign;
+  const campaignLevel = campaign ? levelById(levels, campaign.level) : undefined;
   const placementLeft = placement ? placement.total - placement.done : 0;
-  const cadence = placement ? t("game.cad_placement", { done: placement.done, total: placement.total }) : solo ? t("game.mode_training") : t(rated ? "game.cad_rated" : "game.cad_friendly");
+  const cadence = campaign ? t("game.cad_campaign") : placement ? t("game.cad_placement", { done: placement.done, total: placement.total }) : solo ? t("game.mode_training") : t(rated ? "game.cad_rated" : "game.cad_friendly");
   const leave = () => store.leaveGame();
   const analyse = (sub?: "analyse") => {
     store.leaveGame();
@@ -74,7 +80,9 @@ export function Result({ outcome, you, rated, solo = false, elo, placement = nul
         <p className="rs-reason">{reason}</p>
 
         <div className="rs-chips">
-          {placement ? (
+          {campaign ? (
+            <CampaignSummary result={campaign} level={campaignLevel} />
+          ) : placement ? (
             placement.elo != null ? (
               <span className="card rs-elo">
                 <CountUp className="num rs-elo-n" to={placement.elo} />
@@ -110,7 +118,9 @@ export function Result({ outcome, you, rated, solo = false, elo, placement = nul
               {t("game.choose_reward")}
             </button>
           )}
-          {placement ? (
+          {campaign ? (
+            <CampaignActions result={campaign} />
+          ) : placement ? (
             <div className="rs-pair">
               {placementLeft > 0 && (
                 <button type="button" className="btn pri" onClick={() => store.startPlacement()}>

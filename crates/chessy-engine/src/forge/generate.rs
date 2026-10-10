@@ -47,6 +47,21 @@ pub fn roll_rarity(rng: &mut Rng) -> Rarity {
     Rarity::Common
 }
 
+/// [`roll_rarity`] among the tiers from `min` up, in the proportions of
+/// [`DROP_WEIGHTS`] (a guaranteed forge never goes below its floor).
+pub fn roll_rarity_at_least(rng: &mut Rng, min: Rarity) -> Rarity {
+    let tiers = &Rarity::ALL[min.index()..];
+    let weights = &DROP_WEIGHTS[min.index()..];
+    let mut n = rng.below(weights.iter().sum());
+    for (tier, &w) in tiers.iter().zip(weights) {
+        if n < w {
+            return *tier;
+        }
+        n -= w;
+    }
+    min
+}
+
 fn pick<T: Copy>(rng: &mut Rng, items: &[T]) -> T {
     items[rng.below(items.len() as u64) as usize]
 }
@@ -235,6 +250,36 @@ pub fn forge(rng: &mut Rng, target: Rarity, known: &HashSet<String>, budget: Bud
         }
     }
     best.expect("at least one attempt").0
+}
+
+/// Rounds of [`forge`] [`forge_at_least`] runs before settling.
+pub const FLOOR_ROUNDS: u32 = 6;
+
+/// [`forge`] with a floor: the rarity asked for is `target` (at least `min`),
+/// and when a round comes back below `min` another one is run (up to
+/// [`FLOOR_ROUNDS`]), keeping the best skill if none reaches it.
+pub fn forge_at_least(
+    rng: &mut Rng,
+    target: Rarity,
+    min: Rarity,
+    known: &HashSet<String>,
+    budget: Budget,
+) -> Forged {
+    let target = target.max(min);
+    let mut best: Option<Forged> = None;
+    for _ in 0..FLOOR_ROUNDS {
+        let forged = forge(rng, target, known, budget);
+        if forged.graded.rarity >= min {
+            return forged;
+        }
+        if best
+            .as_ref()
+            .is_none_or(|b| forged.graded.rarity > b.graded.rarity)
+        {
+            best = Some(forged);
+        }
+    }
+    best.expect("at least one round")
 }
 
 /// Recomputes the thresholds: the score of `samples` random skills, cut at

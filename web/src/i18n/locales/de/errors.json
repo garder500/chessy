@@ -15,5 +15,8 @@
   "no_such_game": "Diese Partie existiert nicht oder ist beendet.",
   "invalid_target": "Aktion auf dem eigenen Konto nicht möglich.",
   "blocked": "Du hast diesen Spieler blockiert: Hebe die Blockierung zuerst auf.",
-  "block_list_full": "Deine Liste blockierter Spieler ist voll."
+  "block_list_full": "Deine Liste blockierter Spieler ist voll.",
+  "level_locked": "Dieses Level ist noch nicht offen.",
+  "no_forge": "Kein Boss schuldet dir eine Schmiede.",
+  "forging": "Es wird bereits eine Fähigkeit geschmiedet."
 }

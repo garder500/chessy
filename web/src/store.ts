@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type {
+  CampaignLevel,
+  CampaignResult,
   ClientMsg,
   DeckSelectInfo,
   EloChange,
@@ -42,6 +44,8 @@ export interface GameOver {
   reason: string;
   /** Partie d'évaluation : avancement, et Elo estimé après la dernière. */
   placement: PlacementView | null;
+  /** Niveau de campagne : étoiles gagnées, avancement, forge due. */
+  campaign: CampaignResult | null;
 }
 
 export interface AppState {
@@ -79,6 +83,8 @@ export interface AppState {
   soloPending: boolean;
   /** Partie regardée en tant que spectateur (v4), `null` si on ne regarde rien. */
   spectating: SpectatingState | null;
+  /** Les niveaux de la campagne et l'avancement du joueur, `null` tant que le serveur n'a pas répondu. */
+  campaign: CampaignLevel[] | null;
 }
 
 /** Le compte après une fin de partie : nouvel Elo (classée ou estimation) et avancement de l'évaluation. */
@@ -155,13 +161,14 @@ const initial: AppState = {
   solo: SOLO_DEFAULT,
   soloPending: false,
   spectating: null,
+  campaign: null,
 };
 
 /** Erreurs serveur ayant un texte traduit (`errors.<code>`) ; les autres affichent le message brut du serveur. */
 const KNOWN_ERRORS = new Set([
   "not_your_turn", "illegal_action", "no_such_room", "own_room", "already_in_game", "invalid_deck", "replaced",
   "session_revoked", "flooded", "queue_full", "rooms_full", "account_required", "spectate_full", "no_such_game",
-  "invalid_target", "blocked", "block_list_full",
+  "invalid_target", "blocked", "block_list_full", "level_locked", "no_forge", "forging",
 ]);
 const errorText = (code: string, fallback: string) => (KNOWN_ERRORS.has(code) ? t(`errors.${code}`) : fallback);
 
@@ -288,6 +295,7 @@ export class Store {
       chat: [],
       rematch: "none",
       soloPending: false,
+      campaign: null,
     });
     this.connect();
   }
@@ -370,6 +378,24 @@ export class Store {
     this.set({ soloPending: true });
     if (this.soloTimer) clearTimeout(this.soloTimer);
     this.soloTimer = setTimeout(() => this.clearSoloPending(), SOLO_PENDING_MS);
+  }
+
+  /** Demande la campagne (niveaux et étoiles) ; le serveur répond par `campaign`. */
+  loadCampaign() {
+    this.send({ type: "campaign_get" });
+  }
+
+  /** Lance un niveau de campagne ; `skills` n'a de sens que là où le joueur choisit sa main. */
+  startCampaign(level: number, skills: SkillId[] = []) {
+    this.send({ type: "campaign_start", level, skills });
+    this.set({ soloPending: true, over: null, chat: [], rematch: "none" });
+    if (this.soloTimer) clearTimeout(this.soloTimer);
+    this.soloTimer = setTimeout(() => this.clearSoloPending(), SOLO_PENDING_MS);
+  }
+
+  /** Réclame la forge d'un boss vaincu ; `replace` désigne la compétence à rendre quand le deck est plein. */
+  claimCampaignForge(replace?: SkillId) {
+    this.send({ type: "campaign_forge", ...(replace ? { replace } : {}) });
   }
 
   /** Lance une partie contre l'IA et mémorise le réglage. */
@@ -512,6 +538,9 @@ export class Store {
       case "lobby":
         this.set({ lobby: msg.status });
         break;
+      case "campaign":
+        this.set({ campaign: msg.levels });
+        break;
       case "deck_select": {
         const { type: _type, ...info } = msg;
         if (!announcedMatches.has(info.game_id)) {
@@ -559,6 +588,7 @@ export class Store {
             elo: msg.elo,
             reason: msg.reason,
             placement: msg.placement ?? null,
+            campaign: msg.campaign ?? null,
           },
           rewardOpen: false,
           // L'Elo affiché dans la barre de navigation suit la partie classée,

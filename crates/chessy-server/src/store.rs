@@ -479,6 +479,17 @@ const MIGRATIONS: &[&str] = &[
          SELECT player_id, level, score, game_id, at FROM placement_results ORDER BY rowid;
      DROP TABLE placement_results;
      ALTER TABLE placement_results_v2 RENAME TO placement_results;",
+    // Campaign (docs/spec-v6.md): the best stars of each level a player has
+    // played, as a bit mask (1 win, 2 objective, 4 challenge), and whether the
+    // forge a beaten boss pays is still to claim. A new table only.
+    "CREATE TABLE IF NOT EXISTS campaign_levels (
+         player_id TEXT NOT NULL REFERENCES players(id),
+         level INTEGER NOT NULL,
+         stars INTEGER NOT NULL DEFAULT 0,
+         forge_pending INTEGER NOT NULL DEFAULT 0,
+         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+         PRIMARY KEY (player_id, level)
+     );",
 ];
 
 fn migrate(conn: &mut Connection) -> StoreResult<()> {
