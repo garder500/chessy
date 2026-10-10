@@ -32,6 +32,9 @@ export function ChapterSection({ chapter, onPick }: Props) {
           <h2 id={`cp-ch-${chapter.chapter}`} className="cp-chapter-title">
             {chapterTitle(chapter)}
           </h2>
+          <p className={`cp-chapter-honor${chapter.title_earned ? " earned" : ""}`}>
+            {chapter.title_earned ? "Titre obtenu" : "Titre à gagner"} : {chapter.title}
+          </p>
         </div>
         {chapter.available ? (
           <span className="mono muted">{bossProgress(chapter)} ★</span>

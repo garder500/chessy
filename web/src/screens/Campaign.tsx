@@ -10,7 +10,7 @@ type Loaded = { status: "loading" } | { status: "error"; text: string } | { stat
 
 /** Page `#/campaign` : les chapitres, leurs niveaux avec leurs étoiles, et le boss. */
 export function Campaign() {
-  const { account, connection, soloPending } = useAppState();
+  const { account, connection, soloPending, deck } = useAppState();
   const accountId = account?.player_id ?? null;
   const [loaded, setLoaded] = useState<Loaded>({ status: "loading" });
   const [picked, setPicked] = useState<{ chapter: number; level: number } | null>(null);
@@ -46,7 +46,7 @@ export function Campaign() {
         <ChapterSection key={chapter.chapter} chapter={chapter} onPick={pick(chapter)} />
       ))}
       {pickedChapter && (
-        <LevelSheet chapter={pickedChapter} level={pickedLevel} connected={connection === "open"} pending={soloPending} guest={account?.guest ?? false} onClose={() => setPicked(null)} />
+        <LevelSheet key={`${picked?.chapter}-${picked?.level}`} chapter={pickedChapter} level={pickedLevel} ownDeck={deck} connected={connection === "open"} pending={soloPending} guest={account?.guest ?? false} onClose={() => setPicked(null)} />
       )}
     </main>
   );

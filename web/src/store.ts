@@ -151,6 +151,7 @@ const ERROR_TEXT: Record<string, string> = {
   own_room: "Vous ne pouvez pas rejoindre votre propre salle.",
   already_in_game: "Vous êtes déjà dans une partie.",
   invalid_deck: "Sélection de compétences invalide.",
+  bad_deck: "Deck de campagne invalide : choisissez 1 à 3 compétences de votre deck.",
   replaced: "Ce compte s'est connecté depuis un autre onglet.",
   session_revoked: "Votre session a pris fin : vous êtes repassé en invité.",
   flooded: "Connexion coupée : trop de messages envoyés.",
@@ -384,9 +385,9 @@ export class Store {
     this.awaitSoloGame();
   }
 
-  /** Lance un niveau de la campagne (decks imposés par le niveau). */
-  startCampaign(chapter: number, level: number) {
-    this.send({ type: "campaign_start", chapter, level });
+  /** Lance un niveau de la campagne (decks imposés par le niveau, ou `deck` choisi si le niveau le demande). */
+  startCampaign(chapter: number, level: number, deck?: SkillId[]) {
+    this.send({ type: "campaign_start", chapter, level, deck });
     this.awaitSoloGame();
   }
 

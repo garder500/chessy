@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { bossProgress, chapterTitle, countStars, isLocked } from "./campaign";
-import type { CampaignChapter, CampaignLevel } from "./protocol";
+import { bossProgress, chapterTitle, countStars, isLocked, toggleDeckPick } from "./campaign";
+import type { CampaignChapter, CampaignLevel, SkillId } from "./protocol";
 
 const level = (boss: boolean): CampaignLevel => ({
   level: boss ? 6 : 0,
@@ -9,6 +9,9 @@ const level = (boss: boolean): CampaignLevel => ({
   boss,
   player_deck: [],
   bot_deck: [],
+  deck_choice: false,
+  start_fen: null,
+  human_color: null,
   objective: null,
   challenge: null,
   best: [false, false, false],
@@ -19,6 +22,8 @@ const chapter = (boss_unlocked: boolean): CampaignChapter => ({
   chapter: 0,
   family: "attack",
   name: "Attaque",
+  title: "Maître d'armes",
+  title_earned: false,
   available: true,
   stars: 7,
   boss_stars_required: 12,
@@ -41,5 +46,16 @@ describe("campagne", () => {
   it("formate la progression vers le boss et le titre", () => {
     expect(bossProgress(chapter(false))).toBe("7/12");
     expect(chapterTitle(chapter(false))).toBe("Chapitre 1 · Attaque");
+  });
+
+  it("ajoute et retire une compétence du deck choisi", () => {
+    expect(toggleDeckPick([], "freeze")).toEqual(["freeze"]);
+    expect(toggleDeckPick(["freeze", "clone"], "freeze")).toEqual(["clone"]);
+  });
+
+  it("plafonne le deck choisi à trois compétences", () => {
+    const full: SkillId[] = ["freeze", "clone", "trap"];
+    expect(toggleDeckPick(full, "terminator")).toEqual(full);
+    expect(toggleDeckPick(full, "trap")).toEqual(["freeze", "clone"]);
   });
 });
