@@ -4,7 +4,7 @@ import type { ActiveEffect, Color, EffectKind, GameEvent, Piece, PieceKind, Skil
 import { FX, drawArrow, drawDashedArrow, drawEffectMark, drawDashedRing, drawHalo, drawHexRing, drawRune, drawShield, drawStrings, effectColor } from "./fx";
 import { skillEntry } from "../catalog";
 import { pieceArtAssets, pieceArtKey } from "./pieceArt";
-import { isForgedId } from "../forged";
+import { forgedDef, isForgedId, type ForgedBricks } from "../forged";
 import { actionKey, turnsLeft } from "./logic";
 import { t } from "../i18n";
 import { accentColor, boardTheme, getTheme, hexToNum, pieceSet, premoveColor, type ThemeSettings } from "../theme";
@@ -1429,6 +1429,8 @@ export class BoardScene extends Phaser.Scene {
     const color = entry.rarity === "legendary" ? FX.gold : (family[entry.family] ?? FX.thread);
     const mid = SIZE / 2;
     const { x, y } = at ?? { x: mid, y: mid };
+    const bricks = forgedDef(skill)?.bricks;
+    if (bricks && this.forgedGesture(bricks, x, y, at !== null, color, entry.rarity ?? "")) return;
     this.rings(x, y, color, 10, at ? 54 : SIZE * 0.45, 480);
     this.rings(x, y, color, 6, at ? 36 : SIZE * 0.3, 480, 90);
     if (entry.rarity === "legendary") {
@@ -1437,6 +1439,49 @@ export class BoardScene extends Phaser.Scene {
     } else if (!at) {
       this.flash(color, 0.1, 420);
     }
+  }
+
+  /**
+   * Geste d'un pouvoir forgé, lu dans ses briques : un trait par action, puis la durée (arcs courts, longs ou anneau d'or)
+   * et la rareté sur le contour. Rend false si l'action est inconnue : l'éclat générique prend le relais.
+   */
+  private forgedGesture(b: ForgedBricks, x: number, y: number, targeted: boolean, color: number, rarity: string): boolean {
+    const global = ["truce", "mirror", "fog", "silence", "ambush"].includes(b.action);
+    switch (b.action) {
+      case "freeze": this.crystalBurst(x, y, FX.ice); break;
+      case "shield": this.shieldBurst(x, y); break;
+      case "cloak": this.scan(x, y, FX.mirage); break;
+      case "morph": this.swirl(x, y, FX.morph); break;
+      case "promote": this.ascend(this.squareAt(x, y) ?? 0, FX.gold); break;
+      case "remove": this.rings(x, y, FX.attack, 44, 4, 420); break;
+      case "convert": this.rings(x, y, FX.clone, 8, 54, 520); this.rings(x, y, FX.clone, 4, 38, 520, 120); break;
+      case "teleport": this.rings(x, y, FX.portal, 46, 6, 460); break;
+      case "duplicate": this.rings(x, y, FX.clone, 14, 44, 420); this.rings(x, y, FX.clone, 8, 30, 420, 100); break;
+      case "swap": this.rings(x, y, FX.thread, 40, 8, 420); break;
+      case "spawn": this.rings(x, y, FX.trail, 8, 48, 480); break;
+      case "revive": this.beam(this.squareAt(x, y) ?? 0, FX.gold, 0); this.rings(x, y, FX.gold, 6, 52, 520, 260); break;
+      case "truce": this.flash(FX.shield, 0.16, 640); this.rings(SIZE / 2, SIZE / 2, FX.shield, 20, SIZE * 0.55, 720); break;
+      case "mirror": this.sweepLine(); break;
+      case "fog": this.flash(FX.dust, 0.3, 640); break;
+      case "silence": this.flash(FX.glitch, 0.18, 640); this.rings(SIZE / 2, SIZE / 2, FX.glitch, 20, SIZE * 0.55, 720); break;
+      case "ambush": this.domainCast(); break;
+      default: return false;
+    }
+    if (targeted && !global) this.durationArcs(x, y, b, color);
+    if (rarity === "rare" || rarity === "epic" || rarity === "legendary") this.rings(x, y, color, 20, targeted ? 66 : SIZE * 0.5, 560, 80);
+    return true;
+  }
+
+  /** Marque de durée du lancement : deux arcs (courte), cinq arcs (longue) ou anneau d'or (permanente). */
+  private durationArcs(x: number, y: number, b: ForgedBricks, color: number) {
+    const g = this.add.graphics().setDepth(12).setPosition(x, y);
+    const arcs = b.permanent ? 0 : (b.plies ?? 0) > 2 ? 5 : 2;
+    if (arcs === 0) g.lineStyle(4, FX.gold, 0.95).strokeCircle(0, 0, 34);
+    else for (let i = 0; i < arcs; i++) {
+      const step = (Math.PI * 2) / arcs;
+      g.lineStyle(4, color, 0.95).beginPath().arc(0, 0, 34, i * step + 0.1, i * step + step * 0.65, false).strokePath();
+    }
+    this.tweens.add({ targets: g, alpha: { from: 1, to: 0 }, angle: 20, duration: 900, delay: 300, onComplete: () => g.destroy() });
   }
 
   /** Éclat de pose d'un effet persistant. */
