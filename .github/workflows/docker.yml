@@ -124,3 +124,21 @@ jobs:
 
       - name: Vérifier
         run: docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+
+  # Déploiement sur l'Orange Pi : le runner self-hosted (ketsuna, ARM64) tourne sur le serveur,
+  # donc aucun SSH ni secret. Uniquement sur un push sur main, une fois l'image publiée.
+  deploy:
+    name: Déploiement (Orange Pi)
+    runs-on: [self-hosted, Linux, ARM64]
+    needs: merge
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: deploy-orangepi
+      cancel-in-progress: false
+    steps:
+      - name: Tirer la nouvelle image et redémarrer
+        working-directory: /home/orangepi/chessy
+        run: |
+          docker compose pull
+          docker compose up -d
+          docker image prune -f
