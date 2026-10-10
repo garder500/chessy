@@ -51,7 +51,7 @@ const e = (
 
 export const CATALOG: readonly BuiltinEntry[] = [
   // Compétences classiques
-  e("teleportation", "Teleportation", "mobility", "Déplace une de vos pièces vers n'importe quelle case vide, sans tenir compte des obstacles.", {}),
+  e("teleportation", "Teleportation", "mobility", "Déplace une de vos pièces (pas le roi) vers n'importe quelle case vide, sans tenir compte des obstacles.", {}),
   e("imune", "Imune", "defense", "Rend une de vos pièces (pas le roi) invulnérable pendant le prochain tour adverse.", {}),
   e("rollback", "Rollback", "mobility", "Ramène une de vos pièces (pas le roi) sur la case d'où elle vient, si elle est libre.", {}),
   e("clone", "Clone", "create", "Copie une de vos pièces (pas le roi) sur une case vide adjacente.", {}),

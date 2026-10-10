@@ -22,6 +22,7 @@ mod queensac;
 mod random_games;
 mod serialization;
 mod switch;
+mod teleportation;
 mod temporal;
 mod terminator;
 mod tornado;
