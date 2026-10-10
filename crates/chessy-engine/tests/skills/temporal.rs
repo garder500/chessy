@@ -22,7 +22,11 @@ fn needs_a_last_move_and_a_free_or_capturable_square() {
     let g = game("4k3/8/8/8/8/8/8/R3K3 w - - 0 1", &[SkillId::Temporal], &[]);
     assert!(!has_skill(&g, SkillId::Temporal));
     // An own piece sits on the old square.
-    let mut g = game("4k3/8/8/8/8/8/8/R3K3 w - - 0 1", &[SkillId::Temporal, SkillId::Temporal], &[]);
+    let mut g = game(
+        "4k3/8/8/8/8/8/8/R3K3 w - - 0 1",
+        &[SkillId::Temporal, SkillId::Temporal],
+        &[],
+    );
     mv(&mut g, "a1", "a3");
     mv(&mut g, "e8", "d8");
     mv(&mut g, "e1", "e2");
@@ -47,16 +51,15 @@ fn a_slider_cannot_jump_over_a_piece_on_the_way_back() {
     );
     mv(&mut g, "a1", "a4");
     use_skill(&mut g, SkillId::Teleportation, piece_to("h8", "a2"));
-    assert!(!can_skill(&g, SkillId::Temporal, piece("a4")), "a2 is in the way");
+    assert!(
+        !can_skill(&g, SkillId::Temporal, piece("a4")),
+        "a2 is in the way"
+    );
 }
 
 #[test]
 fn counts_as_a_real_move() {
-    let mut g = game(
-        "4k3/8/8/8/8/8/8/R3K3 w - - 0 1",
-        &[SkillId::Temporal],
-        &[],
-    );
+    let mut g = game("4k3/8/8/8/8/8/8/R3K3 w - - 0 1", &[SkillId::Temporal], &[]);
     mv(&mut g, "a1", "a3");
     mv(&mut g, "e8", "d8");
     use_skill(&mut g, SkillId::Temporal, piece("a3"));

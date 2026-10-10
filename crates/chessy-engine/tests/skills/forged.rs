@@ -482,7 +482,9 @@ fn a_domain_strikes_the_piece_that_checks_the_caster() {
     assert!(ev
         .iter()
         .any(|e| matches!(e, Event::Ambushed { square, .. } if *square == s("a1"))));
-    assert!(ev.iter().any(|e| matches!(e, Event::Captured { square, .. } if *square == s("a1"))));
+    assert!(ev
+        .iter()
+        .any(|e| matches!(e, Event::Captured { square, .. } if *square == s("a1"))));
     assert_eq!(kind_at(&g, "a1"), None, "the checking rook is gone");
     assert!(!g.pos.in_check(Color::White));
     assert!(!g.pos.has_domain(Color::White), "the domain is spent");
