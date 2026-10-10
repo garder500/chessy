@@ -19,45 +19,35 @@ pub enum Family {
     Create,
 }
 
-fn one() -> u8 {
-    1
-}
-
-fn is_one(n: &u8) -> bool {
-    *n == 1
-}
-
-/// How the client draws the icon. The icon is read off the structure of the
-/// definition, one layer per brick: the central glyph is the action, the
-/// target mark says whom it is about, the silhouette is the piece it is about,
-/// the gauge is how long it lasts, the pips are how many times it can be used
-/// and the marks are the rules around it. Two definitions that differ in any of
-/// these bricks get two different icons.
+/// How the client draws the icon: a medallion whose hero is a chess piece the
+/// effect acts on (one scene per glyph), a ring that fills with the duration,
+/// a backdrop for the area, a chip for the rule that matters most, and a
+/// decorative sigil drawn from `seed`. Uses and the other rules stay in the
+/// description.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IconSpec {
-    /// The action, one of [`GLYPHS`].
+    /// One of [`GLYPHS`].
     pub glyph: String,
-    /// The strongest piece the skill is about: `pawn`, `knight`, `bishop`, `rook`, `queen`.
+    /// `pawn`, `knight`, `bishop`, `rook`, `queen`, if the skill is about a kind of piece.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub piece: Option<String>,
-    /// `forever` when the effect is permanent, `short` or `long` otherwise; absent for an instant effect.
+    /// `short`, `long` or `forever`; absent for an instant effect.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub badge: Option<String>,
-    /// Whom it is about: `own` (your pieces), `enemy` or `any` (both camps, or the whole game).
+    /// Whom it targets: `own` (your pieces) or `enemy`; absent when it is about both camps.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
-    /// Exact duration in plies (2 to 8); absent when the effect is instant or permanent.
+    /// Exact duration in plies (2 to 8), absent when the effect is instant or permanent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plies: Option<u8>,
-    /// Uses per game (1 to 3).
-    #[serde(default = "one", skip_serializing_if = "is_one")]
-    pub uses: u8,
-    /// Rules around it, in a fixed order: `in_check`, `no_mate`, `no_check`, `free`.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub marks: Vec<String>,
-    /// Every kind of piece the skill names, weakest first.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub kinds: Vec<String>,
+    /// How much of the board it concerns: `one` piece, a `row` (ranks 3 to 6) or the whole `board`.
+    pub zone: String,
+    /// The rule that matters most: `free` (does not use the turn), `check` (only in check) or `safe`
+    /// (refused if it would leave a king in check or mate).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mark: Option<String>,
+    /// Stable per definition: seeds the decorative sigil so two skills never look alike.
+    pub seed: u32,
 }
 
 /// How the client builds the sound: the effect picks the family of bricks,
@@ -422,66 +412,56 @@ fn kind_key(kind: PieceKind) -> &'static str {
     }
 }
 
-fn icon_target(effect: &Effect) -> &'static str {
+/// Whom the effect targets, when it is one camp.
+const ICON_KINDS: [PieceKind; 5] = [
+    PieceKind::Pawn,
+    PieceKind::Knight,
+    PieceKind::Bishop,
+    PieceKind::Rook,
+    PieceKind::Queen,
+];
+
+fn icon_target(effect: &Effect) -> Option<&'static str> {
     match effect {
         Effect::Freeze { .. }
         | Effect::Remove { .. }
         | Effect::Convert
-        | Effect::Silence { .. } => "enemy",
-        Effect::Morph { side, .. } => match side {
+        | Effect::Silence { .. } => Some("enemy"),
+        Effect::Morph { side, .. } => Some(match side {
             Side::Own => "own",
             Side::Enemy => "enemy",
-        },
-        Effect::Swap { scope } => match scope {
-            SwapScope::Own => "own",
-            SwapScope::Any => "any",
-        },
-        Effect::Truce { .. } | Effect::Mirror | Effect::Fog { .. } => "any",
-        _ => "own",
+        }),
+        Effect::Swap {
+            scope: SwapScope::Any,
+        }
+        | Effect::Truce { .. }
+        | Effect::Mirror
+        | Effect::Fog { .. } => None,
+        _ => Some("own"),
     }
 }
 
-/// Every kind of piece an effect names, weakest first.
-fn icon_kinds(effect: &Effect) -> Vec<PieceKind> {
-    let mut kinds = match effect {
-        Effect::Morph { into, .. } => vec![*into],
-        Effect::Remove { kinds } | Effect::Spawn { kinds, .. } | Effect::Revive { kinds } => {
-            kinds.clone()
-        }
-        Effect::Promote => vec![PieceKind::Queen],
-        _ => Vec::new(),
-    };
-    kinds.sort_by_key(|k| *k as u8);
-    kinds.dedup();
-    kinds
+fn icon_zone(effect: &Effect) -> &'static str {
+    match effect {
+        Effect::Spawn { .. } => "row",
+        Effect::Truce { .. }
+        | Effect::Mirror
+        | Effect::Fog { .. }
+        | Effect::Silence { .. }
+        | Effect::Ambush { .. } => "board",
+        _ => "one",
+    }
 }
 
-/// The icon of a skill, one layer per brick of its definition.
-pub fn icon(def: &SkillDef) -> IconSpec {
-    let def = def.clone().canonical();
-    let marks = def
-        .constraints
-        .iter()
-        .map(|c| match c {
-            Constraint::OnlyInCheck => "in_check",
-            Constraint::ForbidMate => "no_mate",
-            Constraint::ForbidCheck => "no_check",
-        })
-        .chain(def.free_action.then_some("free"))
-        .map(str::to_string)
-        .collect();
-    IconSpec {
-        glyph: GLYPHS[effect_index(&def.effect)].to_string(),
-        piece: icon_piece(&def.effect).map(|k| kind_key(k).to_string()),
-        badge: badge(&def).map(str::to_string),
-        target: Some(icon_target(&def.effect).to_string()),
-        plies: plies_of(&def.effect),
-        uses: def.max_uses,
-        marks,
-        kinds: icon_kinds(&def.effect)
-            .into_iter()
-            .map(|k| kind_key(k).to_string())
-            .collect(),
+fn icon_mark(def: &SkillDef) -> Option<&'static str> {
+    if def.free_action {
+        Some("free")
+    } else if def.constraints.contains(&Constraint::OnlyInCheck) {
+        Some("check")
+    } else if def.constraints.is_empty() {
+        None
+    } else {
+        Some("safe")
     }
 }
 
@@ -493,7 +473,22 @@ pub fn identity(def: &SkillDef) -> Identity {
         name: name(def, seed),
         description: description(def),
         family: family(&def.effect),
-        icon: icon(def),
+        icon: IconSpec {
+            glyph: GLYPHS[index].to_string(),
+            // Effects that do not name a piece show one drawn from the seed: it is an example, not a rule.
+            piece: Some(
+                kind_key(
+                    icon_piece(&def.effect).unwrap_or(ICON_KINDS[(mix(seed, 6) % 5) as usize]),
+                )
+                .to_string(),
+            ),
+            badge: badge(def).map(str::to_string),
+            target: icon_target(&def.effect).map(str::to_string),
+            plies: plies_of(&def.effect),
+            zone: icon_zone(&def.effect).to_string(),
+            mark: icon_mark(def).map(str::to_string),
+            seed: seed as u32,
+        },
         sound: SoundSpec {
             effect: index as u8,
             degree: (mix(seed, 3) % 7) as u8,

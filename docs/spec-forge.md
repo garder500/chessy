@@ -85,28 +85,20 @@ la même mesure (`switch` et `evolve` sortent en tête, `mind` à zéro) ; `ches
 
 `forge::identity::identity(def)` donne le nom, la description, la famille, la spécification d'icône et celle du son.
 
-### L'icône : une couche par brique
-
-`forge::identity::icon(def)` lit la définition brique par brique, et le client empile une couche par brique
-(`web/src/ui/forgedGlyphs.tsx`). Deux définitions qui diffèrent par une brique ont deux icônes différentes.
-
-| Brique | Couche | Où |
-|---|---|---|
-| action (effet) | glyphe central, un par effet | centre |
-| cible (`own` / `enemy` / `any`) | pastille pleine / viseur / deux anneaux | haut gauche |
-| pièce(s) citée(s) | silhouette de la plus forte, un point par autre type | bas droite |
-| durée exacte (2 à 8 coups) | jauge de 8 crans, un allumé par coup | arc du bas |
-| définitif | symbole infini | haut droite |
-| usages (2 ou 3) | 2 ou 3 points | haut |
-| règles (`in_check`, `no_mate`, `no_check`, `free`) | un signe chacune | colonne de gauche |
-| rareté | cadre | pourtour |
-
-Les champs sont tous facultatifs côté client : une ancienne définition d'icône (glyphe, pièce, badge) se dessine toujours.
-
 - **Nom** : un nom commun lié à l'effet et un nom propre inventé de 2 ou 3 syllabes, tirés de l'empreinte (« Givre d'Alfen »).
 - **Description** : assemblée par gabarits depuis l'arbre, elle ne peut donc pas dire autre chose que ce que fait la compétence.
-- **Icône** (`IconSpec`) : glyphe central (un des 16 de `GLYPHS`), silhouette de la pièce concernée, badge de durée
-  (`short`, `long`, `forever`). Le client dessine le tout (`web/src/ui/forgedGlyphs.tsx`) avec un cadre à la couleur de la rareté.
+- **Icône** (`IconSpec`) : un médaillon dont le héros est une **pièce d'échecs** ; le verbe de l'effet agit sur elle comme un
+  filtre (givre, dissolution, voile, dôme, couronne…). `IconSpec` porte `glyph` (un des 17 de `GLYPHS`), `piece` (toujours
+  présente : celle que l'effet nomme, sinon tirée de l'empreinte), `target` (`own`/`enemy`, absent si les deux camps),
+  `plies` (durée exacte), `zone` (`one`/`row`/`board`), `mark` (`free` > `check` > `safe`) et `seed` (graine de l'empreinte).
+  Le client (`web/src/ui/forgedIcon.tsx`) assemble des briques : fond du dégradé de la famille (teinte décalée par verbe),
+  zone en relief (halo / bande / damier), sigil radial décoratif propre à la graine, scène du verbe, anneau d'or dont l'arc
+  vaut `plies / 8` de tour, pastille de règle, cadre à la forme et à la couleur de la rareté (cercle, carré arrondi, hexagone,
+  octogone, soleil). Tout est dans le médaillon (clip) : rien ne déborde. Toute compétence 100 % algorithmique y trouve
+  son icône, puisque chaque champ vient d'une brique de la définition.
+  - **Mesure** : `web/scripts/icon-metrics.mjs` rastérise des icônes aléatoires à 32 px dans Chromium (voir l'en-tête du
+    script ; les icônes viennent de `forgedIcon.dump.test.ts`). Dernier relevé (600 icônes) : effet reconnu 96,5 %
+    (17 verbes, plus proche centroïde), rareté 100 %, aucune paire d'icônes quasi identique, couverture 78 %, centrage 0,02.
 - **Son** (`SoundSpec`) : effet, note de la gamme, clarté, durée. Le client l'assemble avec les briques de
   `web/src/sound/bricks.ts` (`forgedRecipe.ts`), un geste sonore par effet, au niveau réglé comme les 27.
 

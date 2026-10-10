@@ -952,150 +952,87 @@ fn random_games_with_forged_skills_stay_consistent() {
     }
 }
 
-// --- Icons: one layer per brick of the definition -------------------------
-
-/// Every definition of a small but varied corner of the space: all effects, durations,
-/// piece lists, constraint sets, uses and free/not free.
-fn icon_space() -> Vec<SkillDef> {
-    use chessy_engine::PieceKind::*;
-    let mut effects = vec![
-        Effect::Promote,
-        Effect::Convert,
-        Effect::Teleport,
-        Effect::Duplicate,
-        Effect::Mirror,
-        Effect::Swap {
-            scope: chessy_engine::forge::def::SwapScope::Own,
-        },
-        Effect::Swap {
-            scope: chessy_engine::forge::def::SwapScope::Any,
-        },
-        Effect::Remove { kinds: vec![Pawn] },
-        Effect::Remove {
-            kinds: vec![Pawn, Knight],
-        },
-        Effect::Remove {
-            kinds: vec![Knight, Bishop],
-        },
-        Effect::Revive {
-            kinds: vec![Rook, Queen],
-        },
-    ];
-    for plies in 2..=8 {
-        effects.extend([
-            Effect::Freeze { plies },
-            Effect::Shield { plies },
-            Effect::Cloak { plies },
-            Effect::Truce { plies },
-            Effect::Fog { plies },
-            Effect::Silence { plies },
-            Effect::Ambush { plies },
-            Effect::Spawn {
-                kinds: vec![Pawn, Queen],
-                plies,
-            },
-        ]);
-        for side in [
-            chessy_engine::forge::def::Side::Own,
-            chessy_engine::forge::def::Side::Enemy,
-        ] {
-            effects.push(Effect::Morph {
-                side,
-                into: Knight,
-                plies,
-            });
-        }
-    }
-    let constraint_sets: [&[Constraint]; 5] = [
-        &[],
-        &[Constraint::OnlyInCheck],
-        &[Constraint::ForbidMate],
-        &[Constraint::ForbidCheck],
-        &[Constraint::OnlyInCheck, Constraint::ForbidMate],
-    ];
-    let mut out = Vec::new();
-    for effect in effects {
-        for cs in constraint_sets {
-            for max_uses in 1..=3 {
-                for free_action in [false, true] {
-                    let mut d = def(effect.clone());
-                    d.constraints = cs.to_vec();
-                    d.max_uses = max_uses;
-                    d.free_action = free_action;
-                    out.push(d);
-                }
-            }
-        }
-    }
-    out
-}
-
 #[test]
-fn two_skills_that_differ_in_any_brick_get_two_icons() {
+fn an_icon_says_whom_the_skill_targets() {
     use chessy_engine::forge::identity::identity;
-    let space = icon_space();
-    let mut seen = std::collections::HashMap::new();
-    for d in &space {
-        let spec = identity(d).icon;
-        let key = (d.clone().canonical().fingerprint(), spec.clone());
-        if let Some(other) = seen.insert(serde_json::to_string(&spec).unwrap(), key.0) {
-            assert_eq!(other, key.0, "two different skills share the icon {spec:?}");
-        }
-    }
-    assert!(seen.len() > 1000, "{}", seen.len());
+    let target = |e: Effect| identity(&def(e)).icon.target;
+    assert_eq!(
+        target(Effect::Freeze { plies: 4 }).as_deref(),
+        Some("enemy")
+    );
+    assert_eq!(target(Effect::Shield { plies: 4 }).as_deref(), Some("own"));
+    assert_eq!(
+        target(Effect::Morph {
+            side: Side::Enemy,
+            into: PieceKind::Pawn,
+            plies: 4
+        })
+        .as_deref(),
+        Some("enemy")
+    );
+    assert_eq!(
+        target(Effect::Morph {
+            side: Side::Own,
+            into: PieceKind::Queen,
+            plies: 4
+        })
+        .as_deref(),
+        Some("own")
+    );
+    assert_eq!(target(Effect::Mirror), None);
+    assert_eq!(
+        target(Effect::Swap {
+            scope: SwapScope::Any
+        }),
+        None
+    );
 }
 
 #[test]
-fn two_freezes_no_longer_share_a_glyph_alone() {
+fn an_icon_carries_the_duration_the_area_the_main_rule_and_a_seed() {
     use chessy_engine::forge::identity::identity;
-    let short = identity(&def(Effect::Freeze { plies: 2 })).icon;
-    let long = identity(&def(Effect::Freeze { plies: 8 })).icon;
-    assert_eq!(short.glyph, long.glyph);
-    assert_ne!(short, long);
-    assert_eq!((short.plies, long.plies), (Some(2), Some(8)));
-    let mut gated = def(Effect::Freeze { plies: 2 });
-    gated.constraints = vec![Constraint::OnlyInCheck];
-    gated.free_action = true;
-    gated.max_uses = 3;
-    let icon = identity(&gated).icon;
-    assert_eq!(icon.marks, ["in_check", "free"]);
-    assert_eq!(icon.uses, 3);
-    assert_eq!(icon.target.as_deref(), Some("enemy"));
+    let icon = |d: &SkillDef| identity(d).icon;
+    assert_eq!(icon(&def(Effect::Freeze { plies: 6 })).plies, Some(6));
+    assert_eq!(icon(&def(Effect::Promote)).plies, None);
+    assert_eq!(icon(&def(Effect::Freeze { plies: 6 })).zone, "one");
+    assert_eq!(
+        icon(&def(Effect::Spawn {
+            kinds: vec![PieceKind::Pawn],
+            plies: 4
+        }))
+        .zone,
+        "row"
+    );
+    assert_eq!(icon(&def(Effect::Fog { plies: 4 })).zone, "board");
+    let mut d = def(Effect::Shield { plies: 4 });
+    assert_eq!(icon(&d).mark, None);
+    d.constraints = vec![Constraint::ForbidMate];
+    assert_eq!(icon(&d).mark.as_deref(), Some("safe"));
+    d.constraints = vec![Constraint::ForbidMate, Constraint::OnlyInCheck];
+    assert_eq!(icon(&d).mark.as_deref(), Some("check"));
+    d.free_action = true;
+    assert_eq!(icon(&d).mark.as_deref(), Some("free"));
 }
 
 #[test]
-fn an_icon_stays_legible_and_follows_the_definition() {
-    use chessy_engine::forge::identity::{identity, GLYPHS};
-    for d in icon_space() {
+fn every_icon_has_a_piece_and_distinct_skills_get_distinct_seeds() {
+    use chessy_engine::forge::generate::random_def;
+    use chessy_engine::forge::identity::identity;
+    let mut rng = chessy_engine::ai::Rng::new(5);
+    let mut seeds = std::collections::HashMap::new();
+    for _ in 0..3000 {
+        let d = random_def(&mut rng);
         let icon = identity(&d).icon;
-        assert!(GLYPHS.contains(&icon.glyph.as_str()));
-        // Few enough marks to stay readable at 40px.
-        assert!(icon.marks.len() <= 4 && (1..=3).contains(&icon.uses));
-        assert!(matches!(
-            icon.target.as_deref(),
-            Some("own" | "enemy" | "any")
-        ));
-        if let Some(p) = icon.plies {
-            assert!((2..=8).contains(&p));
-            assert!(icon.badge.is_some());
+        assert!(
+            ["pawn", "knight", "bishop", "rook", "queen"].contains(&icon.piece.as_deref().unwrap())
+        );
+        if let Some(other) = seeds.insert(icon.seed, d.clone().canonical().fingerprint()) {
+            assert_eq!(
+                other,
+                d.canonical().fingerprint(),
+                "two skills share the seed {}",
+                icon.seed
+            );
         }
-        // A permanent effect shows the infinity badge and no gauge.
-        if icon.badge.as_deref() == Some("forever") {
-            assert!(icon.plies.is_none());
-        }
-        // The silhouette is the strongest of the pieces named, and they are sorted weakest first.
-        assert_eq!(icon.piece.as_deref(), icon.kinds.last().map(String::as_str));
-        // Permutations and duplicates do not change the icon.
-        assert_eq!(icon, identity(&d.clone().canonical()).icon);
     }
-    let a = identity(&def(Effect::Remove {
-        kinds: vec![PieceKind::Rook, PieceKind::Pawn, PieceKind::Rook],
-    }))
-    .icon;
-    let b = identity(&def(Effect::Remove {
-        kinds: vec![PieceKind::Pawn, PieceKind::Rook],
-    }))
-    .icon;
-    assert_eq!(a, b);
-    assert_eq!(a.kinds, ["pawn", "rook"]);
 }
