@@ -16,7 +16,7 @@ use chessy_engine::{
 use serde::{Deserialize, Serialize};
 
 use crate::games_store::{GameKind, Loadouts, Seat, StoredGame};
-use crate::protocol::{SkillOptions, TerrainView};
+use crate::protocol::{SkillOptions, TerrainView, TimeControl};
 
 /// Skills each side has used so far (Mind Reading counts from its first use).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
@@ -214,6 +214,8 @@ pub struct ReplayView {
     pub result: ResultView,
     pub plies: u32,
     pub at: String,
+    /// Game length asked for; null for the default clock, Solo and old games.
+    pub time_control: Option<TimeControl>,
     pub loadouts: Loadouts,
     pub moves: Vec<MoveInfo>,
     pub frames: Vec<Frame>,
@@ -268,6 +270,7 @@ pub fn view(game: &StoredGame) -> Option<Result<ReplayView, usize>> {
         },
         plies: last as u32,
         at: game.at.clone(),
+        time_control: game.time_control,
         loadouts: loadouts.clone(),
         moves,
         frames,

@@ -299,6 +299,7 @@ async fn my_games_pages_newest_first_and_needs_a_token() {
                 loadouts: &[vec![], vec![]],
                 actions: &none,
                 solo_elo: None,
+                time_control: None,
             })
             .unwrap();
     }

@@ -18,6 +18,7 @@ import { resultLine } from "../replay/lists";
 import { initialNav, keyToNav, navReduce, shouldHandleKey, stepDelay } from "../replay/nav";
 import { sfx } from "../sound";
 import { readToken, useAppState } from "../store";
+import { timeText } from "../time";
 import { relativeTime } from "../ui/social";
 import { EvalBar, Plate } from "./game/Plate";
 import { PromotionPicker, SpawnPicker } from "./game/Overlays";
@@ -437,6 +438,7 @@ function ReplayPlayer({ record, autoAnalyse }: { record: GameRecord; autoAnalyse
           <p className="rp-meta">
             <span className="tag">{kindLabel(record.kind, record.rated)}</span>
             <span className="muted">{record.plies} coup{record.plies > 1 ? "s" : ""}</span>
+            {record.time_control && <span className="muted">{timeText(record.time_control)}</span>}
             {record.at && <span className="muted">{relativeTime(record.at)}</span>}
             <span>{resultLine(record.result.outcome, record.result.reason)}</span>
           </p>

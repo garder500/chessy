@@ -162,6 +162,7 @@ export function fixtureRecord(overrides: Partial<GameRecord> = {}): GameRecord {
     black: BLACK_SEAT,
     result: { outcome: last.outcome, reason: "resignation" },
     plies: b.moves.length,
+    time_control: "short",
     at: "2026-10-06T20:12:07Z",
     loadouts: { white: ["teleportation", "imune", "tornado"], black: ["freeze", "wall", "clone"] },
     moves: b.moves,
@@ -252,12 +253,12 @@ const seat = (username: string | null, elo: number | null, bot = false): Seat =>
 /** Parties de `jeremy` : classées, amicales, solo ; la plus récente d'abord. */
 export function fixtureGames(): GameSummary[] {
   return [
-    { game_id: "g-demo-1", kind: "duel", rated: true, white: WHITE_SEAT, black: BLACK_SEAT, color: "white", result: "loss", reason: "resignation", plies: 16, elo_delta: -9, at: "2026-10-06T20:12:07Z" },
-    { game_id: "g-demo-2", kind: "solo", rated: false, white: seat("jeremy", 1284), black: seat(null, 1400, true), color: "white", result: "win", reason: "checkmate", plies: 41, elo_delta: null, at: "2026-10-06T18:40:00Z" },
-    { game_id: "g-demo-3", kind: "challenge", rated: false, white: seat("lea", 1190), black: seat("jeremy", 1290), color: "black", result: "draw", reason: "agreed_draw", plies: 33, elo_delta: null, at: "2026-10-05T21:02:11Z" },
-    { game_id: "g-demo-4", kind: "duel", rated: true, white: seat("jeremy", 1275), black: seat("marc", 1260), color: "white", result: "win", reason: "checkmate", plies: 58, elo_delta: 14, at: "2026-10-05T19:30:45Z" },
-    { game_id: "g-demo-5", kind: "room", rated: false, white: seat("sam", 1500), black: seat("jeremy", 1280), color: "black", result: "loss", reason: "timeout", plies: 27, elo_delta: null, at: "2026-10-03T10:00:00Z" },
-    { game_id: "g-demo-6", kind: "duel", rated: true, white: seat("jeremy", 1262), black: seat(null, null), color: "white", result: "win", reason: "resignation", plies: 22, elo_delta: 12, at: "2026-09-28T09:15:00Z" },
+    { game_id: "g-demo-1", kind: "duel", rated: true, white: WHITE_SEAT, black: BLACK_SEAT, color: "white", result: "loss", reason: "resignation", plies: 16, time_control: "short", elo_delta: -9, at: "2026-10-06T20:12:07Z" },
+    { game_id: "g-demo-2", kind: "solo", rated: false, white: seat("jeremy", 1284), black: seat(null, 1400, true), color: "white", result: "win", reason: "checkmate", plies: 41, time_control: null, elo_delta: null, at: "2026-10-06T18:40:00Z" },
+    { game_id: "g-demo-3", kind: "challenge", rated: false, white: seat("lea", 1190), black: seat("jeremy", 1290), color: "black", result: "draw", reason: "agreed_draw", plies: 33, time_control: "medium", elo_delta: null, at: "2026-10-05T21:02:11Z" },
+    { game_id: "g-demo-4", kind: "duel", rated: true, white: seat("jeremy", 1275), black: seat("marc", 1260), color: "white", result: "win", reason: "checkmate", plies: 58, time_control: "short", elo_delta: 14, at: "2026-10-05T19:30:45Z" },
+    { game_id: "g-demo-5", kind: "room", rated: false, white: seat("sam", 1500), black: seat("jeremy", 1280), color: "black", result: "loss", reason: "timeout", plies: 27, time_control: "long", elo_delta: null, at: "2026-10-03T10:00:00Z" },
+    { game_id: "g-demo-6", kind: "duel", rated: true, white: seat("jeremy", 1262), black: seat(null, null), color: "white", result: "win", reason: "resignation", plies: 22, time_control: "short", elo_delta: 12, at: "2026-09-28T09:15:00Z" },
   ];
 }
 

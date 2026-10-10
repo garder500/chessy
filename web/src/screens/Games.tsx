@@ -15,6 +15,7 @@ import {
 } from "../replay/lists";
 import { kindLabel } from "../replay/frames";
 import { hrefFor } from "../router";
+import { timeText } from "../time";
 import { readToken, useAppState } from "../store";
 import { formatDelta, reasonText, relativeTime, RESULT_LABEL } from "../ui/social";
 import "./live.css";
@@ -160,7 +161,7 @@ function GameRow({ game: g }: { game: GameSummary }) {
           contre <strong>{opponent}</strong>
         </span>
         <span className="gl-meta">
-          {reasonText(g.reason, g.result)} · {g.color === "white" ? "Blancs" : "Noirs"} · {g.plies} coup{g.plies > 1 ? "s" : ""} · {relativeTime(g.at)}
+          {reasonText(g.reason, g.result)} · {g.color === "white" ? "Blancs" : "Noirs"} · {g.plies} coup{g.plies > 1 ? "s" : ""} · {g.time_control && `${timeText(g.time_control)} · `}{relativeTime(g.at)}
         </span>
       </span>
       <span className="gl-side">

@@ -166,6 +166,8 @@ pub struct GameRecord<'a> {
     pub actions: &'a [Action],
     /// Solo: the level of the bot, whose seat (`white` or `black`) is not a player.
     pub solo_elo: Option<i32>,
+    /// The length the players asked for; `None` for the default clock and Solo.
+    pub time_control: Option<crate::protocol::TimeControl>,
 }
 
 /// Rating movement of one game, by colour.
@@ -410,6 +412,8 @@ const MIGRATIONS: &[&str] = &[
      );
      CREATE INDEX IF NOT EXISTS reports_pair ON reports(reporter, target, created_at);
      CREATE INDEX IF NOT EXISTS reports_reporter ON reports(reporter, created_at);",
+    // Game length asked for (`short`/`medium`/`long`); NULL = default clock or old game.
+    "ALTER TABLE games ADD COLUMN time_control TEXT;",
 ];
 
 fn migrate(conn: &mut Connection) -> StoreResult<()> {
@@ -423,7 +427,17 @@ fn migrate(conn: &mut Connection) -> StoreResult<()> {
     let result = (|| -> StoreResult<()> {
         for (i, sql) in MIGRATIONS.iter().enumerate().skip(version as usize) {
             let tx = conn.transaction()?;
-            tx.execute_batch(sql)?;
+            // SQLite has no ADD COLUMN IF NOT EXISTS: skip when a test rewound
+            // `user_version` over a schema that already has the column.
+            let has_time_control = sql.contains("ADD COLUMN time_control")
+                && tx.query_row(
+                    "SELECT COUNT(*) FROM pragma_table_info('games') WHERE name = 'time_control'",
+                    [],
+                    |r| r.get::<_, i64>(0),
+                )? > 0;
+            if !has_time_control {
+                tx.execute_batch(sql)?;
+            }
             tx.pragma_update(None, "user_version", i as i64 + 1)?;
             tx.commit()?;
         }
@@ -907,10 +921,10 @@ impl Store {
         tx.execute(
             "INSERT INTO games (id, white, black, outcome, finished_at, rated, reason, plies,
                  white_elo_before, white_elo_after, black_elo_before, black_elo_after, started_at,
-                 kind, loadouts, actions, solo_elo)
+                 kind, loadouts, actions, solo_elo, time_control)
              VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), ?5, ?6, ?7,
                  ?8, ?9, ?10, ?11, strftime('%Y-%m-%dT%H:%M:%SZ', ?12, 'unixepoch'),
-                 ?13, ?14, ?15, ?16)",
+                 ?13, ?14, ?15, ?16, ?17)",
             params![
                 rec.id,
                 white,
@@ -928,6 +942,7 @@ impl Store {
                 loadouts.to_string(),
                 serde_json::to_string(rec.actions).unwrap(),
                 rec.solo_elo,
+                rec.time_control.map(|t| t.as_str()),
             ],
         )?;
         tx.commit()?;

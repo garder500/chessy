@@ -1622,6 +1622,7 @@ impl Hub {
                     loadouts,
                     actions: &session.recording.actions,
                     solo_elo: session.solo.map(|s| s.elo),
+                    time_control: if solo { None } else { session.time },
                 };
                 match self.store.record_game(&record) {
                     Ok(change) => change,

@@ -25,6 +25,25 @@ pub enum TimeControl {
 }
 
 impl TimeControl {
+    /// The wire / database name (`short`, `medium`, `long`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TimeControl::Short => "short",
+            TimeControl::Medium => "medium",
+            TimeControl::Long => "long",
+        }
+    }
+
+    /// Inverse of `as_str`; unknown text gives `None`.
+    pub fn parse(s: &str) -> Option<TimeControl> {
+        match s {
+            "short" => Some(TimeControl::Short),
+            "medium" => Some(TimeControl::Medium),
+            "long" => Some(TimeControl::Long),
+            _ => None,
+        }
+    }
+
     /// Time on each clock at the start of the game.
     pub fn initial(self) -> std::time::Duration {
         std::time::Duration::from_secs(match self {

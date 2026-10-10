@@ -455,6 +455,8 @@ export interface GameSummary {
   result: GameResult;
   reason: string;
   plies: number;
+  /** Durée de la partie ; `null` pour les anciennes parties. */
+  time_control: TimeControl | null;
   elo_delta: number | null;
   at: string;
 }
@@ -534,6 +536,7 @@ export interface GameRecord {
   black: Seat;
   result: { outcome: Outcome; reason: string };
   plies: number;
+  time_control: TimeControl | null;
   at: string;
   loadouts: { white: SkillId[]; black: SkillId[] };
   moves: MoveInfo[];
