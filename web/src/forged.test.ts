@@ -7,7 +7,7 @@ import { setLang } from "./i18n";
 import { forgedDef, isForgedId, loadForged, noticeForged, rememberForged, resetForged, unknownForged, type ForgedDef } from "./forged";
 import { NO_PIECE } from "./protocol";
 import { SkillArt, SkillSprite } from "./ui/SkillArt";
-import { GLYPH_PATHS } from "./ui/forgedGlyphs";
+import { GAUGE_SLOTS, GLYPH_PATHS, MARK_PATHS, gaugeTicks } from "./ui/forgedGlyphs";
 
 /** Les glyphes que le serveur peut nommer (`GLYPHS` dans crates/chessy-engine/src/forge/identity.rs). */
 const SERVER_GLYPHS = [
@@ -151,5 +151,62 @@ describe("effets de partie entière", () => {
     const base = { ply: 0, effects: [effect("silenced", 4, "white")] };
     expect(ambientEffects({ ...base, you: "white" })[0].label).toContain("vous");
     expect(ambientEffects({ ...base, you: "black" })[0].label).toContain("l'adversaire");
+  });
+});
+
+describe("icône assemblée par briques", () => {
+  const svg = (icon: ForgedDef["icon"]) => {
+    rememberForged([def(1, { icon })]);
+    return renderToStaticMarkup(createElement(SkillArt, { id: "forged_1", size: 40 }));
+  };
+
+  it("deux Givre de durées différentes n'ont pas la même icône", () => {
+    const a = svg({ glyph: "snowflake", target: "enemy", plies: 2 });
+    const b = svg({ glyph: "snowflake", target: "enemy", plies: 8 });
+    expect(a).not.toBe(b);
+  });
+
+  it("la jauge allume un cran par coup et garde huit emplacements", () => {
+    for (let n = 2; n <= 8; n++) {
+      const ticks = gaugeTicks(n);
+      expect(ticks).toHaveLength(GAUGE_SLOTS);
+      expect(ticks.filter((t) => t[4])).toHaveLength(n);
+    }
+  });
+
+  it("la jauge, les repères et les signes restent dans le cadre de 120x120", () => {
+    for (const [x1, y1, x2, y2] of gaugeTicks(8)) {
+      for (const [x, y] of [[x1, y1], [x2, y2]]) expect(Math.hypot(x - 60, y - 60)).toBeLessThan(55);
+    }
+  });
+
+  it("chaque brique change le dessin", () => {
+    const base = { glyph: "snowflake", target: "enemy", plies: 4 } as const;
+    const variants: ForgedDef["icon"][] = [
+      { ...base, target: "own" },
+      { ...base, target: "any" },
+      { ...base, uses: 2 },
+      { ...base, uses: 3 },
+      { ...base, marks: ["in_check"] },
+      { ...base, marks: ["no_mate"] },
+      { ...base, marks: ["no_check"] },
+      { ...base, marks: ["free"] },
+      { ...base, marks: ["in_check", "free"] },
+      { ...base, piece: "rook", kinds: ["rook"] },
+      { ...base, piece: "rook", kinds: ["pawn", "rook"] },
+      { ...base, badge: "forever", plies: undefined },
+    ];
+    const seen = new Set([svg(base)]);
+    for (const v of variants) {
+      const html = svg(v);
+      expect(seen.has(html), JSON.stringify(v)).toBe(false);
+      seen.add(html);
+    }
+  });
+
+  it("tous les signes de règles ont un tracé, et une icône sans extras reste identique à l'ancienne", () => {
+    for (const m of ["in_check", "no_mate", "no_check", "free"]) expect(MARK_PATHS[m], m).toBeTruthy();
+    const html = svg({ glyph: "snowflake" });
+    expect(html).not.toContain("data-gauge");
   });
 });

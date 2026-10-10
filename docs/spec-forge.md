@@ -85,6 +85,24 @@ la même mesure (`switch` et `evolve` sortent en tête, `mind` à zéro) ; `ches
 
 `forge::identity::identity(def)` donne le nom, la description, la famille, la spécification d'icône et celle du son.
 
+### L'icône : une couche par brique
+
+`forge::identity::icon(def)` lit la définition brique par brique, et le client empile une couche par brique
+(`web/src/ui/forgedGlyphs.tsx`). Deux définitions qui diffèrent par une brique ont deux icônes différentes.
+
+| Brique | Couche | Où |
+|---|---|---|
+| action (effet) | glyphe central, un par effet | centre |
+| cible (`own` / `enemy` / `any`) | pastille pleine / viseur / deux anneaux | haut gauche |
+| pièce(s) citée(s) | silhouette de la plus forte, un point par autre type | bas droite |
+| durée exacte (2 à 8 coups) | jauge de 8 crans, un allumé par coup | arc du bas |
+| définitif | symbole infini | haut droite |
+| usages (2 ou 3) | 2 ou 3 points | haut |
+| règles (`in_check`, `no_mate`, `no_check`, `free`) | un signe chacune | colonne de gauche |
+| rareté | cadre | pourtour |
+
+Les champs sont tous facultatifs côté client : une ancienne définition d'icône (glyphe, pièce, badge) se dessine toujours.
+
 - **Nom** : un nom commun lié à l'effet et un nom propre inventé de 2 ou 3 syllabes, tirés de l'empreinte (« Givre d'Alfen »).
 - **Description** : assemblée par gabarits depuis l'arbre, elle ne peut donc pas dire autre chose que ce que fait la compétence.
 - **Icône** (`IconSpec`) : glyphe central (un des 16 de `GLYPHS`), silhouette de la pièce concernée, badge de durée

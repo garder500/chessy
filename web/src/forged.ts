@@ -20,6 +20,16 @@ export interface IconSpec {
   glyph: string;
   piece?: "pawn" | "knight" | "bishop" | "rook" | "queen";
   badge?: "short" | "long" | "forever";
+  /** À qui elle s'adresse : tes pièces, celles de l'adversaire, ou tout le monde. */
+  target?: "own" | "enemy" | "any";
+  /** Durée exacte en coups (2 à 8), absente si l'effet est instantané ou définitif. */
+  plies?: number;
+  /** Utilisations par partie (1 si absent). */
+  uses?: number;
+  /** Règles autour : `in_check`, `no_mate`, `no_check`, `free`. */
+  marks?: string[];
+  /** Tous les types de pièces cités, du plus faible au plus fort. */
+  kinds?: string[];
 }
 
 /** Ce que le client joue (voir `sound/forgedRecipe.ts`). */
