@@ -48,7 +48,7 @@ La famille du chapitre se reconnaît dans le deck de Sage.
 
 ## Positions de départ des boss
 
-Les boss des chapitres 2 à 5 ont une position de départ (FEN, Blancs au trait) conçue pour un camp fixe, `human_color`. Le boss du chapitre 0 garde la position standard.
+Les boss des chapitres 2 à 5 ont une position de départ (FEN, Blancs au trait) conçue pour un camp fixe, `human_color`. Le boss du chapitre 1 garde la position standard.
 
 | Chapitre | Boss | Joueur | Position |
 |---|---|---|---|
