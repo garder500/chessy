@@ -22,11 +22,12 @@
 use std::time::{Duration, Instant};
 
 use chessy_engine::ai::Strength;
-use chessy_engine::{Action, Color};
+use chessy_engine::{Action, Color, SkillId};
 
 use super::social::Rematch;
 use super::{Hub, Phase, Session, Timer};
 use crate::bot::{self, BotJob};
+use crate::campaign::{self, Level, Tally};
 use crate::games_store::GameKind;
 use crate::protocol::*;
 use crate::store::reason_of;
@@ -43,6 +44,28 @@ pub(super) struct Solo {
     /// Set for a placement game: the level is the hidden one being measured
     /// (see [`Hub::placement_start`]). The bot is plain otherwise.
     pub placement: Option<i32>,
+    /// Set for a campaign level: see [`CampaignRun`].
+    pub campaign: Option<CampaignRun>,
+}
+
+/// A campaign level being played (docs/spec-v6.md): the level, the hand the
+/// player brought, and what the game has shown so far, which decides the
+/// stars when it ends.
+#[derive(Clone, Debug)]
+pub(super) struct CampaignRun {
+    pub level: Level,
+    pub hand: Vec<SkillId>,
+    pub tally: Tally,
+}
+
+impl CampaignRun {
+    pub fn banner(&self) -> CampaignBanner {
+        CampaignBanner {
+            level: self.level.id,
+            objective: self.level.objective,
+            challenge: self.level.challenge,
+        }
+    }
 }
 
 /// A matchmaking bot is a real account (its name, rating and deck are stored)
@@ -100,7 +123,7 @@ impl Hub {
                 }
             }
         };
-        self.start_solo(player, elo as i32, human, None, None, None);
+        self.start_solo(player, elo as i32, human, None, None, None, None);
     }
 
     /// The next of the five placement games (docs/spec-v5.md): a plain Solo
@@ -143,7 +166,142 @@ impl Hub {
                 }
             }
         };
-        self.start_solo(player, level, human, None, None, Some(level));
+        self.start_solo(player, level, human, None, None, Some(level), None);
+    }
+
+    /// Starts a campaign level (docs/spec-v6.md): a game against Sage at the
+    /// level's Elo, with the hands the level fixes, white for the player. It
+    /// begins at once, without deck selection.
+    pub fn campaign_start(&mut self, player: &str, level_id: u8, skills: Vec<SkillId>) {
+        if self.player_game.contains_key(player)
+            || !matches!(self.lobby_status(player), LobbyStatus::Idle)
+        {
+            return self.fail(player, "already_in_game", "finish your current game first");
+        }
+        let Some(level) = campaign::level(level_id) else {
+            return self.fail(player, "no_such_level", "there is no such level");
+        };
+        let (progress, deck) = match (self.store.campaign_progress(player), self.deck_of(player)) {
+            (Ok(progress), Ok(deck)) => (progress, deck),
+            _ => return self.fail(player, "unavailable", "try again"),
+        };
+        if !campaign::unlocked(&progress, level_id) {
+            return self.fail(player, "level_locked", "that level is not open yet");
+        }
+        if !campaign::valid_hand(&level, &skills, &deck) {
+            return self.fail(
+                player,
+                "invalid_deck",
+                "pick one to three distinct classic skills from your deck",
+            );
+        }
+        let hand = if level.choose {
+            skills
+        } else {
+            level.hand.clone()
+        };
+        let elo = level.elo;
+        let run = CampaignRun {
+            level,
+            hand,
+            tally: Tally::default(),
+        };
+        self.start_solo(player, elo, Color::White, None, None, None, Some(run));
+    }
+
+    /// Books a finished campaign level: the stars it earned, kept if they beat
+    /// the best. Returns who played it and what they are told with the game
+    /// over; `None` when the game is not a campaign one or was dropped before
+    /// it began.
+    pub(super) fn settle_campaign(
+        &mut self,
+        session: &Session,
+        outcome: &chessy_engine::Outcome,
+        recorded: bool,
+    ) -> Option<(PlayerId, CampaignResult)> {
+        let solo = session.solo.as_ref()?;
+        let run = solo.campaign.as_ref()?;
+        let Phase::Playing { game } = &session.phase else {
+            return None;
+        };
+        if !recorded {
+            return None;
+        }
+        let human_color = solo.bot.opposite();
+        let human = session.players[human_color.index()].clone();
+        // The move the game ended on: the counter moves on after Black's turn.
+        let mover = match human_color {
+            Color::White => game.pos.fullmove,
+            Color::Black => game.pos.fullmove.saturating_sub(1),
+        };
+        let earned = campaign::judge(&run.level, human_color, outcome, &run.tally, mover);
+        let before = self.store.campaign_progress(&human).unwrap_or_default();
+        let recorded = if earned == 0 {
+            None
+        } else {
+            match self.store.record_campaign(&human, run.level.id, earned) {
+                Ok(r) => Some(r),
+                Err(e) => {
+                    tracing::error!("could not record campaign level {}: {e}", run.level.id);
+                    return None;
+                }
+            }
+        };
+        let after = self.store.campaign_progress(&human).unwrap_or_default();
+        let chapter = run.level.chapter;
+        let best = campaign::stars_of(&after, run.level.id);
+        let total = campaign::all_ids()
+            .map(|id| campaign::star_count(campaign::stars_of(&after, id)))
+            .sum();
+        Some((
+            human,
+            CampaignResult {
+                level: run.level.id,
+                earned,
+                best,
+                gained: campaign::star_count(best)
+                    - campaign::star_count(campaign::stars_of(&before, run.level.id)),
+                total,
+                chapter_stars: campaign::chapter_stars(&after, chapter),
+                boss_opened: !run.level.boss
+                    && !campaign::boss_open(&before, chapter)
+                    && campaign::boss_open(&after, chapter),
+                forge: recorded
+                    .filter(|r| r.forge_due)
+                    .and_then(|_| run.level.forge_min.map(|min| ForgeDue { chapter, min })),
+            },
+        ))
+    }
+
+    /// Tells `player` where they stand in the campaign.
+    pub fn send_campaign(&self, player: &str) {
+        let Ok(progress) = self.store.campaign_progress(player) else {
+            return self.fail(player, "unavailable", "try again");
+        };
+        let levels = campaign::all_ids()
+            .filter_map(campaign::level)
+            .map(|l| {
+                let record = progress.get(&l.id).copied().unwrap_or_default();
+                CampaignLevelView {
+                    unlocked: campaign::unlocked(&progress, l.id),
+                    stars: record.stars,
+                    forge_pending: record.forge_pending,
+                    id: l.id,
+                    chapter: l.chapter,
+                    index: l.index,
+                    boss: l.boss,
+                    elo: l.elo,
+                    hand: l.hand,
+                    choose: l.choose,
+                    enemy: l.enemy,
+                    objective: l.objective,
+                    challenge: l.challenge,
+                    forge_odds: l.forge_min.map(campaign::forge_odds).unwrap_or_default(),
+                    forge_min: l.forge_min,
+                }
+            })
+            .collect();
+        self.send(player, ServerMsg::Campaign { levels });
     }
 
     /// Books a finished placement game (`recorded`: it was played far enough
@@ -198,11 +356,12 @@ impl Hub {
             rated,
             kind,
         };
-        self.start_solo(player, bot.elo, human, Some(disguise), time, None);
+        self.start_solo(player, bot.elo, human, Some(disguise), time, None, None);
     }
 
     /// Opens deck selection against a bot of level `elo`; `human` is the
     /// player's colour.
+    #[allow(clippy::too_many_arguments)] // one seat setup, called from three places
     fn start_solo(
         &mut self,
         player: &str,
@@ -211,6 +370,7 @@ impl Hub {
         disguise: Option<Disguise>,
         time: Option<TimeControl>,
         placement: Option<i32>,
+        campaign: Option<CampaignRun>,
     ) {
         let (white, black) = match human {
             Color::White => (player.to_string(), String::new()),
@@ -227,6 +387,7 @@ impl Hub {
             elo,
             disguise,
             placement,
+            campaign,
         };
         self.open_session(white, black, rated, kind, Some(seat), time);
     }
@@ -330,6 +491,9 @@ impl Hub {
             return;
         };
         recording.actions.push(action);
+        if let Some(run) = solo.campaign.as_mut() {
+            run.tally.observe(bot_color.opposite(), bot_color, &events);
+        }
         *draw_offer = None;
         let outcome = game.outcome();
         // A bot that stands in for a person plays on the clock like one (a
@@ -436,6 +600,7 @@ impl Hub {
             elo,
             setup.human_color.opposite(),
             setup.disguise,
+            None,
             None,
             None,
         );

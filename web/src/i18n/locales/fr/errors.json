@@ -15,5 +15,8 @@
   "no_such_game": "Cette partie n'existe pas ou est terminée.",
   "invalid_target": "Action impossible sur votre propre compte.",
   "blocked": "Vous avez bloqué ce joueur : débloquez-le d'abord.",
-  "block_list_full": "Votre liste de joueurs bloqués est pleine."
+  "block_list_full": "Votre liste de joueurs bloqués est pleine.",
+  "level_locked": "Ce niveau n'est pas encore ouvert.",
+  "no_forge": "Aucun boss ne vous doit de forge.",
+  "forging": "Une compétence est déjà en cours de forge."
 }

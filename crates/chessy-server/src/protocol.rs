@@ -140,6 +140,21 @@ pub enum ClientMsg {
         #[serde(default)]
         color: SoloColor,
     },
+    /// Asks for the campaign: every level with the player's stars (docs/spec-v6.md).
+    CampaignGet,
+    /// Starts a campaign level against Sage. `skills` is the hand the player
+    /// brings on a level that lets them choose (chapters 3 to 5); empty otherwise.
+    CampaignStart {
+        level: u8,
+        #[serde(default)]
+        skills: Vec<SkillId>,
+    },
+    /// Claims the forge a beaten boss owes. `replace` names the skill to drop
+    /// when the deck is full.
+    CampaignForge {
+        #[serde(default)]
+        replace: Option<SkillId>,
+    },
     /// Watches a running game (not allowed while playing).
     Spectate {
         game_id: String,
@@ -242,6 +257,74 @@ pub struct PlacementView {
     pub total: u32,
     pub elo: Option<i32>,
     pub before: Option<i32>,
+}
+
+/// A campaign level as the client draws it: the rules of the level and where
+/// the player stands on it.
+#[derive(Clone, Debug, Serialize)]
+pub struct CampaignLevelView {
+    pub id: u8,
+    pub chapter: u8,
+    pub index: u8,
+    pub boss: bool,
+    pub elo: i32,
+    /// The skills the level imposes; empty when the player chooses.
+    pub hand: Vec<SkillId>,
+    pub choose: bool,
+    pub enemy: Vec<SkillId>,
+    pub objective: crate::campaign::Objective,
+    pub challenge: crate::campaign::Challenge,
+    /// Best stars so far (bit mask: 1 win, 2 objective, 4 challenge).
+    pub stars: u8,
+    pub unlocked: bool,
+    /// The least rarity of the boss's forge.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forge_min: Option<chessy_engine::forge::Rarity>,
+    /// What the boss's forge can come out as, in percent (the floor and above).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub forge_odds: Vec<ForgeOdds>,
+    /// The boss was beaten and its forge is waiting to be claimed.
+    pub forge_pending: bool,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+pub struct ForgeOdds {
+    pub rarity: chessy_engine::forge::Rarity,
+    pub percent: u32,
+}
+
+/// What a campaign game earned, with the game over.
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct CampaignResult {
+    pub level: u8,
+    /// The stars this game earned (bit mask).
+    pub earned: u8,
+    /// The best stars of the level after it.
+    pub best: u8,
+    /// Stars the level gained that it did not have.
+    pub gained: u32,
+    /// Stars over the whole campaign, and of this chapter.
+    pub total: u32,
+    pub chapter_stars: u32,
+    /// This game opened the boss of the chapter.
+    pub boss_opened: bool,
+    /// A boss beaten for the first time: the forge it pays.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forge: Option<ForgeDue>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+pub struct ForgeDue {
+    pub chapter: u8,
+    pub min: chessy_engine::forge::Rarity,
+}
+
+/// The goals of a campaign level, shown above the board.
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+pub struct CampaignBanner {
+    pub level: u8,
+    pub objective: crate::campaign::Objective,
+    pub challenge: crate::campaign::Challenge,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -405,6 +488,9 @@ pub struct StateView {
     pub rated: bool,
     pub opponent: OpponentInfo,
     pub draw_offer: DrawOffer,
+    /// Set in a campaign level: what it asks of the player.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub campaign: Option<CampaignBanner>,
     pub ply_count: u32,
     /// People watching the game right now.
     pub spectators: usize,
@@ -450,6 +536,14 @@ pub enum ServerMsg {
         /// Set after a placement game.
         #[serde(skip_serializing_if = "Option::is_none")]
         placement: Option<PlacementView>,
+        /// Set after a campaign level.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        campaign: Option<CampaignResult>,
+    },
+    /// The campaign: every level with the player's progress, after
+    /// `campaign_get` and whenever it changes.
+    Campaign {
+        levels: Vec<CampaignLevelView>,
     },
     /// Your deck changed (reward applied, or you lost a skill).
     DeckUpdate {
@@ -540,7 +634,9 @@ impl ClientMsg {
             | ClientMsg::Challenge { .. }
             | ClientMsg::ChallengeRespond { .. }
             | ClientMsg::SoloStart { .. }
-            | ClientMsg::PlacementStart { .. } => expensive,
+            | ClientMsg::PlacementStart { .. }
+            | ClientMsg::CampaignStart { .. }
+            | ClientMsg::CampaignForge { .. } => expensive,
             _ => 1,
         }
     }

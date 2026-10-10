@@ -15,5 +15,8 @@
   "no_such_game": "Esta partida não existe ou já terminou.",
   "invalid_target": "Ação impossível na sua própria conta.",
   "blocked": "Bloqueou este jogador: desbloqueie-o primeiro.",
-  "block_list_full": "A sua lista de jogadores bloqueados está cheia."
+  "block_list_full": "A sua lista de jogadores bloqueados está cheia.",
+  "level_locked": "Esse nível ainda não está aberto.",
+  "no_forge": "Nenhum chefe lhe deve uma forja.",
+  "forging": "Já está a ser forjada uma habilidade."
 }

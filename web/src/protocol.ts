@@ -205,6 +205,8 @@ export interface StateView {
   rated: boolean;
   opponent: OpponentInfo;
   draw_offer: "none" | "you" | "them";
+  /** Niveau de campagne en cours (absent hors campagne). */
+  campaign?: CampaignBanner;
   ply_count: number;
   you: Color;
   ply: number;
@@ -280,6 +282,58 @@ export interface PlacementProgress {
   placed: boolean;
   done: number;
   total: number;
+}
+
+/** Ce qu'un niveau de campagne demande en plus de gagner (voir `campaign.ts`). */
+export type CampaignObjective =
+  | { kind: "mate_before"; moves: number }
+  | { kind: "capture"; piece: PieceKind }
+  | { kind: "take"; count: number }
+  | { kind: "promote" }
+  | { kind: "lose_fewer"; count: number };
+
+export type CampaignChallenge = { kind: "keep_queen" | "no_minor_loss" | "no_queen_trade" | "use_skill" | "no_skill" };
+
+/** Un niveau de la campagne : ses règles et l'avancement du joueur. `stars` est un masque (1 victoire, 2 objectif, 4 défi). */
+export interface CampaignLevel {
+  id: number;
+  chapter: number;
+  index: number;
+  boss: boolean;
+  elo: number;
+  /** Compétences imposées ; vide quand le joueur choisit (`choose`). */
+  hand: SkillId[];
+  choose: boolean;
+  enemy: SkillId[];
+  objective: CampaignObjective;
+  challenge: CampaignChallenge;
+  stars: number;
+  unlocked: boolean;
+  /** Rareté minimale de la forge du boss. */
+  forge_min?: "common" | "uncommon" | "rare" | "epic" | "legendary";
+  /** Répartition de la forge du boss, en pourcentage. */
+  forge_odds?: { rarity: "common" | "uncommon" | "rare" | "epic" | "legendary"; percent: number }[];
+  /** Le boss est vaincu et sa forge attend d'être réclamée. */
+  forge_pending: boolean;
+}
+
+/** Ce que gagne une partie de campagne, avec la fin de partie. */
+export interface CampaignResult {
+  level: number;
+  earned: number;
+  best: number;
+  gained: number;
+  total: number;
+  chapter_stars: number;
+  boss_opened: boolean;
+  forge?: { chapter: number; min: "common" | "uncommon" | "rare" | "epic" | "legendary" };
+}
+
+/** Objectif et défi du niveau en cours, affichés au-dessus du plateau. */
+export interface CampaignBanner {
+  level: number;
+  objective: CampaignObjective;
+  challenge: CampaignChallenge;
 }
 
 /** Fin d'une partie d'évaluation ; `elo` (et `before`) une fois les `total` parties jouées. */
@@ -400,7 +454,8 @@ export type ServerMsg =
   | ({ type: "deck_select" } & DeckSelectInfo)
   | ({ type: "state" } & StateView)
   | { type: "opponent_status"; connected: boolean }
-  | { type: "game_over"; outcome: Outcome; reward: RewardOffer | null; rated: boolean; elo: EloChange | null; reason: string; placement?: PlacementView }
+  | { type: "game_over"; outcome: Outcome; reward: RewardOffer | null; rated: boolean; elo: EloChange | null; reason: string; placement?: PlacementView; campaign?: CampaignResult }
+  | { type: "campaign"; levels: CampaignLevel[] }
   | { type: "deck_update"; deck: SkillId[]; gained: SkillId | null; lost: SkillId | null }
   | { type: "game_cancelled"; reason: string }
   | { type: "spectate_state"; view: SpectatorView }
@@ -421,6 +476,9 @@ export type ClientMsg =
   | { type: "queue_join"; ranked?: boolean; time?: TimeControl }
   | { type: "solo_start"; elo: number; color: SoloColor }
   | { type: "placement_start"; color?: SoloColor }
+  | { type: "campaign_get" }
+  | { type: "campaign_start"; level: number; skills?: SkillId[] }
+  | { type: "campaign_forge"; replace?: SkillId }
   | { type: "create_room"; time?: TimeControl }
   | { type: "join_room"; code: string }
   | { type: "leave_lobby" }

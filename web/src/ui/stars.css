@@ -1,0 +1,4 @@
+/* Étoiles de la campagne : creuses tant qu'elles ne sont pas gagnées. */
+.cp-stars { display: inline-flex; gap: 1px; }
+.cp-star { fill: none; stroke: var(--line-3); stroke-width: 1.6; stroke-linejoin: round; }
+.cp-star.on { fill: var(--gold); stroke: var(--gold); }

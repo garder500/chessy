@@ -15,5 +15,8 @@
   "no_such_game": "This game doesn't exist or has ended.",
   "invalid_target": "Action not possible on your own account.",
   "blocked": "You blocked this player: unblock them first.",
-  "block_list_full": "Your blocked players list is full."
+  "block_list_full": "Your blocked players list is full.",
+  "level_locked": "That level is not open yet.",
+  "no_forge": "No boss owes you a forge.",
+  "forging": "A skill is already being forged."
 }

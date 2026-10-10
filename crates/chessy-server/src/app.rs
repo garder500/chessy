@@ -329,6 +329,13 @@ impl App {
                 ClientMsg::ChallengeCancel => hub.challenge_cancel(player),
                 ClientMsg::SoloStart { elo, color } => hub.solo_start(player, elo, color),
                 ClientMsg::PlacementStart { color } => hub.placement_start(player, color),
+                ClientMsg::CampaignGet => hub.send_campaign(player),
+                ClientMsg::CampaignStart { level, skills } => {
+                    hub.campaign_start(player, level, skills)
+                }
+                ClientMsg::CampaignForge { replace } => {
+                    return hub.begin_campaign_forge(player, replace)
+                }
                 ClientMsg::Spectate { game_id } => hub.spectate(player, &game_id),
                 ClientMsg::Unspectate => hub.unspectate(player),
             }
@@ -353,12 +360,17 @@ impl App {
                 seed,
                 known,
                 store,
+                campaign,
             } = job;
             let made = tokio::task::spawn_blocking(move || {
                 let mut rng = chessy_engine::ai::Rng::new(seed);
                 let budget = chessy_engine::forge::generate::Budget::live();
-                let forged =
-                    chessy_engine::forge::generate::forge(&mut rng, target, &known, budget);
+                let forged = match campaign {
+                    Some((_, min)) => chessy_engine::forge::generate::forge_at_least(
+                        &mut rng, target, min, &known, budget,
+                    ),
+                    None => chessy_engine::forge::generate::forge(&mut rng, target, &known, budget),
+                };
                 store
                     .insert_forged(&forged.def, &forged.graded)
                     .ok()
@@ -369,7 +381,12 @@ impl App {
             .flatten();
             let timers = {
                 let mut hub = app.hub.lock().unwrap_or_else(|e| e.into_inner());
-                hub.finish_forge(&player, replace, made);
+                match campaign {
+                    Some((chapter, _)) => {
+                        hub.finish_campaign_forge(&player, chapter, replace, made)
+                    }
+                    None => hub.finish_forge(&player, replace, made),
+                }
                 hub.take_timers()
             };
             app.schedule(timers);

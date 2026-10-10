@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { useLang, t } from "./i18n";
 import { navigate, useRoute } from "./router";
 import { Auth, needsWelcome } from "./screens/Auth";
+import { Campaign } from "./screens/Campaign";
 import { Collection } from "./screens/Collection";
 import { DeckSelect } from "./screens/DeckSelect";
 import { Friends } from "./screens/Friends";
@@ -94,6 +95,9 @@ export function App() {
         break;
       case "games":
         screen = <Games />;
+        break;
+      case "campaign":
+        screen = <Campaign state={state} level={route.param} />;
         break;
       case "watch":
         screen = (

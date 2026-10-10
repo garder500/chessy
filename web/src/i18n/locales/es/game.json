@@ -196,5 +196,6 @@
   "amb_domain_opp_name": "Dominio rival",
   "amb_silenced_own": "Silencio: ya no puedes usar habilidades",
   "amb_silenced_opp": "Silencio: el rival ya no puede usar habilidades",
-  "amb_silenced_name": "Silencio"
+  "amb_silenced_name": "Silencio",
+  "cad_campaign": "Campaña"
 }

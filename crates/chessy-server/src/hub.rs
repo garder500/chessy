@@ -345,6 +345,9 @@ pub struct ForgeJob {
     /// Signatures already in the world: a skill that repeats one is Common.
     pub known: std::collections::HashSet<String>,
     pub store: Store,
+    /// Set for the forge a campaign boss pays: its chapter, and the least
+    /// rarity it may come out as.
+    pub campaign: Option<(u8, chessy_engine::forge::Rarity)>,
 }
 
 struct PendingReward {
@@ -385,6 +388,8 @@ pub struct Hub {
     games: HashMap<String, Session>,
     player_game: HashMap<PlayerId, String>,
     rewards: HashMap<PlayerId, PendingReward>,
+    /// Players a campaign forge is being made for right now.
+    campaign_forging: std::collections::HashSet<PlayerId>,
     /// Open challenges by challenger.
     challenges: HashMap<PlayerId, social::Challenge>,
     next_challenge: u64,
@@ -428,6 +433,7 @@ impl Hub {
             games: HashMap::new(),
             player_game: HashMap::new(),
             rewards: HashMap::new(),
+            campaign_forging: std::collections::HashSet::new(),
             challenges: HashMap::new(),
             next_challenge: 0,
             rematches: HashMap::new(),
@@ -1130,10 +1136,15 @@ impl Hub {
                 Color::White => white = id,
                 Color::Black => black = id,
             }
-            picks[seat.bot.index()] = Some(match &seat.disguise {
+            picks[seat.bot.index()] = Some(match (&seat.disguise, &seat.campaign) {
                 // A matchmaking bot plays the deck of its account.
-                Some(d) => self.auto_pick(&d.account),
-                None => crate::bot::pick_deck(),
+                (Some(d), _) => self.auto_pick(&d.account),
+                // A campaign level fixes both hands: nothing to choose.
+                (None, Some(run)) => {
+                    picks[seat.bot.opposite().index()] = Some(run.hand.clone());
+                    run.level.enemy.clone()
+                }
+                (None, None) => crate::bot::pick_deck(),
             });
             seat_solo = Some(seat);
         }
@@ -1204,8 +1215,18 @@ impl Hub {
                 game_id: game_id.clone(),
             },
         ));
-        for player in &humans {
-            self.send_session_to(&game_id, player);
+        // A campaign level starts at once: its hands are fixed.
+        let campaign = self
+            .games
+            .get(&game_id)
+            .and_then(|s| s.solo.as_ref())
+            .is_some_and(|s| s.campaign.is_some());
+        if campaign {
+            self.start_if_ready(&game_id);
+        } else {
+            for player in &humans {
+                self.send_session_to(&game_id, player);
+            }
         }
         for player in &humans {
             self.notify_presence(player);
@@ -1487,6 +1508,9 @@ impl Hub {
         };
         view::mask_best_move(game, color, &mut events);
         session.recording.actions.push(action);
+        if let Some(run) = session.solo.as_mut().and_then(|s| s.campaign.as_mut()) {
+            run.tally.observe(color, color, &events);
+        }
         let outcome = game.outcome();
         if game.side_to_move() == color && !outcome.is_over() {
             // Mind Reading / Mind Control keep the turn: same player, same
@@ -1802,6 +1826,7 @@ impl Hub {
             None => None,
         };
         let placement = self.settle_placement(&session, game_id, &outcome, loadouts.is_some());
+        let campaign = self.settle_campaign(&session, &outcome, loadouts.is_some());
         let winner = outcome.winner();
         for color in Color::BOTH {
             let player = &session.players[color.index()];
@@ -1851,6 +1876,10 @@ impl Hub {
                     elo,
                     reason: reason.to_string(),
                     placement,
+                    campaign: campaign
+                        .as_ref()
+                        .filter(|(human, _)| human == player)
+                        .map(|(_, result)| result.clone()),
                 },
             );
             self.send(
@@ -1860,9 +1889,12 @@ impl Hub {
                 },
             );
         }
+        if let Some((human, _)) = &campaign {
+            self.send_campaign(human);
+        }
         if let Some(solo) = &session.solo {
-            // A placement game has no rematch: the next one is a new request.
-            if solo.placement.is_none() {
+            // A placement or campaign game has no rematch: the next one is a new request.
+            if solo.placement.is_none() && solo.campaign.is_none() {
                 self.offer_solo_rematch(&session);
             }
         } else {
@@ -2010,7 +2042,117 @@ impl Hub {
             seed,
             known,
             store: self.store.clone(),
+            campaign: None,
         })
+    }
+
+    /// The player claims the forge a beaten boss owes (docs/spec-v6.md): checks
+    /// it and returns what the forge needs. Like [`Self::begin_forge`], the
+    /// app makes the skill off the lock and calls [`Self::finish_campaign_forge`].
+    pub fn begin_campaign_forge(
+        &mut self,
+        player: &str,
+        replace: Option<SkillId>,
+    ) -> Option<ForgeJob> {
+        let (progress, deck, known) = match (
+            self.store.campaign_progress(player),
+            self.deck_of(player),
+            self.store.forged_signatures(),
+        ) {
+            (Ok(progress), Ok(deck), Ok(known)) => (progress, deck, known),
+            _ => {
+                self.fail(player, "internal", "internal error");
+                return None;
+            }
+        };
+        // The lowest chapter whose boss still owes its forge.
+        let Some(chapter) = (1..=crate::campaign::CHAPTERS).find(|c| {
+            progress
+                .get(&crate::campaign::boss_id(*c))
+                .is_some_and(|r| r.forge_pending)
+        }) else {
+            self.fail(player, "no_forge", "no boss owes you a forge");
+            return None;
+        };
+        if self.campaign_forging.contains(player) {
+            self.fail(player, "forging", "a skill is already being forged for you");
+            return None;
+        }
+        if deck.len() >= MAX_DECK && !replace.is_some_and(|r| deck.contains(&r)) {
+            self.fail(
+                player,
+                "invalid_reward",
+                "your deck is full: choose a skill to replace",
+            );
+            return None;
+        }
+        let min = crate::campaign::level(crate::campaign::boss_id(chapter))
+            .and_then(|l| l.forge_min)
+            .unwrap_or(chessy_engine::forge::Rarity::Common);
+        let seed: u64 = rand::random();
+        let target = chessy_engine::forge::generate::roll_rarity_at_least(
+            &mut chessy_engine::ai::Rng::new(seed ^ 0xA5A5),
+            min,
+        );
+        self.campaign_forging.insert(player.to_string());
+        Some(ForgeJob {
+            player: player.to_string(),
+            replace,
+            target,
+            seed,
+            known,
+            store: self.store.clone(),
+            campaign: Some((chapter, min)),
+        })
+    }
+
+    /// The campaign forge is done: `skill` is what it made, `None` if it failed.
+    pub fn finish_campaign_forge(
+        &mut self,
+        player: &str,
+        chapter: u8,
+        replace: Option<SkillId>,
+        skill: Option<SkillId>,
+    ) {
+        self.campaign_forging.remove(player);
+        let Some(skill) = skill else {
+            return self.fail(
+                player,
+                "invalid_reward",
+                "the forge could not make a skill, try again",
+            );
+        };
+        let deck = self.deck_of(player).unwrap_or_default();
+        let drop = if deck.len() >= MAX_DECK {
+            replace.filter(|r| deck.contains(r) && *r != skill)
+        } else {
+            None
+        };
+        if deck.contains(&skill) || (deck.len() >= MAX_DECK && drop.is_none()) {
+            return self.fail(
+                player,
+                "invalid_reward",
+                "you already have that skill, try again",
+            );
+        }
+        if self
+            .store
+            .apply_campaign_forge(player, chapter, skill, drop)
+            .is_err()
+        {
+            return self.fail(player, "invalid_reward", "could not apply that forge");
+        }
+        if let Ok(deck) = self.deck_of(player) {
+            self.send(
+                player,
+                ServerMsg::DeckUpdate {
+                    deck,
+                    gained: Some(skill),
+                    lost: drop,
+                },
+            );
+        }
+        self.send_campaign(player);
     }
 
     /// The forge is done: `skill` is what it made, `None` if it failed.
@@ -2190,6 +2332,11 @@ fn state_view(
             Some(by) if by == you => DrawOffer::You,
             Some(_) => DrawOffer::Them,
         },
+        campaign: session
+            .solo
+            .as_ref()
+            .and_then(|s| s.campaign.as_ref())
+            .map(solo::CampaignRun::banner),
         ply_count: game.pos.ply,
         spectators,
         history: Vec::new(),
