@@ -49,8 +49,7 @@ impl Hub {
         let human = solo.bot.opposite();
         let player = session.players[human.index()].clone();
         let won = winner == Some(human);
-        let plies = session.recording.actions.len();
-        let earned = campaign::stars_earned(at, game, human, won, plies);
+        let earned = campaign::stars_earned(at, game, human, won);
         if earned != 0 {
             if let Err(e) = self.store.record_campaign(&player, at, earned) {
                 tracing::error!("could not record campaign progress: {e}");
@@ -58,7 +57,8 @@ impl Hub {
         }
         let rows = self.store.campaign_rows(&player).unwrap_or_default();
         let best = rows.iter().find(|r| r.at == at).map_or(0, |r| r.stars);
-        let reward = if won && at.is_boss() {
+        let already_rewarded = rows.iter().any(|r| r.at == at && r.rewarded);
+        let reward = if won && at.is_boss() && !already_rewarded {
             self.boss_reward(&player, at)
         } else {
             None
@@ -77,10 +77,11 @@ impl Hub {
         })
     }
 
-    /// The forged skill of a boss, offered once per account.
+    /// The forged skill of a boss, offered until the account has resolved it
+    /// (a lost offer is made again on the next win).
     fn boss_reward(&mut self, player: &str, at: LevelRef) -> Option<RewardOffer> {
         let is_account = matches!(self.store.player_row(player), Ok(Some(row)) if row.username.is_some());
-        if !is_account || !self.store.claim_campaign_reward(player, at).unwrap_or(false) {
+        if !is_account {
             return None;
         }
         let offer = self.offer_for(player, None, &[]).ok()?;
@@ -91,9 +92,20 @@ impl Hub {
                 loser: None,
                 range: campaign::rarity_range(at.chapter),
                 loser_deck: Vec::new(),
+                boss: Some(at),
                 created: Instant::now(),
             },
         );
         Some(offer)
+    }
+
+    /// Called once a reward is resolved (taken, forged or skipped).
+    pub(super) fn mark_boss_rewarded(&self, player: &str, pending: &PendingReward) {
+        let Some(at) = pending.boss else {
+            return;
+        };
+        if let Err(e) = self.store.mark_campaign_rewarded(player, at) {
+            tracing::error!("could not mark the boss reward as given: {e}");
+        }
     }
 }

@@ -12,14 +12,14 @@ Première tranche : mécanique côté serveur et contenu du chapitre 1 (Attaque)
 - Étoiles d'un niveau : victoire, objectif, défi. L'objectif et le défi ne comptent qu'en cas de victoire.
   Les meilleures étoiles sont cumulées (OU de bits) par `player_id`, invités compris.
 - Les niveaux 0..5 sont ouverts d'emblée. Le boss n'a que l'étoile de victoire ; il s'ouvre à 12 étoiles sur les 18 des niveaux (`boss_locked` sinon).
-- « Gagner en N coups » compte les actions des deux camps.
+- « Gagner en N coups » compte les tours du joueur (une compétence qui termine le tour compte pour un coup).
 
 ## Récompense du boss
 
 Première victoire d'un compte (pas d'un invité) sur le boss : une forge garantie, proposée via le `RewardOffer` habituel (`steal_options` vide).
 La rareté est tirée dans une plage par chapitre, avec les poids de drop renormalisés : chapitre 0 Peu commune..=Épique, chapitres 1-2 Rare..=Légendaire, chapitres 3-4 Épique..=Légendaire.
 Un drapeau `rewarded` persisté empêche de la farmer. Le boss ne retire rien au joueur. Un invité joue et progresse mais ne reçoit rien.
-La réclamation est enregistrée à la fin de la partie : se déconnecter avant de choisir la consomme.
+Le drapeau n'est posé qu'à la résolution de la récompense (choix, forge réussie ou « passer ») : une offre perdue (déconnexion, redémarrage, expiration) est reproposée à la prochaine victoire contre le boss. Une forge hors fourchette de rareté échoue et laisse l'offre ouverte.
 
 Point d'attention : la plage des chapitres 1-4 inclut Légendaire, qui crée une compétence unique (`unique_skill_owner`).
 Les ids forgés sont neufs, donc pas de collision, mais une unique rejoint le deck et peut être volée en classé.

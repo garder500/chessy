@@ -42,6 +42,7 @@ pub fn roll_rarity(rng: &mut Rng) -> Rarity {
 /// Like [`roll_rarity`], but only among the tiers `min..=max`, the drop weights
 /// renormalised over that range.
 pub fn roll_rarity_in(rng: &mut Rng, min: Rarity, max: Rarity) -> Rarity {
+    let (min, max) = (min.min(max), min.max(max));
     let tiers = || {
         Rarity::ALL
             .iter()
@@ -70,7 +71,9 @@ mod tests {
             (Rarity::Rare, Rarity::Legendary),
             (Rarity::Epic, Rarity::Legendary),
             (Rarity::Rare, Rarity::Rare),
+            (Rarity::Epic, Rarity::Uncommon),
         ] {
+            let (min, max) = (min.min(max), min.max(max));
             for _ in 0..500 {
                 assert!((min..=max).contains(&roll_rarity_in(&mut rng, min, max)));
             }

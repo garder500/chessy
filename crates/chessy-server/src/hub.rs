@@ -349,6 +349,8 @@ struct PendingReward {
     /// What the loser owned when the game ended: the only skills the winner
     /// may take (and only those the loser still owns when they claim).
     loser_deck: Vec<SkillId>,
+    /// The boss this reward comes from: marked as rewarded once resolved.
+    boss: Option<crate::campaign::LevelRef>,
     created: Instant,
 }
 
@@ -1674,6 +1676,7 @@ impl Hub {
                         loser: Some(loser.clone()),
                         range: Rarity::Common..=Rarity::Legendary,
                         loser_deck,
+                        boss: None,
                         created: Instant::now(),
                     },
                 );
@@ -1812,7 +1815,7 @@ impl Hub {
             return self.fail(player, "forging", "a skill is already being forged for you");
         }
         match self.resolve_reward(player, pending.loser.as_deref(), &pending.loser_deck, choice, None) {
-            Ok(()) => {}
+            Ok(()) => self.mark_boss_rewarded(player, &pending),
             Err(msg) => {
                 // Let the player try again with a corrected choice.
                 self.rewards.insert(player.to_string(), pending);
@@ -1884,9 +1887,12 @@ impl Hub {
                 skill,
             ),
         };
-        if let Err(msg) = result {
-            self.rewards.insert(player.to_string(), pending);
-            self.fail(player, "invalid_reward", msg);
+        match result {
+            Ok(()) => self.mark_boss_rewarded(player, &pending),
+            Err(msg) => {
+                self.rewards.insert(player.to_string(), pending);
+                self.fail(player, "invalid_reward", msg);
+            }
         }
     }
 

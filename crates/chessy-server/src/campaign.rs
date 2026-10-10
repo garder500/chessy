@@ -49,18 +49,19 @@ impl LevelRef {
 /// A condition checked on the finished game, once it is won.
 #[derive(Clone, Copy, Debug)]
 pub enum Objective {
-    /// Won within this many plies (both sides' actions).
-    WinWithin(usize),
+    /// Won within this many of the player's own turns (a skill that ends the
+    /// turn counts as one).
+    WinWithin(u32),
     KeepPiece(PieceKind),
     UseSkill(SkillId),
     NoSkillUsed,
 }
 
 impl Objective {
-    pub fn met(self, game: &Game, human: Color, plies: usize) -> bool {
+    pub fn met(self, game: &Game, human: Color) -> bool {
         let slots = &game.loadout(human).slots;
         match self {
-            Objective::WinWithin(max) => plies <= max,
+            Objective::WinWithin(max) => own_turns(game, human) <= max,
             Objective::KeepPiece(kind) => game.pos.pieces(human).any(|(_, p)| p.kind == kind),
             Objective::UseSkill(skill) => slots.iter().any(|s| s.skill == skill && s.uses > 0),
             Objective::NoSkillUsed => slots.iter().all(|s| s.uses == 0),
@@ -69,12 +70,19 @@ impl Objective {
 
     pub fn text(self) -> String {
         match self {
-            Objective::WinWithin(plies) => format!("Gagner en {} coups ou moins", plies / 2),
+            Objective::WinWithin(turns) => format!("Gagner en {turns} coups ou moins"),
             Objective::KeepPiece(kind) => format!("Terminer avec {}", piece_label(kind)),
             Objective::UseSkill(skill) => format!("Utiliser {}", skill_label(skill)),
             Objective::NoSkillUsed => "Gagner sans utiliser de compétence".to_string(),
         }
     }
+}
+
+/// Turns the player has finished: `pos.ply` advances on every turn handed over,
+/// and White moves on even plies.
+fn own_turns(game: &Game, human: Color) -> u32 {
+    let white_first = u32::from(human == Color::White);
+    (game.pos.ply + white_first) / 2
 }
 
 fn piece_label(kind: PieceKind) -> &'static str {
@@ -136,7 +144,7 @@ const ATTACK: &[Level] = &[
         player_deck: &[Trap, Terminator],
         bot_deck: &[Trap],
         objective: Some(UseSkill(Terminator)),
-        challenge: Some(WinWithin(80)),
+        challenge: Some(WinWithin(40)),
     },
     Level {
         name: "Sacrifice",
@@ -150,7 +158,7 @@ const ATTACK: &[Level] = &[
         player_deck: &[Remover, Trap],
         bot_deck: &[Trap, Queensac],
         objective: Some(UseSkill(Remover)),
-        challenge: Some(WinWithin(70)),
+        challenge: Some(WinWithin(35)),
     },
     Level {
         name: "Renversement",
@@ -164,7 +172,7 @@ const ATTACK: &[Level] = &[
         player_deck: &[Remover, Switch, Terminator],
         bot_deck: &[Terminator, Trap, Queensac],
         objective: Some(UseSkill(Terminator)),
-        challenge: Some(WinWithin(60)),
+        challenge: Some(WinWithin(30)),
     },
     Level {
         name: "Le Stratège",
@@ -212,11 +220,11 @@ pub fn level(at: LevelRef) -> Option<&'static Level> {
 }
 
 /// Stars mask of a finished game; objective and challenge only count on a win.
-pub fn stars_earned(at: LevelRef, game: &Game, human: Color, won: bool, plies: usize) -> u8 {
+pub fn stars_earned(at: LevelRef, game: &Game, human: Color, won: bool) -> u8 {
     let Some(level) = level(at).filter(|_| won) else {
         return 0;
     };
-    let met = |goal: Option<Objective>| goal.is_some_and(|g| g.met(game, human, plies));
+    let met = |goal: Option<Objective>| goal.is_some_and(|g| g.met(game, human));
     STAR_WIN
         | if met(level.objective) { STAR_OBJECTIVE } else { 0 }
         | if met(level.challenge) { STAR_CHALLENGE } else { 0 }
@@ -246,4 +254,25 @@ pub fn chapter_stars(rows: &[CampaignRow], chapter: u8) -> u8 {
 
 pub fn boss_unlocked(rows: &[CampaignRow], chapter: u8) -> bool {
     chapter_stars(rows, chapter) >= BOSS_STARS
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn game_at(ply: u32) -> Game {
+        let mut game = Game::new(&[], &[]);
+        game.pos.ply = ply;
+        game
+    }
+
+    #[test]
+    fn win_within_counts_the_players_own_turns() {
+        let within = Objective::WinWithin(3);
+        // White has played turns 1-3 after five plies, Black two.
+        assert!(within.met(&game_at(5), Color::White));
+        assert!(!within.met(&game_at(7), Color::White));
+        assert!(within.met(&game_at(7), Color::Black));
+        assert!(!within.met(&game_at(8), Color::Black));
+    }
 }

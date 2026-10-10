@@ -363,7 +363,7 @@ impl App {
             } = job;
             let made = tokio::task::spawn_blocking(move || {
                 let mut rng = chessy_engine::ai::Rng::new(seed);
-                let forged = forge_in_range(&mut rng, target, &known, &range);
+                let forged = forge_in_range(&mut rng, target, &known, &range)?;
                 store
                     .insert_forged(&forged.def, &forged.graded)
                     .ok()
@@ -384,27 +384,15 @@ impl App {
 
 /// Forges aiming at `target`; the forge may settle for a neighbouring tier, so
 /// a reward bound to a rarity range tries again a few times and, failing
-/// that, keeps the candidate closest to the range.
+/// that, forges nothing (the reward stays on offer).
 fn forge_in_range(
     rng: &mut chessy_engine::ai::Rng,
     target: chessy_engine::forge::Rarity,
     known: &std::collections::HashSet<String>,
     range: &std::ops::RangeInclusive<chessy_engine::forge::Rarity>,
-) -> chessy_engine::forge::generate::Forged {
+) -> Option<chessy_engine::forge::generate::Forged> {
     use chessy_engine::forge::generate::{forge, Budget};
-    let distance = |f: &chessy_engine::forge::generate::Forged| {
-        let tier = f.graded.rarity.index() as i32;
-        (range.start().index() as i32 - tier).max(tier - range.end().index() as i32)
-    };
-    let mut best: Option<chessy_engine::forge::generate::Forged> = None;
-    for _ in 0..MAX_RANGE_FORGES {
-        let forged = forge(rng, target, known, Budget::live());
-        if range.contains(&forged.graded.rarity) {
-            return forged;
-        }
-        if best.as_ref().is_none_or(|b| distance(&forged) < distance(b)) {
-            best = Some(forged);
-        }
-    }
-    best.expect("at least one forge attempt")
+    (0..MAX_RANGE_FORGES)
+        .map(|_| forge(rng, target, known, Budget::live()))
+        .find(|forged| range.contains(&forged.graded.rarity))
 }
