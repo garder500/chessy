@@ -186,30 +186,36 @@ function mockExplore(id: string, body: ExploreRequest): ExploreResponse {
 // ---- REST ----
 
 const CAMPAIGN_FAMILIES = [
-  ["attack", "Attaque"],
-  ["defense", "Défense"],
-  ["mobility", "Mobilité"],
-  ["control", "Contrôle"],
-  ["create", "Création"],
+  ["attack", "Attaque", "Fer de Lance", "Le Stratège"],
+  ["defense", "Défense", "Briseur de Muraille", "Le Gardien"],
+  ["mobility", "Mobilité", "Marcheur du Vide", "Le Passeur"],
+  ["control", "Contrôle", "Maître du Tempo", "Le Métronome"],
+  ["create", "Création", "Grand Architecte", "L'Architecte"],
 ] as const;
 
 const DECK_CHOICE_FROM_CHAPTER = 2;
+const ELO_BASE = 400;
+const ELO_PER_CHAPTER = 400;
+const ELO_PER_LEVEL = 50;
+const ELO_BOSS_BONUS = 100;
+const LAST_NORMAL_LEVEL = 5;
 
 /** Cinq chapitres complets ; le premier a un titre gagné, les suivants laissent choisir le deck, le boss démarre d'une position imposée. */
 function fixtureCampaign(): CampaignChapter[] {
-  return CAMPAIGN_FAMILIES.map(([family, name], chapter) => {
+  return CAMPAIGN_FAMILIES.map(([family, name, title, bossName], chapter) => {
     const choice = chapter >= DECK_CHOICE_FROM_CHAPTER;
     const levels: CampaignLevel[] = Array.from({ length: 7 }, (_, i) => ({
       level: i,
-      name: i === 6 ? "Le Maître d'armes" : `Niveau ${i + 1}`,
-      elo: 400 + 50 * i + (i === 6 ? 50 : 0) + 200 * chapter,
+      name: i === 6 ? bossName : `Niveau ${i + 1}`,
+      elo:
+        ELO_BASE + ELO_PER_CHAPTER * chapter + ELO_PER_LEVEL * Math.min(i, LAST_NORMAL_LEVEL) + (i === 6 ? ELO_BOSS_BONUS : 0),
       boss: i === 6,
       player_deck: choice ? [] : ["trap", "terminator"],
       bot_deck: i === 0 ? [] : ["trap"],
       deck_choice: choice,
-      start_fen: i === 6 ? "4k3/8/8/8/8/8/4P3/4K2R w K - 0 1" : null,
-      human_color: i === 6 ? "black" : null,
-      objective: i === 6 ? null : "Utiliser Terminator",
+      start_fen: i === 6 && chapter > 0 ? "4k3/8/8/8/8/8/4P3/4K2R w K - 0 1" : null,
+      human_color: i === 6 && chapter > 0 ? (chapter === CAMPAIGN_FAMILIES.length - 1 ? "black" : "white") : null,
+      objective: i === 6 ? null : choice ? "Utiliser une compétence" : "Utiliser Terminator",
       challenge: i === 6 ? null : "Gagner en 40 coups",
       best: chapter === 0 && i < 3 ? [true, i < 2, i < 1] : [false, false, false],
       rewarded: false,
@@ -218,7 +224,7 @@ function fixtureCampaign(): CampaignChapter[] {
       chapter,
       family,
       name,
-      title: `Maître ${name.toLowerCase()}`,
+      title,
       title_earned: chapter === 0,
       available: true,
       stars: chapter === 0 ? 6 : 0,
