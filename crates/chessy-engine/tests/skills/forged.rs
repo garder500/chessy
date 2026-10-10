@@ -1202,3 +1202,94 @@ fn the_generator_draws_the_new_bricks_and_they_stay_valid() {
         "{zoned} {conditioned} {kinded}"
     );
 }
+
+// ---- the name and the description in the client's language --------------------
+
+#[test]
+fn the_name_is_its_noun_and_its_proper_name() {
+    use chessy_engine::forge::identity::identity;
+    let d = SkillDef::new(Effect::Freeze { plies: 4 });
+    let id = identity(&d);
+    assert!(id.name.ends_with(&id.name_parts.proper));
+    assert!(id.name_parts.noun < 4);
+}
+
+#[test]
+fn the_bricks_say_what_a_morph_becomes_and_what_the_selector_asks() {
+    use chessy_engine::forge::bricks::Selector;
+    let mut d = SkillDef::new(Effect::Morph {
+        side: chessy_engine::forge::def::Side::Enemy,
+        into: PieceKind::Knight,
+        plies: 2,
+    });
+    let plain = d.bricks();
+    assert_eq!(plain.into, Some(PieceKind::Knight));
+    assert!(plain.selector_kinds.is_empty());
+    d.selector = Selector {
+        kinds: Some(vec![PieceKind::Rook]),
+        ..Selector::default()
+    };
+    let narrowed = d.bricks();
+    assert_eq!(narrowed.selector_kinds, vec![PieceKind::Rook]);
+    assert_eq!(narrowed.into, Some(PieceKind::Knight));
+}
+
+/// `web/src/forgedText.fixture.json`: forged skills as the server describes them (French name and
+/// description, name parts, bricks), which the client's own text for each language is checked against.
+/// Regenerate with `UPDATE_FIXTURES=1 cargo test -p chessy-engine the_client_text_fixture`.
+#[test]
+fn the_client_text_fixture_is_up_to_date() {
+    use chessy_engine::forge::generate::random_def;
+    use chessy_engine::forge::identity::identity;
+    use std::collections::HashSet;
+
+    let mut rng = chessy_engine::ai::Rng::new(2026);
+    let mut seen = HashSet::new();
+    let mut views = Vec::new();
+    // Keep every definition that shows a combination of bricks no earlier one did.
+    for _ in 0..4000 {
+        let d = random_def(&mut rng);
+        let b = d.bricks();
+        let id = identity(&d);
+        let features = [
+            format!("{} {} {:?}", b.action, b.side, b.into),
+            format!("zone {:?}", b.zone),
+            format!("cond {:?}", b.condition),
+            format!("sel {:?}", b.selector_kinds.len()),
+            format!("uses {} {}", b.max_uses, b.free_action),
+            format!("noun {} {}", b.action, id.name_parts.noun),
+            format!("plies {:?}", b.plies),
+            format!("kinds {:?}", b.kinds),
+        ];
+        let features: Vec<String> = features
+            .into_iter()
+            .chain(b.constraints.iter().map(|c| format!("cons {c:?}")))
+            .collect();
+        let fresh = features
+            .iter()
+            .filter(|f| seen.insert((*f).clone()))
+            .count();
+        if fresh == 0 {
+            continue;
+        }
+        views.push(serde_json::json!({
+            "name": id.name,
+            "name_parts": id.name_parts,
+            "description": id.description,
+            "bricks": b,
+        }));
+    }
+    let text = serde_json::to_string_pretty(&views).unwrap() + "\n";
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../web/src/forgedText.fixture.json"
+    );
+    if std::env::var_os("UPDATE_FIXTURES").is_some() {
+        std::fs::write(path, &text).unwrap();
+    }
+    assert_eq!(
+        std::fs::read_to_string(path).unwrap_or_default(),
+        text,
+        "the fixture is out of date: run with UPDATE_FIXTURES=1"
+    );
+}

@@ -48,9 +48,21 @@ pub struct SoundSpec {
     pub length: u8,
 }
 
+/// What a name is made of: which of the effect's four nouns, and a made-up
+/// proper name that needs no translation ("Givre d'Alfen" = noun 0 + "Alfen").
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NameParts {
+    pub noun: u8,
+    pub proper: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Identity {
+    /// The name in French, the language the forge writes in.
     pub name: String,
+    /// The two parts the name is made of, so a client can say it in its own language.
+    pub name_parts: NameParts,
+    /// The description in French; a client that reads the bricks writes its own.
     pub description: String,
     pub family: Family,
     pub icon: IconSpec,
@@ -160,10 +172,17 @@ fn proper_name(seed: u64) -> String {
     capitalize(&word)
 }
 
-fn name(def: &SkillDef, seed: u64) -> String {
+fn name_parts(def: &SkillDef, seed: u64) -> NameParts {
     let nouns = NOUNS[effect_index(&def.effect)];
-    let noun = nouns[(mix(seed, 2) % nouns.len() as u64) as usize];
-    let proper = proper_name(seed);
+    NameParts {
+        noun: (mix(seed, 2) % nouns.len() as u64) as u8,
+        proper: proper_name(seed),
+    }
+}
+
+fn name(def: &SkillDef, parts: &NameParts) -> String {
+    let noun = NOUNS[effect_index(&def.effect)][parts.noun as usize];
+    let proper = &parts.proper;
     let link = if proper.starts_with(['A', 'E', 'I', 'O', 'U', 'Y']) {
         "d'"
     } else {
@@ -429,8 +448,10 @@ fn kind_key(kind: PieceKind) -> &'static str {
 pub fn identity(def: &SkillDef) -> Identity {
     let seed = def.fingerprint();
     let index = effect_index(&def.effect);
+    let parts = name_parts(def, seed);
     Identity {
-        name: name(def, seed),
+        name: name(def, &parts),
+        name_parts: parts,
         description: description(def),
         family: family(&def.effect),
         icon: IconSpec {
