@@ -18,7 +18,7 @@
 use std::time::Duration;
 
 use chessy_engine::ai::Strength;
-use chessy_engine::{Action, Color};
+use chessy_engine::{Action, Color, SkillId};
 
 use super::social::Rematch;
 use super::{Hub, Phase, Session, Timer};
@@ -29,28 +29,36 @@ use crate::protocol::*;
 use crate::store::reason_of;
 
 /// The bot's seat in a Solo session.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(super) struct Solo {
     pub bot: Color,
     /// The level the player chose (400..=2800).
     pub elo: i32,
     /// Set when the game is a campaign level: its decks are imposed.
     pub campaign: Option<LevelRef>,
+    /// The human's skills in a campaign level (imposed, or chosen).
+    pub deck: Vec<SkillId>,
 }
 
 impl Solo {
     pub(super) fn level(&self) -> Option<&'static Level> {
         campaign::level(self.campaign?)
     }
+
+    /// The FEN a campaign level starts from, when it is not the standard position.
+    pub(super) fn start_fen(&self) -> Option<&'static str> {
+        Some(self.level()?.start.as_ref()?.fen)
+    }
 }
 
 /// What a rematch against the bot needs to remember.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub(super) struct SoloSetup {
     pub elo: i32,
     /// The colour the human had in the game that just ended.
     pub human_color: Color,
     pub campaign: Option<LevelRef>,
+    pub deck: Vec<SkillId>,
 }
 
 impl Hub {
@@ -88,17 +96,18 @@ impl Hub {
             SoloColor::Black => Color::Black,
             SoloColor::Random => Self::random_color(),
         };
-        self.start_solo(player, elo as i32, human, None);
+        self.start_solo(player, elo as i32, human, None, Vec::new());
     }
 
     /// Opens deck selection against a bot of level `elo` (a campaign level
-    /// skips it); `human` is the player's colour.
+    /// skips it, playing `deck`); `human` is the player's colour.
     pub(super) fn start_solo(
         &mut self,
         player: &str,
         elo: i32,
         human: Color,
         campaign: Option<LevelRef>,
+        deck: Vec<SkillId>,
     ) {
         let (white, black) = match human {
             Color::White => (player.to_string(), String::new()),
@@ -108,6 +117,7 @@ impl Hub {
             bot: human.opposite(),
             elo,
             campaign,
+            deck,
         };
         self.open_session(white, black, false, GameKind::Solo, Some(seat), None);
     }
@@ -258,6 +268,7 @@ impl Hub {
                     elo: solo.elo,
                     human_color,
                     campaign: solo.campaign,
+                    deck: solo.deck.clone(),
                 },
             ),
         );
@@ -270,8 +281,23 @@ impl Hub {
             return self.fail(player, "no_rematch", "a rematch is not possible");
         }
         match setup.campaign {
-            Some(at) => self.start_solo(player, at.elo(), setup.human_color, Some(at)),
-            None => self.start_solo(player, setup.elo, setup.human_color.opposite(), None),
+            Some(at) => {
+                let mut deck = setup.deck;
+                if campaign::level(at).is_some_and(|level| level.deck_choice) {
+                    let Some(checked) = self.checked_deck(player, deck) else {
+                        return;
+                    };
+                    deck = checked;
+                }
+                self.start_solo(player, at.elo(), setup.human_color, Some(at), deck)
+            }
+            None => self.start_solo(
+                player,
+                setup.elo,
+                setup.human_color.opposite(),
+                None,
+                setup.deck,
+            ),
         }
     }
 }

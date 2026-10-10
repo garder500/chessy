@@ -297,6 +297,7 @@ async fn my_games_pages_newest_first_and_needs_a_token() {
                 started_unix: 0,
                 kind: GameKind::Room,
                 loadouts: &[vec![], vec![]],
+                start_fen: None,
                 actions: &none,
                 solo_elo: None,
                 time_control: None,

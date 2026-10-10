@@ -1,7 +1,7 @@
 //! Campaign progress in the database (docs/spec-campagne.md): the best stars
 //! of each level and whether the boss reward was given.
 
-use rusqlite::params;
+use rusqlite::{params, Connection};
 
 use crate::campaign::LevelRef;
 use crate::store::{Store, StoreResult};
@@ -14,24 +14,28 @@ pub struct CampaignRow {
     pub rewarded: bool,
 }
 
+/// The rows of a player on a connection the caller already holds.
+pub(crate) fn rows_of(conn: &Connection, player: &str) -> StoreResult<Vec<CampaignRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT chapter, level, stars, rewarded FROM campaign_progress
+         WHERE player_id = ?1 ORDER BY chapter, level",
+    )?;
+    let rows = stmt.query_map(params![player], |r| {
+        Ok(CampaignRow {
+            at: LevelRef {
+                chapter: r.get(0)?,
+                level: r.get(1)?,
+            },
+            stars: r.get(2)?,
+            rewarded: r.get(3)?,
+        })
+    })?;
+    Ok(rows.collect::<Result<_, _>>()?)
+}
+
 impl Store {
     pub fn campaign_rows(&self, player: &str) -> StoreResult<Vec<CampaignRow>> {
-        let conn = self.db();
-        let mut stmt = conn.prepare(
-            "SELECT chapter, level, stars, rewarded FROM campaign_progress
-             WHERE player_id = ?1 ORDER BY chapter, level",
-        )?;
-        let rows = stmt.query_map(params![player], |r| {
-            Ok(CampaignRow {
-                at: LevelRef {
-                    chapter: r.get(0)?,
-                    level: r.get(1)?,
-                },
-                stars: r.get(2)?,
-                rewarded: r.get(3)?,
-            })
-        })?;
-        Ok(rows.collect::<Result<_, _>>()?)
+        rows_of(&self.db(), player)
     }
 
     /// Adds `stars` to the ones the player already has on a level; returns

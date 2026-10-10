@@ -1,13 +1,16 @@
 //! Campaign mode: a Solo game against the bot with imposed decks, and what a
 //! finished one earns (stars, boss reward). See `docs/spec-campagne.md`.
 
+use std::collections::HashSet;
 use std::time::Instant;
 
-use chessy_engine::Color;
+use chessy_engine::{Color, SkillId};
 
 use super::{Hub, PendingReward, Phase, Session};
-use crate::campaign::{self, LevelRef};
+use crate::campaign::{self, LevelRef, BOSS_STARS, CHAPTERS};
 use crate::protocol::{CampaignInfo, RewardOffer};
+
+const MAX_CHOSEN_SKILLS: usize = 3;
 
 /// What `finish_game` sends the human of a finished campaign game.
 pub(super) struct CampaignResult {
@@ -17,13 +20,15 @@ pub(super) struct CampaignResult {
 }
 
 impl Hub {
-    pub fn campaign_start(&mut self, player: &str, at: LevelRef) {
+    /// `chosen` is the deck brought to a `deck_choice` level; elsewhere the
+    /// level imposes the deck and `chosen` is ignored.
+    pub fn campaign_start(&mut self, player: &str, at: LevelRef, chosen: Option<Vec<SkillId>>) {
         if !self.ensure_idle(player) {
             return;
         }
-        if campaign::level(at).is_none() {
+        let Some(level) = campaign::level(at) else {
             return self.fail(player, "unknown_level", "this level does not exist yet");
-        }
+        };
         let rows = match self.store.campaign_rows(player) {
             Ok(rows) => rows,
             Err(e) => return self.internal_error(player, e),
@@ -31,7 +36,48 @@ impl Hub {
         if at.is_boss() && !campaign::boss_unlocked(&rows, at.chapter) {
             return self.fail(player, "boss_locked", "the boss is still locked");
         }
-        self.start_solo(player, at.elo(), Self::random_color(), Some(at));
+        let deck = if level.deck_choice {
+            let Some(deck) = self.checked_deck(player, chosen.unwrap_or_default()) else {
+                return;
+            };
+            deck
+        } else {
+            level.player_deck.to_vec()
+        };
+        let human = level
+            .start
+            .as_ref()
+            .map_or_else(Self::random_color, |start| start.human);
+        self.start_solo(player, at.elo(), human, Some(at), deck);
+    }
+
+    /// `deck` if it is 1 to 3 distinct skills of the player's own deck;
+    /// otherwise the player is told so.
+    pub(super) fn checked_deck(
+        &mut self,
+        player: &str,
+        deck: Vec<SkillId>,
+    ) -> Option<Vec<SkillId>> {
+        let owned = match self.deck_of(player) {
+            Ok(owned) => owned,
+            Err(e) => {
+                self.internal_error(player, e);
+                return None;
+            }
+        };
+        let distinct = deck.iter().collect::<HashSet<_>>().len() == deck.len();
+        let valid = (1..=MAX_CHOSEN_SKILLS).contains(&deck.len())
+            && distinct
+            && deck.iter().all(|skill| owned.contains(skill));
+        if !valid {
+            self.fail(
+                player,
+                "bad_deck",
+                "pick 1 to 3 different skills from your deck",
+            );
+            return None;
+        }
+        Some(deck)
     }
 
     /// Records the stars of a finished campaign game and prepares the boss
@@ -50,6 +96,11 @@ impl Hub {
         let player = session.players[human.index()].clone();
         let won = winner == Some(human);
         let earned = campaign::stars_earned(at, game, human, won);
+        // A read error counts as already unlocked: never announce a false unlock.
+        let was_unlocked = self
+            .store
+            .campaign_rows(&player)
+            .map_or(true, |rows| campaign::boss_unlocked(&rows, at.chapter));
         if earned != 0 {
             if let Err(e) = self.store.record_campaign(&player, at, earned) {
                 tracing::error!("could not record campaign progress: {e}");
@@ -57,6 +108,7 @@ impl Hub {
         }
         let rows = self.store.campaign_rows(&player).unwrap_or_default();
         let best = rows.iter().find(|r| r.at == at).map_or(0, |r| r.stars);
+        let boss_unlocked = campaign::boss_unlocked(&rows, at.chapter);
         let already_rewarded = rows.iter().any(|r| r.at == at && r.rewarded);
         let reward = if won && at.is_boss() && !already_rewarded {
             self.boss_reward(&player, at)
@@ -70,7 +122,11 @@ impl Hub {
                 stars: campaign::star_flags(earned),
                 best: campaign::star_flags(best),
                 chapter_stars: campaign::chapter_stars(&rows, at.chapter),
-                boss_unlocked: campaign::boss_unlocked(&rows, at.chapter),
+                boss_unlocked,
+                boss_stars_required: BOSS_STARS,
+                boss_just_unlocked: boss_unlocked && !was_unlocked,
+                title: (won && at.is_boss())
+                    .then(|| CHAPTERS[usize::from(at.chapter)].title.to_string()),
             },
             player,
             reward,

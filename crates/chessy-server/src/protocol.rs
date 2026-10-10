@@ -157,6 +157,8 @@ pub enum ClientMsg {
     CampaignStart {
         chapter: u8,
         level: u8,
+        /// The skills brought to a `deck_choice` level (ignored elsewhere).
+        deck: Option<Vec<SkillId>>,
     },
     /// Watches a running game (not allowed while playing).
     Spectate {
@@ -338,6 +340,11 @@ pub struct CampaignInfo {
     pub best: [bool; 3],
     pub chapter_stars: u8,
     pub boss_unlocked: bool,
+    pub boss_stars_required: u8,
+    /// This game opened the boss.
+    pub boss_just_unlocked: bool,
+    /// The chapter title, on a boss win.
+    pub title: Option<String>,
 }
 
 /// A skill and everywhere it can currently be aimed.

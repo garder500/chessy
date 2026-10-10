@@ -57,6 +57,9 @@ pub struct Seat {
 pub struct Loadouts {
     pub white: Vec<SkillId>,
     pub black: Vec<SkillId>,
+    /// FEN of a custom starting position (campaign bosses); standard when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start: Option<String>,
 }
 
 impl Loadouts {

@@ -136,6 +136,8 @@ pub struct PublicProfile {
     pub created_at: String,
     pub history: Vec<HistoryPoint>,
     pub recent: Vec<RecentGame>,
+    /// Best campaign title (docs/spec-campagne.md).
+    pub title: Option<&'static str>,
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -162,6 +164,8 @@ pub struct GameRecord<'a> {
     pub kind: GameKind,
     /// The skills each side brought, in the order the game was created with.
     pub loadouts: &'a [Vec<SkillId>; 2],
+    /// FEN the game started from, when not the standard position.
+    pub start_fen: Option<&'a str>,
     /// Every action played, in order (skills that keep the turn included).
     pub actions: &'a [Action],
     /// Solo: the level of the bot, whose seat (`white` or `black`) is not a player.
@@ -875,6 +879,7 @@ impl Store {
             created_at: row.created_at,
             history,
             recent,
+            title: crate::campaign::best_title(&crate::campaign_store::rows_of(&conn, &row.id)?),
         }))
     }
 
@@ -927,6 +932,7 @@ impl Store {
         let loadouts = serde_json::json!({
             "white": rec.loadouts[0],
             "black": rec.loadouts[1],
+            "start": rec.start_fen,
         });
         tx.execute(
             "INSERT INTO games (id, white, black, outcome, finished_at, rated, reason, plies,

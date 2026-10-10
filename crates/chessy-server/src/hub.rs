@@ -1000,8 +1000,8 @@ impl Hub {
             let level = seat.level();
             picks[seat.bot.index()] =
                 Some(level.map_or_else(crate::bot::pick_deck, |l| l.bot_deck.to_vec()));
-            if let Some(level) = level {
-                picks[seat.bot.opposite().index()] = Some(level.player_deck.to_vec());
+            if level.is_some() {
+                picks[seat.bot.opposite().index()] = Some(seat.deck.clone());
             }
             seat_solo = Some(seat);
         }
@@ -1065,7 +1065,11 @@ impl Hub {
         }
         self.games.insert(game_id.clone(), session);
         // A campaign level imposes both decks: there is nothing to select.
-        if seat_solo.is_some_and(|s| s.campaign.is_some()) {
+        if self.games[&game_id]
+            .solo
+            .as_ref()
+            .is_some_and(|s| s.campaign.is_some())
+        {
             self.start_if_ready(&game_id);
         } else {
             self.timers.push((
@@ -1162,7 +1166,8 @@ impl Hub {
             }
             return;
         };
-        let game = Game::new(white, black);
+        let start = session.solo.as_ref().and_then(solo::Solo::start_fen);
+        let game = crate::replay::game_at(start, white, black);
         session.phase = Phase::Playing {
             game: Box::new(game),
         };
@@ -1642,8 +1647,9 @@ impl Hub {
                     started_unix: session.started_unix,
                     kind: session.recording.kind,
                     loadouts,
+                    start_fen: session.solo.as_ref().and_then(solo::Solo::start_fen),
                     actions: &session.recording.actions,
-                    solo_elo: session.solo.map(|s| s.elo),
+                    solo_elo: session.solo.as_ref().map(|s| s.elo),
                     time_control: if solo { None } else { session.time },
                 };
                 match self.store.record_game(&record) {

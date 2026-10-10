@@ -6,7 +6,7 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 use super::{Hub, HubConfig};
 use crate::campaign::{LevelRef, BOSS_LEVEL, STAR_CHALLENGE, STAR_OBJECTIVE, STAR_WIN};
-use crate::protocol::{RewardChoice, RewardOffer, ServerMsg};
+use crate::protocol::{CampaignInfo, RewardChoice, RewardOffer, ServerMsg};
 use crate::store::Store;
 
 const BOSS: LevelRef = LevelRef {
@@ -40,14 +40,22 @@ fn player(account: bool) -> Player {
 impl Player {
     /// Starts the boss and has the bot resign: the human wins.
     fn beat_boss(&mut self) -> Option<RewardOffer> {
-        self.hub.campaign_start(&self.id.clone(), BOSS);
+        self.beat_boss_over().1
+    }
+
+    fn beat_boss_over(&mut self) -> (Option<CampaignInfo>, Option<RewardOffer>) {
+        self.hub.campaign_start(&self.id.clone(), BOSS, None);
         let game_id = self.hub.player_game[&self.id].clone();
         let bot = self.hub.games[&game_id].solo.as_ref().unwrap().bot;
         self.hub.end_by_resignation(&game_id, bot, "resignation");
-        std::iter::from_fn(|| self.rx.try_recv().ok()).find_map(|m| match m {
-            ServerMsg::GameOver { reward, .. } => Some(reward),
-            _ => None,
-        })?
+        std::iter::from_fn(|| self.rx.try_recv().ok())
+            .find_map(|m| match m {
+                ServerMsg::GameOver {
+                    campaign, reward, ..
+                } => Some((campaign, reward)),
+                _ => None,
+            })
+            .expect("the game is over")
     }
 }
 
@@ -56,6 +64,16 @@ impl Player {
         let rows = self.store.campaign_rows(&self.id).unwrap();
         rows.iter().any(|r| r.at.is_boss() && r.rewarded)
     }
+}
+
+#[test]
+fn a_boss_win_gives_the_chapter_title_and_shows_on_the_profile() {
+    let mut p = player(true);
+    assert_eq!(p.store.public_profile("ana").unwrap().unwrap().title, None);
+    let (info, _) = p.beat_boss_over();
+    assert_eq!(info.unwrap().title.as_deref(), Some("Fer de Lance"));
+    let profile = p.store.public_profile("ana").unwrap().unwrap();
+    assert_eq!(profile.title, Some("Fer de Lance"));
 }
 
 #[test]
