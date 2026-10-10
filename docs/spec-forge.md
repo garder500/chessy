@@ -97,8 +97,10 @@ la même mesure (`switch` et `evolve` sortent en tête, `mind` à zéro) ; `ches
   octogone, soleil). Tout est dans le médaillon (clip) : rien ne déborde. Toute compétence 100 % algorithmique y trouve
   son icône, puisque chaque champ vient d'une brique de la définition.
   - **Mesure** : `web/scripts/icon-metrics.mjs` rastérise des icônes aléatoires à 32 px dans Chromium (voir l'en-tête du
-    script ; les icônes viennent de `forgedIcon.dump.test.ts`). Dernier relevé (600 icônes) : effet reconnu 96,5 %
-    (17 verbes, plus proche centroïde), rareté 100 %, aucune paire d'icônes quasi identique, couverture 78 %, centrage 0,02.
+    script ; les icônes viennent de `forgedIcon.dump.test.ts`). Deux lecteurs : un plus proche centroïde (sévère) et, par brique
+    (effet, zone, durée, règle, camp), une régression ridge sur les pixels avec validation croisée à 2 plis. Dernier relevé
+    (1 000 icônes) : effet 100 % (pire effet 100 %), durée 100 %, zone 99,6 % (pire 99,1 %), règle 100 %, camp 86 %.
+    Plus proche centroïde : effet 97 % (pire effet 89 %), rareté 100 %, aucune paire d'icônes quasi identique.
 - **Son** (`SoundSpec`) : effet, note de la gamme, clarté, durée. Le client l'assemble avec les briques de
   `web/src/sound/bricks.ts` (`forgedRecipe.ts`), un geste sonore par effet, au niveau réglé comme les 27.
 

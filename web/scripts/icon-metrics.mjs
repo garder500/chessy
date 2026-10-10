@@ -23,6 +23,18 @@ function acc(vecs,labels,track){const classes=[...new Set(labels)],len=vecs[0].l
 (async()=>{const vs=[];for(const it of items)vs.push(await raster(it.svg));const m={};
  const conf={};for(const k of Object.keys(items[0].labels))m[k]=acc(vs,items.map(i=>i.labels[k]),k==='verb'?conf:null);m.perVerb=Object.entries(conf).filter(([k])=>k[0]==='#').map(([k,v])=>k.slice(1)+' '+(v[0]/v[1]).toFixed(2)).join(' ');m.confusions=Object.entries(conf).filter(([k])=>k[0]!=='#').sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,v])=>k+':'+v).join(' ');
  {const K=5,lab=items.map(i=>i.labels.verb);let ok=0;for(let i=0;i<vs.length;i++){const ds=[];for(let j=0;j<vs.length;j++)if(j!==i)ds.push([dist(vs[i],vs[j]),lab[j]]);ds.sort((a,b)=>a[0]-b[0]);const votes={};for(const [,l] of ds.slice(0,K))votes[l]=(votes[l]||0)+1;const best=Object.entries(votes).sort((a,b)=>b[1]-a[1])[0][0];if(best===lab[i])ok++}m.verb5nn=ok/vs.length}
+ {// Lecteur dédié par brique : régression à noyau linéaire (ridge) sur les pixels, un contre tous, validation croisée à 2 plis.
+  const n=vs.length,L=vs[0].length;const X=vs.map(v=>{const o=new Float32Array(L);for(let j=0;j<L;j++)o[j]=v[j]/255-0.5;return o});
+  const dot=(a,b)=>{let s=0;for(let j=0;j<L;j++)s+=a[j]*b[j];return s};
+  const solve=(A,B)=>{const m=A.length,k=B[0].length;for(let c=0;c<m;c++){let p=c;for(let r=c+1;r<m;r++)if(Math.abs(A[r][c])>Math.abs(A[p][c]))p=r;[A[c],A[p]]=[A[p],A[c]];[B[c],B[p]]=[B[p],B[c]];const d=A[c][c];for(let r=c+1;r<m;r++){const f=A[r][c]/d;if(!f)continue;for(let q=c;q<m;q++)A[r][q]-=f*A[c][q];for(let q=0;q<k;q++)B[r][q]-=f*B[c][q]}}
+    const x=Array.from({length:m},()=>new Float64Array(k));for(let r=m-1;r>=0;r--){for(let q=0;q<k;q++){let s=B[r][q];for(let c=r+1;c<m;c++)s-=A[r][c]*x[c][q];x[r][q]=s/A[r][r]}}return x};
+  const idx=[...Array(n).keys()];const folds=[idx.filter(i=>i%2===0),idx.filter(i=>i%2===1)];
+  const lam=50;
+  for(const brick of ['verb','zone','plies','mark','camp']){const lab=items.map(i=>String(i.labels[brick]));const classes=[...new Set(lab)];let ok=0;const pc={};
+    for(let f=0;f<2;f++){const tr=folds[f],te=folds[1-f];const K=tr.map(i=>tr.map(j=>dot(X[i],X[j])));for(let i=0;i<tr.length;i++)K[i][i]+=lam;
+      const Y=tr.map(i=>classes.map(c=>lab[i]===c?1:0));const al=solve(K,Y);
+      for(const t of te){const sc=classes.map(()=>0);tr.forEach((j,a)=>{const d=dot(X[t],X[j]);for(let c=0;c<classes.length;c++)sc[c]+=d*al[a][c]});let best=0;for(let c=1;c<classes.length;c++)if(sc[c]>sc[best])best=c;const hit=classes[best]===lab[t];if(hit)ok++;const q=pc[lab[t]]=pc[lab[t]]||[0,0];q[1]++;if(hit)q[0]++}}
+    m[brick+'Ridge']=ok/n;m[brick+'RidgeMin']=Math.min(...Object.values(pc).map(q=>q[0]/q[1]))}}
  const nn=[];let close=0,np=0;for(let i=0;i<vs.length;i++){let b=9;for(let j=0;j<vs.length;j++){if(i===j)continue;const d=dist(vs[i],vs[j]);if(d<b)b=d;if(j>i){np++;if(d<0.03)close++}}nn.push(b)}
  nn.sort((a,b)=>a-b);m.nnP10=nn[Math.floor(nn.length*0.1)];m.closePairs=close/np;
  const cov=vs.map(v=>{let n=0;for(let i=0;i<v.length;i+=4)if(Math.abs(v[i]-v[0])+Math.abs(v[i+1]-v[1])+Math.abs(v[i+2]-v[2])>60)n++;return n/(SZ*SZ)});
