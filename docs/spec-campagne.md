@@ -8,6 +8,7 @@ Le contenu vit dans `crates/chessy-server/src/campaign.rs` et `campaign/levels.r
 - Une partie de campagne est une partie Solo contre Sage (`Solo.campaign`), sans nouveau `GameKind`, sans Elo ni pendule.
   Les decks sont imposés par le niveau, sauf aux niveaux à choix de deck (chapitres 3 à 5, voir plus bas).
 - 5 chapitres (0..4) = familles attaque, défense, mobilité, contrôle, création. Chacun a 6 niveaux (0..5) et un boss (niveau 6 sur le fil).
+- Numérotation : le code, le protocole et les champs `chapter` sont indexés à partir de 0 ; les titres de ce document numérotent les chapitres à partir de 1.
 - Elo de Sage : `400 + 400 × chapitre + 50 × niveau` ; le boss vaut le dernier niveau + 100 (chapitre 0 : 400..650, boss 750).
 - Étoiles d'un niveau : victoire, objectif, défi. L'objectif et le défi ne comptent qu'en cas de victoire.
   Les meilleures étoiles sont cumulées (OU de bits) par `player_id`, invités compris.
@@ -20,7 +21,7 @@ Le contenu vit dans `crates/chessy-server/src/campaign.rs` et `campaign/levels.r
 ## Récompense du boss
 
 Première victoire d'un compte (pas d'un invité) sur le boss : une forge garantie, proposée via le `RewardOffer` habituel (`steal_options` vide).
-La rareté est tirée dans une plage par chapitre, avec les poids de drop renormalisés : chapitre 0 Peu commune..=Épique, chapitres 1-2 Rare..=Légendaire, chapitres 3-4 Épique..=Légendaire.
+La rareté est tirée dans une plage par chapitre, avec les poids de drop renormalisés : indice 0 (chapitre 1) Peu commune..=Épique, indices 1-2 (chapitres 2-3) Rare..=Légendaire, indices 3-4 (chapitres 4-5) Épique..=Légendaire.
 Un drapeau `rewarded` persisté empêche de la farmer. Le boss ne retire rien au joueur. Un invité joue et progresse mais ne reçoit rien.
 Le drapeau n'est posé qu'à la résolution de la récompense (choix, forge réussie ou « passer ») : une offre perdue (déconnexion, redémarrage, expiration) est reproposée à la prochaine victoire contre le boss. Une forge hors fourchette de rareté échoue et laisse l'offre ouverte.
 
@@ -98,7 +99,7 @@ Les boss des chapitres 2 à 5 ont une position de départ (FEN, Blancs au trait)
 |---|---|---|---|---|
 | 0 | Premier pas | Teleportation | Utiliser une compétence | Garder la dame |
 | 1 | Détour | Rollback | Garder une tour | Gagner en 45 coups |
-| 2 | Faille | Transposition, Bench | Utiliser une compétence | Sans compétence |
+| 2 | Faille | Transposition, Bench | Utiliser une compétence | Gagner en 42 coups |
 | 3 | Écho | Destiny Swapper, Rollback | Garder une tour | Gagner en 40 coups |
 | 4 | Sables du temps | Temporal, Teleportation, Bench | Utiliser une compétence | Garder la dame |
 | 5 | Au-delà du voile | Teleportation, Rollback, Temporal | Sans compétence | Gagner en 30 coups |
@@ -110,7 +111,7 @@ Les boss des chapitres 2 à 5 ont une position de départ (FEN, Blancs au trait)
 |---|---|---|---|---|
 | 0 | Premier signe | Canceller | Utiliser une compétence | Garder la dame |
 | 1 | Vent contraire | Tornado | Garder une tour | Gagner en 45 coups |
-| 2 | Givre | Freeze, Canceller | Utiliser une compétence | Sans compétence |
+| 2 | Givre | Freeze, Canceller | Utiliser une compétence | Gagner en 42 coups |
 | 3 | Fracture | Tornado, Geomancy | Garder une tour | Gagner en 40 coups |
 | 4 | Œil du cyclone | Freeze, Tornado, Canceller | Utiliser une compétence | Garder la dame |
 | 5 | Maîtrise du terrain | Geomancy, Freeze, Tornado | Sans compétence | Gagner en 30 coups |
@@ -122,7 +123,7 @@ Les boss des chapitres 2 à 5 ont une position de départ (FEN, Blancs au trait)
 |---|---|---|---|---|
 | 0 | Première pierre | Wall | Utiliser une compétence | Garder la dame |
 | 1 | Double | Clone | Garder une tour | Gagner en 45 coups |
-| 2 | Mirage | Mirage, Wall | Utiliser une compétence | Sans compétence |
+| 2 | Mirage | Mirage, Wall | Utiliser une compétence | Gagner en 42 coups |
 | 3 | Métamorphose | Morph, Evolve | Garder une tour | Gagner en 40 coups |
 | 4 | Main divine | Clone, Godhelp, Wall | Utiliser une compétence | Garder la dame |
 | 5 | Chef-d'œuvre | Evolve, Mirage, Morph | Sans compétence | Gagner en 30 coups |
