@@ -219,7 +219,7 @@ function installFetch() {
       }));
       return json({ total: all.length, entries: all.slice(offset, offset + limit) });
     }
-    if (path.startsWith("/api/players/")) {
+    if (/^\/api\/players\/[^/]+$/.test(path)) {
       await wait(200);
       const username = decodeURIComponent(path.slice("/api/players/".length));
       const base = fixtureGames();
