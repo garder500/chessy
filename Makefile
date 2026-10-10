@@ -1,5 +1,8 @@
 .PHONY: dev dev-server dev-web build serve tunnel share test check
 
+# Untracked per-machine override, e.g. CHESSY_ADDR = 127.0.0.1:3001
+-include local.mk
+
 CHESSY_ADDR ?= 127.0.0.1:3000
 export CHESSY_ADDR
 
@@ -28,16 +31,16 @@ build:
 serve: build
 	cargo run --release -p chessy-server
 
-# Public Cloudflare quick tunnel to the server on :3000 (the URL is printed in the output)
+# Public Cloudflare quick tunnel to the server (the URL is printed in the output)
 tunnel:
-	cloudflared tunnel --url http://127.0.0.1:3000
+	cloudflared tunnel --url http://$(CHESSY_ADDR)
 
 # Build the client, then run the server and the tunnel together; Ctrl-C stops both
 share: build
 	cargo build --release -p chessy-server
 	@trap 'kill $$SERVER 2>/dev/null' EXIT INT TERM; \
 	target/release/chessy-server & SERVER=$$!; \
-	cloudflared tunnel --url http://127.0.0.1:3000
+	cloudflared tunnel --url http://$(CHESSY_ADDR)
 
 test:
 	cargo test --workspace
