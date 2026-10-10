@@ -3,6 +3,9 @@ import type { CampaignChapter, CampaignLevel, CampaignStars, SkillId } from "./p
 /** Intitulés des trois étoiles d'un niveau, dans l'ordre du fil. */
 export const STAR_LABELS = ["Victoire", "Objectif", "Défi"] as const;
 
+/** Numéro de niveau du boss d'un chapitre. */
+export const BOSS_LEVEL = 6;
+
 export function countStars(stars: CampaignStars): number {
   return stars.filter(Boolean).length;
 }

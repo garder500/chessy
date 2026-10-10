@@ -1,4 +1,4 @@
-import { STAR_LABELS } from "../../campaign";
+import { BOSS_LEVEL, STAR_LABELS } from "../../campaign";
 import type { CampaignResult } from "../../protocol";
 import { Stars } from "../../ui/Stars";
 
@@ -13,7 +13,7 @@ function BossStatus({ campaign }: { campaign: CampaignResult }) {
 export function CampaignRecap({ campaign }: { campaign: CampaignResult }) {
   return (
     <div className="card rs-campaign">
-      <Stars stars={campaign.stars} kept={campaign.best} size={28} />
+      <Stars stars={campaign.stars} kept={campaign.best} size={28} boss={campaign.level === BOSS_LEVEL} />
       <p className="muted rs-campaign-labels">{STAR_LABELS.filter((_, i) => campaign.stars[i]).join(" · ") || "Aucune étoile cette fois"}</p>
       {campaign.title && <p className="rs-campaign-chapter"><strong>Titre obtenu : {campaign.title}</strong></p>}
       <p className="rs-campaign-chapter">
