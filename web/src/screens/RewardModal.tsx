@@ -56,7 +56,11 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
 
       <div className="rw-body">
         <h2 className="rw-h1">Votre récompense</h2>
-        <p className="muted rw-sub">Prenez une compétence à votre adversaire, ou faites-en forger une inédite.</p>
+        <p className="muted rw-sub">
+          {offer.steal_options.length > 0
+            ? "Prenez une compétence à votre adversaire, ou faites-en forger une inédite."
+            : "Pour avoir vaincu le boss, faites forger une compétence inédite."}
+        </p>
 
         <div className="rw-sec rw-sec-pick">
           <p className="rw-label" id="rw-take">
@@ -74,7 +78,7 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
             ))}
           </div>
           {offer.steal_options.length === 0 && (
-            <p className="muted rw-empty">Votre adversaire n'a rien que vous n'ayez déjà : seul le tirage au hasard reste possible.</p>
+            <p className="muted rw-empty">Aucune compétence à récupérer ici : seule la forge reste possible.</p>
           )}
         </div>
 

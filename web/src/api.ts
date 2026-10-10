@@ -2,6 +2,7 @@
 // les appelants passent le jeton de session quand la route l'exige.
 import type {
   Analysis,
+  CampaignChapter,
   ExploreRequest,
   ExploreResponse,
   GameRecord,
@@ -155,6 +156,10 @@ export const api = {
   /** Historique de mes compétences, obtenues, forgées ou perdues (Bearer requis). */
   mySkills(token: string, signal?: AbortSignal) {
     return request<MySkills>("/me/skills", { token, signal });
+  },
+  /** Chapitres de la campagne et progression du joueur (Bearer requis). */
+  campaign(token: string, signal?: AbortSignal) {
+    return request<{ chapters: CampaignChapter[] }>("/campaign", { token, signal });
   },
   // ---- v4 : parties enregistrées, replays, analyse, direct (docs/spec-v4.md §2-§3) ----
   /** Mes parties, de la plus récente à la plus ancienne (Bearer requis). */

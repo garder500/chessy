@@ -1,5 +1,6 @@
 // Mirrors crates/chessy-server/src/protocol.rs and the engine's serialized types.
 // Squares are indices 0..63 with a1 = 0 and h8 = 63 (rank * 8 + file).
+import type { Family } from "./catalog";
 
 export type Square = number;
 export type Color = "white" | "black";
@@ -261,7 +262,7 @@ export interface CampaignLevel {
 
 export interface CampaignChapter {
   chapter: number;
-  family: string;
+  family: Family;
   name: string;
   available: boolean;
   stars: number;

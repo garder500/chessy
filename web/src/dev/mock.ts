@@ -4,7 +4,7 @@
 //
 // Identifiants spéciaux : `g-missing` (404), `g-noreplay` (replay indisponible), `g-slow` (réponse lente).
 
-import type { Action, ClientMsg, ExploreRequest, ExploreResponse, Frame, GameRecord, Move, Piece, ServerMsg, SkillOptions, Square } from "../protocol";
+import type { Action, CampaignChapter, CampaignLevel, ClientMsg, ExploreRequest, ExploreResponse, Frame, GameRecord, Move, Piece, ServerMsg, SkillOptions, Square } from "../protocol";
 import {
   fixtureAnalysis,
   fixtureGames,
@@ -185,6 +185,40 @@ function mockExplore(id: string, body: ExploreRequest): ExploreResponse {
 
 // ---- REST ----
 
+const CAMPAIGN_FAMILIES = [
+  ["attack", "Attaque"],
+  ["defense", "Défense"],
+  ["mobility", "Mobilité"],
+  ["control", "Contrôle"],
+  ["create", "Création"],
+] as const;
+
+/** Chapitre 1 jouable (boss encore fermé), les autres « à venir ». */
+function fixtureCampaign(): CampaignChapter[] {
+  const levels: CampaignLevel[] = Array.from({ length: 7 }, (_, i) => ({
+    level: i,
+    name: i === 6 ? "Le Maître d'armes" : `Niveau ${i + 1}`,
+    elo: 400 + 50 * i + (i === 6 ? 50 : 0),
+    boss: i === 6,
+    player_deck: ["trap", "terminator"],
+    bot_deck: i === 0 ? [] : ["trap"],
+    objective: i === 6 ? null : "Utiliser Terminator",
+    challenge: i === 6 ? null : "Gagner en 40 coups",
+    best: i < 3 ? [true, i < 2, i < 1] : [false, false, false],
+    rewarded: false,
+  }));
+  return CAMPAIGN_FAMILIES.map(([family, name], chapter) => ({
+    chapter,
+    family,
+    name,
+    available: chapter === 0,
+    stars: chapter === 0 ? 6 : 0,
+    boss_stars_required: 12,
+    boss_unlocked: false,
+    levels: chapter === 0 ? levels : [],
+  }));
+}
+
 function installFetch() {
   const real = window.fetch.bind(window);
   window.fetch = async (input, init) => {
@@ -192,6 +226,10 @@ function installFetch() {
     const path = url.pathname;
     if (!path.startsWith("/api/")) return real(input, init);
 
+    if (path === "/api/campaign") {
+      await wait(250);
+      return json({ chapters: fixtureCampaign() });
+    }
     if (path === "/api/live") {
       await wait(250);
       return json({ games: fixtureLive() });

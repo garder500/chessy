@@ -186,6 +186,10 @@ export function Lobby({ state }: { state: AppState }) {
           <button type="button" className="link" onClick={() => setSheet("solo")}>
             Contre l'IA
           </button>
+          <span aria-hidden="true">·</span>
+          <a className="link" href={hrefFor({ name: "campaign" })}>
+            Campagne
+          </a>
         </div>
       </div>
 
