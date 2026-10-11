@@ -1,26 +1,24 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, apiErrorText } from "../api";
 import { type CampaignChapterView, type CampaignLevelView, type CampaignView, totalLabel, withLiveForge } from "../campaign";
 import { hrefFor } from "../router";
 import { readToken, useAppState } from "../store";
+import { BossForge } from "./campaign/BossForge";
 import { ChapterSection } from "./campaign/ChapterSection";
 import { LevelSheet } from "./campaign/LevelSheet";
 import "./campaign.css";
 
 type Loaded = { status: "loading" } | { status: "error"; text: string } | ({ status: "ready" } & CampaignView);
 
-interface Props {
-  /** Révélation de la compétence forgée d'un boss (branchée par l'écran de révélation). */
-  onReveal?: (chapter: number) => void;
-}
-
 /** Page `#/campaign` : les chapitres, leurs niveaux avec leurs étoiles, et le boss. */
-export function Campaign({ onReveal }: Props) {
+export function Campaign() {
   const { account, connection, soloPending, deck, bossForge } = useAppState();
   const accountId = account?.player_id ?? null;
   const isAccount = !!account && !account.guest;
   const [loaded, setLoaded] = useState<Loaded>({ status: "loading" });
   const [picked, setPicked] = useState<{ chapter: number; level: number } | null>(null);
+  const [forgeChapter, setForgeChapter] = useState<number | null>(null);
+  const closeForge = useCallback(() => setForgeChapter(null), []);
 
   // On attend le `welcome` : c'est lui qui fixe le jeton de session.
   useEffect(() => {
@@ -59,8 +57,9 @@ export function Campaign({ onReveal }: Props) {
       {isAccount && loaded.status === "loading" && <p className="muted">Chargement…</p>}
       {isAccount && loaded.status === "error" && <p className="cp-error" role="alert">{loaded.text}</p>}
       {chapters.map((chapter) => (
-        <ChapterSection key={chapter.chapter} chapter={chapter} onPick={pick(chapter)} onReveal={onReveal} />
+        <ChapterSection key={chapter.chapter} chapter={chapter} onPick={pick(chapter)} onReveal={setForgeChapter} />
       ))}
+      {forgeChapter !== null && <BossForge chapter={forgeChapter} initial={chapters.find((c) => c.chapter === forgeChapter)?.boss_forge} onClose={closeForge} />}
       {pickedChapter && (
         <LevelSheet key={`${picked?.chapter}-${picked?.level}`} chapter={pickedChapter} level={pickedLevel} ownDeck={deck} connected={connection === "open"} pending={soloPending} onClose={() => setPicked(null)} />
       )}

@@ -1,0 +1,7 @@
+/* Forge de boss : réutilise l'écran plein de la récompense ; la révélation a sa propre scène. */
+.bf { z-index: 105; }
+.bf-reveal { display: contents; }
+.bf-body { align-items: stretch; }
+.bf-note { margin: 0; font-size: 14px; }
+/* Paysage bas : la liste du deck défile dans le corps, le pied reste visible. */
+@media (max-height: 480px) { .bf .rw-opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); } }

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
+import { type CampaignChapterView, type CampaignView, withLiveForge } from "../campaign";
 import { FAMILY_LABEL, skillEntry } from "../catalog";
-import type { MySkills, SkillHistoryEntry } from "../protocol";
+import type { BossForgeInfo, MySkills, SkillHistoryEntry } from "../protocol";
 import { readToken, useAppState } from "../store";
+import { BossForge } from "./campaign/BossForge";
 import { RarityTag } from "../ui/RarityTag";
 import { SkillArt } from "../ui/SkillArt";
 import { SkillPreview } from "../ui/skillPreview";
@@ -24,10 +26,45 @@ import { tileRarity } from "../ui/tileRarity";
 
 type Status = "loading" | "ready" | "error";
 
+/** Compétences forgées par un boss et pas encore placées : la révélation interrompue se rejoue d'ici. */
+function usePendingForges(): BossForgeInfo[] {
+  const { account, bossForge } = useAppState();
+  const accountId = account && !account.guest ? account.player_id : null;
+  const [chapters, setChapters] = useState<CampaignChapterView[]>([]);
+  useEffect(() => {
+    if (accountId === null) return;
+    const ctl = new AbortController();
+    api
+      .campaign(readToken() ?? "", ctl.signal)
+      .then((res) => setChapters((res as CampaignView).chapters))
+      .catch(() => {});
+    return () => ctl.abort();
+  }, [accountId]);
+  return withLiveForge(chapters, bossForge).flatMap((c) => (c.boss_forge?.state === "pending" ? [c.boss_forge] : []));
+}
+
+function PendingForges({ forges, onOpen }: { forges: BossForgeInfo[]; onOpen: (chapter: number) => void }) {
+  return (
+    <>
+      {forges.map((f) => (
+        <p key={f.chapter} className="card co-empty">
+          Forgée en attente · chapitre {f.chapter + 1}{" "}
+          <button type="button" className="btn sm pri" onClick={() => onOpen(f.chapter)}>
+            Révéler
+          </button>
+        </p>
+      ))}
+    </>
+  );
+}
+
 /** Page `#/collection` : l'historique des compétences obtenues, forgées ou perdues. */
 export function Collection() {
   // `forged` change quand la définition d'une compétence forgée arrive : relance le rendu des fiches.
   const { deck } = useAppState();
+  const pendingForges = usePendingForges();
+  const [forgeChapter, setForgeChapter] = useState<number | null>(null);
+  const closeForge = useCallback(() => setForgeChapter(null), []);
   const [data, setData] = useState<MySkills | null>(null);
   const [status, setStatus] = useState<Status>("loading");
   const [filter, setFilter] = useState<HistoryFilter>("all");
@@ -91,6 +128,9 @@ export function Collection() {
         <Stat label="Perdues" value={stats.lost} />
         <Stat label="Dans votre deck" value={owned.size} hint="sur 7" />
       </section>
+
+      <PendingForges forges={pendingForges} onOpen={setForgeChapter} />
+      {forgeChapter !== null && <BossForge chapter={forgeChapter} initial={pendingForges.find((f) => f.chapter === forgeChapter)} onClose={closeForge} />}
 
       <div className="seg co-filter" role="group" aria-label="Filtrer l'historique">
         {HISTORY_FILTERS.map((f) => (
