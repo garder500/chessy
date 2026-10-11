@@ -38,6 +38,14 @@ export interface Credentials {
 }
 
 /** Erreur normalisée : `code` est le champ `error` du serveur (ou `network` / `http_<statut>`). */
+export interface EarnedTitle {
+  chapter: number;
+  name: string;
+}
+
+/** Profil public ; `titles` n'est servi qu'au propriétaire (Bearer). */
+export type OwnProfile = PublicProfile & { titles?: EarnedTitle[] };
+
 export class ApiError extends Error {
   readonly code: string;
   readonly status: number;
@@ -150,8 +158,12 @@ export const api = {
   leaderboard(limit = 50, offset = 0, signal?: AbortSignal) {
     return request<Leaderboard>(`/leaderboard?limit=${limit}&offset=${offset}`, { signal });
   },
-  profile(username: string, signal?: AbortSignal) {
-    return request<PublicProfile>(`/players/${encodeURIComponent(username)}`, { signal });
+  profile(username: string, signal?: AbortSignal, token?: string) {
+    return request<OwnProfile>(`/players/${encodeURIComponent(username)}`, { token, signal });
+  },
+  /** Choisit le titre affiché sous mon pseudo (chapitre gagné) ou le retire (null). */
+  setTitle(token: string, chapter: number | null, signal?: AbortSignal) {
+    return request<void>("/profile/title", { method: "POST", body: { chapter }, token, signal });
   },
   /** Historique de mes compétences, obtenues, forgées ou perdues (Bearer requis). */
   mySkills(token: string, signal?: AbortSignal) {
