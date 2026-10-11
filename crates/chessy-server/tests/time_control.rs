@@ -35,14 +35,14 @@ fn record(store: &Store, id: &str, w: &str, b: &str, tc: Option<TimeControl>) {
 }
 
 #[tokio::test]
-async fn the_schema_is_at_version_11_with_a_nullable_column() {
+async fn the_schema_is_at_version_12_with_a_nullable_column() {
     let db = TempDb::new();
     let _store = Store::open(db.path_str()).unwrap();
     let raw = db.raw();
     let version: i64 = raw
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 11);
+    assert_eq!(version, 12);
     let notnull: i64 = raw
         .query_row(
             "SELECT \"notnull\" FROM pragma_table_info('games') WHERE name = 'time_control'",
