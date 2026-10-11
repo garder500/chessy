@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type {
+  BossForgeInfo,
   CampaignResult,
   ClientMsg,
   DeckSelectInfo,
@@ -11,6 +12,7 @@ import type {
   Outcome,
   ReportReason,
   RewardOffer,
+  RewardOutcomeKind,
   ServerMsg,
   SkillId,
   SoloColor,
@@ -78,6 +80,10 @@ export interface AppState {
   soloPending: boolean;
   /** Partie en cours lancée depuis la campagne (sert aux raccourcis de dev). */
   campaignGame: boolean;
+  /** Dernier état connu de la forge d'un boss de campagne. */
+  bossForge: BossForgeInfo | null;
+  /** Ce que le gagnant d'une classée a fait de sa récompense, appris par le perdant. */
+  rewardOutcome: { by: string; kind: RewardOutcomeKind; skill: SkillId | null; refilled: SkillId | null } | null;
   /** Partie regardée en tant que spectateur (v4), `null` si on ne regarde rien. */
   spectating: SpectatingState | null;
 }
@@ -144,6 +150,8 @@ const initial: AppState = {
   solo: SOLO_DEFAULT,
   soloPending: false,
   campaignGame: false,
+  bossForge: null,
+  rewardOutcome: null,
   spectating: null,
 };
 
@@ -593,6 +601,12 @@ export class Store {
           rewardOpen: false,
           over: this.state.over ? { ...this.state.over, reward: null } : null,
         });
+        break;
+      case "reward_outcome":
+        this.set({ rewardOutcome: { by: msg.by, kind: msg.kind, skill: msg.skill, refilled: msg.refilled } });
+        break;
+      case "boss_forge":
+        this.set({ bossForge: msg.info });
         break;
       case "game_cancelled":
         this.clearSoloPending();

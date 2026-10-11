@@ -2070,6 +2070,7 @@ fn state_view(
         ply_count: game.pos.ply,
         spectators,
         history: Vec::new(),
+        campaign: None,
     }
 }
 

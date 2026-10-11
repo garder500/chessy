@@ -178,6 +178,15 @@ pub enum ClientMsg {
         game_id: String,
     },
     Unspectate,
+    /// Starts the forge of a chapter boss's skill (or resumes one that did not finish).
+    BossForgeClaim {
+        chapter: u8,
+    },
+    /// Puts the forged boss skill in the deck; `replace` names the skill to drop when it is full.
+    BossForgePlace {
+        chapter: u8,
+        replace: Option<SkillId>,
+    },
 }
 
 /// Why a player is reported: a closed set, so a report holds no free text
@@ -223,7 +232,7 @@ pub enum RewardChoice {
         skill: SkillId,
         replace: Option<SkillId>,
     },
-    /// Roll a random skill from the global pool; the loser loses a random one.
+    /// Forge a new skill (target rarity rolled 55/25/13/6/1); the loser loses one of their end-of-game skills at random.
     Random {
         replace: Option<SkillId>,
     },
@@ -358,6 +367,45 @@ pub struct CampaignInfo {
     pub boss_just_unlocked: bool,
     /// The chapter title, on a boss win.
     pub title: Option<String>,
+    pub total_stars: u16,
+    pub hint_available: bool,
+    pub boss_forge: Option<BossForgeInfo>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BossForgeState {
+    Forging,
+    Pending,
+    Placed,
+}
+
+/// Where the skill forged for a chapter boss stands.
+#[derive(Clone, Debug, Serialize)]
+pub struct BossForgeInfo {
+    pub chapter: u8,
+    pub state: BossForgeState,
+    pub skill: Option<SkillId>,
+    pub deck_full: bool,
+    pub legendary_unavailable: bool,
+}
+
+/// The campaign level a game belongs to, with what the player must know while playing it.
+#[derive(Clone, Debug, Serialize)]
+pub struct CampaignContext {
+    pub chapter: u8,
+    pub level: u8,
+    pub move_limit: Option<u32>,
+    pub objective: Option<String>,
+    pub challenge: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RewardOutcomeKind {
+    Stolen,
+    Forged,
+    Spared,
 }
 
 /// A skill and everywhere it can currently be aimed.
@@ -451,6 +499,7 @@ pub struct StateView {
     /// (re)joins their game: live states carry just `events`.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub history: Vec<HistoryEntry>,
+    pub campaign: Option<CampaignContext>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -493,6 +542,16 @@ pub enum ServerMsg {
         deck: Vec<SkillId>,
         gained: Option<SkillId>,
         lost: Option<SkillId>,
+    },
+    /// What the winner of a ranked game did with the reward, sent to the loser.
+    RewardOutcome {
+        by: String,
+        kind: RewardOutcomeKind,
+        skill: Option<SkillId>,
+        refilled: Option<SkillId>,
+    },
+    BossForge {
+        info: BossForgeInfo,
     },
     GameCancelled {
         reason: String,
@@ -577,7 +636,9 @@ impl ClientMsg {
             | ClientMsg::Challenge { .. }
             | ClientMsg::ChallengeRespond { .. }
             | ClientMsg::SoloStart { .. }
-            | ClientMsg::CampaignStart { .. } => expensive,
+            | ClientMsg::CampaignStart { .. }
+            | ClientMsg::BossForgeClaim { .. }
+            | ClientMsg::BossForgePlace { .. } => expensive,
             _ => 1,
         }
     }
