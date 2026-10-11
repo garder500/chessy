@@ -2,7 +2,18 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { setLang } from "../i18n";
 import { CATALOG } from "../catalog";
 import type { SkillHistoryEntry } from "../protocol";
-import { dayLabel, describeEntry, filterHistory, groupByDay, historyStats, RULES } from "./collectionData";
+import {
+  dayLabel,
+  describeEntry,
+  filterHistory,
+  filterJournal,
+  filterOwned,
+  groupByDay,
+  historyStats,
+  originCounts,
+  ownedSkills,
+  RULES,
+} from "./collectionData";
 
 beforeAll(() => setLang("fr"));
 
@@ -50,6 +61,35 @@ describe("historique des compétences", () => {
     expect(describeEntry(entry(9, { source: "earlier" }))).toContain("Déjà");
     expect(describeEntry(entry(9, { source: "refill" }))).toContain("Offerte");
     expect(describeEntry(entry(9, { source: "won" }))).toContain("Gagnée");
+  });
+
+  it("filtre le journal : gagnées, perdues", () => {
+    expect(filterJournal(all, "all")).toHaveLength(5);
+    expect(filterJournal(all, "gained").map((e) => e.id)).toEqual([5, 4, 1]);
+    expect(filterJournal(all, "lost").map((e) => e.id)).toEqual([3, 2]);
+  });
+
+  it("liste le deck avec la dernière entrée gagnée de chaque compétence", () => {
+    const entries = [
+      entry(6, { skill: "freeze", source: "stolen", other: "bob" }),
+      entry(5, { skill: "freeze", change: "lost", source: "taken" }),
+      ...all,
+    ];
+    const owned = ownedSkills(["forged_9", "freeze", "tornado"], entries);
+    expect(owned.map((o) => [o.skill, o.origin?.id])).toEqual([
+      ["forged_9", 5],
+      ["freeze", 6],
+      ["tornado", undefined],
+    ]);
+  });
+
+  it("filtre le deck par origine et compte chaque catégorie", () => {
+    const owned = ownedSkills(["forged_9", "clone", "freeze", "tornado"], all);
+    expect(filterOwned(owned, "all")).toHaveLength(4);
+    expect(filterOwned(owned, "forged").map((o) => o.skill)).toEqual(["forged_9"]);
+    expect(filterOwned(owned, "stolen").map((o) => o.skill)).toEqual(["clone"]);
+    expect(filterOwned(owned, "other").map((o) => o.skill)).toEqual(["freeze", "tornado"]);
+    expect(originCounts(owned)).toEqual({ all: 4, forged: 1, stolen: 1, other: 2 });
   });
 
   it("regroupe par jour sans changer l'ordre", () => {
