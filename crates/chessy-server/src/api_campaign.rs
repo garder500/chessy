@@ -12,8 +12,9 @@ use crate::api::{authenticate_account, ApiResult};
 use crate::app::App;
 use crate::boss_forge_store::{BossForgeRow, BossForgeState};
 use crate::campaign::{
-    boss_unlocked, chapter_stars, forge_table, star_flags, title_earned, titles_earned,
-    total_stars, Chapter, Level, LevelRef, BOSS_STARS, CHAPTERS, HINT_AFTER_DEFEATS, MAX_STARS,
+    boss_unlocked, chapter_stars, chapter_unlocked, forge_table, level_unlocked, star_flags,
+    title_earned, titles_earned, total_stars, Chapter, Level, LevelRef, BOSS_STARS, CHAPTERS,
+    HINT_AFTER_DEFEATS, MAX_STARS,
 };
 use crate::campaign_store::CampaignRow;
 use crate::hub::MAX_DECK;
@@ -55,6 +56,7 @@ fn level_json(chapter: u8, index: usize, level: &Level, progress: &Progress) -> 
         "hint": (defeats >= HINT_AFTER_DEFEATS).then_some(level.hint),
         "best": star_flags(row.map_or(0, |r| r.stars)),
         "rewarded": row.is_some_and(|r| r.rewarded),
+        "unlocked": level_unlocked(&progress.rows, at),
     })
 }
 
@@ -107,6 +109,7 @@ fn chapter_json(chapter: u8, content: &Chapter, progress: &Progress) -> Value {
         "title_earned": title_earned(rows, chapter),
         "titles": titles,
         "available": content.available(),
+        "unlocked": chapter_unlocked(rows, chapter),
         "stars": chapter_stars(rows, chapter),
         "boss_stars_required": BOSS_STARS,
         "boss_unlocked": boss_unlocked(rows, chapter),

@@ -269,6 +269,41 @@ pub fn boss_unlocked(rows: &[CampaignRow], chapter: u8) -> bool {
     chapter_stars(rows, chapter) >= BOSS_STARS
 }
 
+fn level_won(rows: &[CampaignRow], at: LevelRef) -> bool {
+    rows.iter().any(|r| r.at == at && r.stars & STAR_WIN != 0)
+}
+
+/// A chapter opens once the boss of the previous one has been won.
+pub fn chapter_unlocked(rows: &[CampaignRow], chapter: u8) -> bool {
+    chapter == 0
+        || level_won(
+            rows,
+            LevelRef {
+                chapter: chapter - 1,
+                level: BOSS_LEVEL,
+            },
+        )
+}
+
+/// Whether the previous level of the same chapter has been won (always true for the first).
+pub fn previous_level_won(rows: &[CampaignRow], at: LevelRef) -> bool {
+    at.level == 0
+        || level_won(
+            rows,
+            LevelRef {
+                level: at.level - 1,
+                ..at
+            },
+        )
+}
+
+/// Playable now: chapter open, previous level won and, for a boss, the star threshold met.
+pub fn level_unlocked(rows: &[CampaignRow], at: LevelRef) -> bool {
+    chapter_unlocked(rows, at.chapter)
+        && previous_level_won(rows, at)
+        && (!at.is_boss() || boss_unlocked(rows, at.chapter))
+}
+
 /// Stars gathered on the whole campaign, the bosses included.
 pub fn total_stars(rows: &[CampaignRow]) -> u16 {
     rows.iter().map(|r| r.stars.count_ones() as u16).sum()
@@ -297,6 +332,34 @@ mod tests {
             stars,
             rewarded: false,
         }
+    }
+
+    #[test]
+    fn levels_unlock_in_order_and_chapters_after_the_boss() {
+        let at = |chapter, level| LevelRef { chapter, level };
+        let mut rows = vec![];
+        assert!(level_unlocked(&rows, at(0, 0)));
+        assert!(!level_unlocked(&rows, at(0, 1)));
+        assert!(!chapter_unlocked(&rows, 1));
+        rows.extend((0..BOSS_LEVEL - 1).map(|l| row(0, l, 7)));
+        assert!(level_unlocked(&rows, at(0, 5)));
+        assert!(!level_unlocked(&rows, at(0, BOSS_LEVEL)));
+        rows.push(row(0, 5, 7));
+        assert!(level_unlocked(&rows, at(0, BOSS_LEVEL)));
+        assert!(!chapter_unlocked(&rows, 1));
+        rows.push(row(0, BOSS_LEVEL, STAR_WIN));
+        assert!(chapter_unlocked(&rows, 1) && level_unlocked(&rows, at(1, 0)));
+        assert!(!level_unlocked(&rows, at(1, 1)));
+    }
+
+    #[test]
+    fn a_boss_needs_stars_as_well_as_the_previous_level() {
+        let boss = LevelRef {
+            chapter: 0,
+            level: BOSS_LEVEL,
+        };
+        let rows: Vec<_> = (0..BOSS_LEVEL - 1).map(|l| row(0, l, STAR_WIN)).collect();
+        assert!(!level_unlocked(&rows, boss));
     }
 
     fn all_levels() -> impl Iterator<Item = &'static Level> {

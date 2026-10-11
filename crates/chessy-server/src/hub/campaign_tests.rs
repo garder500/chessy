@@ -31,13 +31,27 @@ fn player(account: bool) -> Player {
     let token = account.then(|| store.register("ana", "unused-hash", None).unwrap().1);
     let (tx, rx) = unbounded_channel();
     let (id, _) = hub.connect(token, tx).unwrap();
-    for level in 0..4 {
+    for level in 0..BOSS_LEVEL {
         let all = STAR_WIN | STAR_OBJECTIVE | STAR_CHALLENGE;
+        let stars = if level < 4 { all } else { STAR_WIN };
         store
-            .record_campaign(&id, LevelRef { chapter: 0, level }, all)
+            .record_campaign(&id, LevelRef { chapter: 0, level }, stars)
             .unwrap();
     }
     Player { hub, store, id, rx }
+}
+
+/// An account that has beaten the boss of every chapter before `chapter`.
+fn player_in_chapter(chapter: u8) -> Player {
+    let p = player(true);
+    for previous in 0..chapter {
+        let at = LevelRef {
+            chapter: previous,
+            level: BOSS_LEVEL,
+        };
+        p.store.record_campaign(&p.id, at, STAR_WIN).unwrap();
+    }
+    p
 }
 
 impl Player {
@@ -76,7 +90,7 @@ impl Player {
 
 #[test]
 fn dev_finish_win_records_the_victory_star() {
-    let mut p = player(true);
+    let mut p = player_in_chapter(1);
     p.hub.campaign_start(&p.id.clone(), FRESH_LEVEL, None);
     p.hub.dev_finish(&p.id.clone(), DevResult::Win);
     assert_ne!(p.fresh_level_stars() & STAR_WIN, 0);
@@ -84,7 +98,7 @@ fn dev_finish_win_records_the_victory_star() {
 
 #[test]
 fn dev_finish_all_stars_records_every_star_of_the_level() {
-    let mut p = player(true);
+    let mut p = player_in_chapter(1);
     p.hub.campaign_start(&p.id.clone(), FRESH_LEVEL, None);
     p.hub.dev_finish(&p.id.clone(), DevResult::AllStars);
     assert_eq!(
@@ -106,7 +120,7 @@ fn dev_finish_all_stars_on_a_boss_records_its_three_stars() {
 
 #[test]
 fn dev_finish_loss_records_no_star() {
-    let mut p = player(true);
+    let mut p = player_in_chapter(1);
     p.hub.campaign_start(&p.id.clone(), FRESH_LEVEL, None);
     p.hub.dev_finish(&p.id.clone(), DevResult::Loss);
     assert_eq!(p.fresh_level_stars(), 0);
@@ -196,7 +210,7 @@ impl Player {
 
 #[test]
 fn an_imposed_hand_ignores_the_choice() {
-    let mut p = player(true);
+    let mut p = player_in_chapter(1);
     p.start(FRESH_LEVEL, Some(vec![SkillId::Freeze]));
     let imposed = campaign::level(FRESH_LEVEL).unwrap().player_deck;
     assert_eq!(p.game_solo_deck(), imposed);
@@ -204,7 +218,7 @@ fn an_imposed_hand_ignores_the_choice() {
 
 #[test]
 fn a_loan_is_played_without_being_owned_and_leaves_the_deck_untouched() {
-    let mut p = player(true);
+    let mut p = player_in_chapter(LENDING_LEVEL.chapter);
     p.store
         .set_deck(&p.id, &[SkillId::Imune, SkillId::Wall])
         .unwrap();
@@ -223,7 +237,7 @@ fn a_loan_is_played_without_being_owned_and_leaves_the_deck_untouched() {
 
 #[test]
 fn a_skill_neither_owned_nor_lent_is_refused() {
-    let mut p = player(true);
+    let mut p = player_in_chapter(LENDING_LEVEL.chapter);
     p.store.set_deck(&p.id, &[SkillId::Imune]).unwrap();
     p.start(LENDING_LEVEL, Some(vec![SkillId::Teleportation]));
     assert!(!p.hub.player_game.contains_key(&p.id));
@@ -231,7 +245,7 @@ fn a_skill_neither_owned_nor_lent_is_refused() {
 
 #[test]
 fn three_defeats_in_a_row_offer_the_hint() {
-    let mut p = player(true);
+    let mut p = player_in_chapter(1);
     let hints: Vec<bool> = (0..3)
         .map(|_| p.lose(FRESH_LEVEL, Player::resign).hint_available)
         .collect();
@@ -240,7 +254,7 @@ fn three_defeats_in_a_row_offer_the_hint() {
 
 #[test]
 fn a_win_resets_the_defeats() {
-    let mut p = player(true);
+    let mut p = player_in_chapter(1);
     for _ in 0..2 {
         p.lose(FRESH_LEVEL, Player::resign);
     }
@@ -251,7 +265,7 @@ fn a_win_resets_the_defeats() {
 
 #[test]
 fn resigning_is_a_defeat_that_keeps_the_stars_already_won() {
-    let mut p = player(true);
+    let mut p = player_in_chapter(1);
     p.store
         .record_campaign(&p.id, FRESH_LEVEL, STAR_WIN)
         .unwrap();
@@ -263,7 +277,7 @@ fn resigning_is_a_defeat_that_keeps_the_stars_already_won() {
 
 #[test]
 fn a_draw_earns_no_star_and_counts_as_a_defeat() {
-    let mut p = player(true);
+    let mut p = player_in_chapter(1);
     let info = p.lose(FRESH_LEVEL, |p| {
         let game_id = p.hub.player_game[&p.id].clone();
         p.hub.finish_game(&game_id, Outcome::Stalemate, "stalemate");
