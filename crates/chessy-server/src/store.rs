@@ -790,6 +790,26 @@ impl Store {
         player_row(&conn, "username_lower", &username.to_ascii_lowercase())
     }
 
+    /// Consecutive defeats of a player on each campaign level they lost.
+    pub fn campaign_defeats(
+        &self,
+        player: &str,
+    ) -> StoreResult<Vec<(crate::campaign::LevelRef, u32)>> {
+        let conn = self.db();
+        let mut stmt = conn.prepare(
+            "SELECT chapter, level, defeats FROM campaign_progress
+             WHERE player_id = ?1 AND defeats > 0",
+        )?;
+        let rows = stmt.query_map(params![player], |r| {
+            let at = crate::campaign::LevelRef {
+                chapter: r.get(0)?,
+                level: r.get(1)?,
+            };
+            Ok((at, r.get(2)?))
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
     /// Chooses the campaign title shown on the profile (`None` shows none).
     pub fn set_title_active(&self, player: &str, chapter: Option<u8>) -> StoreResult<()> {
         self.db().execute(
@@ -934,7 +954,10 @@ impl Store {
             created_at: row.created_at,
             history,
             recent,
-            title: crate::campaign::best_title(&crate::campaign_store::rows_of(&conn, &row.id)?),
+            title: displayed_title(
+                &crate::campaign_store::rows_of(&conn, &row.id)?,
+                row.title_active,
+            ),
         }))
     }
 
@@ -1251,6 +1274,18 @@ fn player_row(conn: &Connection, column: &str, value: &str) -> StoreResult<Optio
             })
         })
         .optional()?)
+}
+
+/// The chosen title if it is earned, else the best earned one.
+fn displayed_title(
+    rows: &[crate::campaign_store::CampaignRow],
+    active: Option<u8>,
+) -> Option<&'static str> {
+    let earned = crate::campaign::titles_earned(rows);
+    active
+        .and_then(|chapter| earned.iter().find(|(c, _)| *c == chapter))
+        .or(earned.last())
+        .map(|&(_, title)| title)
 }
 
 /// 1-based rank among registered accounts (`elo DESC, wins DESC, username`).
