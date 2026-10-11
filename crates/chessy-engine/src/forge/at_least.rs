@@ -8,9 +8,10 @@ use super::identity::{family, Family};
 use super::rarity::Rarity;
 use crate::ai::Rng;
 
-/// Cheap rejections (known signature, wrong family) cost no measurement, so
-/// they are drawn this many times per measured attempt before giving up.
-const DRAWS_PER_ATTEMPT: u32 = 10;
+/// Only the measured candidates spend the budget; cheap rejections (known
+/// signature, wrong family) are free. This caps the raw draws per expected
+/// measured candidate so a saturated pool cannot loop forever.
+const MAX_DRAWS_PER_MEASURED: u32 = 50;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ForgeOutcome {
@@ -32,11 +33,24 @@ pub fn forge_at_least(
     known: &HashSet<String>,
     budget: Budget,
 ) -> ForgeOutcome {
+    search(rng, target, floor, family_wanted, known, budget).0
+}
+
+/// The outcome plus the number of candidates actually measured.
+fn search(
+    rng: &mut Rng,
+    target: Rarity,
+    floor: Rarity,
+    family_wanted: Option<Family>,
+    known: &HashSet<String>,
+    budget: Budget,
+) -> (ForgeOutcome, u32) {
     let thresholds = &calibration().thresholds;
     let mut best: Option<(Forged, usize)> = None;
     let (mut tone_known, mut tone_fresh) = (0u32, 0u32);
     let (mut measured, mut draws) = (0, 0);
-    while measured < budget.attempts.max(1) && draws < budget.attempts.max(1) * DRAWS_PER_ATTEMPT {
+    let attempts = budget.attempts.max(1);
+    while measured < attempts && draws < attempts * MAX_DRAWS_PER_MEASURED {
         draws += 1;
         let mut def = random_def(rng);
         if family_wanted.is_some_and(|f| family(&def.effect) != f) {
@@ -61,20 +75,22 @@ pub fn forge_at_least(
         def.unique = graded.rarity.is_unique();
         let candidate = Forged { def, graded };
         if graded.rarity == target {
-            return ForgeOutcome {
+            let outcome = ForgeOutcome {
                 forged: Some(candidate),
                 legendary_exhausted: false,
             };
+            return (outcome, measured);
         }
         let distance = graded.rarity.index().abs_diff(target.index());
         if best.as_ref().is_none_or(|(_, d)| distance < *d) {
             best = Some((candidate, distance));
         }
     }
-    ForgeOutcome {
+    let outcome = ForgeOutcome {
         forged: best.map(|(forged, _)| forged),
         legendary_exhausted: target == Rarity::Legendary && tone_known > 0 && tone_fresh == 0,
-    }
+    };
+    (outcome, measured)
 }
 
 #[cfg(test)]
@@ -116,8 +132,22 @@ mod tests {
     }
 
     #[test]
+    fn measures_the_whole_budget_when_the_floor_is_unreachable() {
+        let (outcome, measured) = search(
+            &mut Rng::new(7),
+            Rarity::Legendary,
+            Rarity::Legendary,
+            Some(Family::Attack),
+            &HashSet::new(),
+            BUDGET,
+        );
+        assert!(outcome.forged.is_none());
+        assert_eq!(measured, BUDGET.attempts);
+    }
+
+    #[test]
     fn nothing_when_everything_is_known() {
-        let draws = BUDGET.attempts * DRAWS_PER_ATTEMPT;
+        let draws = BUDGET.attempts * MAX_DRAWS_PER_MEASURED;
         let mut replay = Rng::new(9);
         let known: HashSet<String> = (0..draws)
             .map(|_| random_def(&mut replay).signature())
@@ -135,7 +165,7 @@ mod tests {
 
     #[test]
     fn legendary_runs_out_when_every_tone_candidate_is_known() {
-        let draws = BUDGET.attempts * DRAWS_PER_ATTEMPT;
+        let draws = BUDGET.attempts * MAX_DRAWS_PER_MEASURED;
         let mut replay = Rng::new(11);
         let known: HashSet<String> = (0..draws)
             .map(|_| random_def(&mut replay).signature())
