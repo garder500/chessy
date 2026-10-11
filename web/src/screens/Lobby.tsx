@@ -11,6 +11,7 @@ import { SkillArt } from "../ui/SkillArt";
 import { sortFriends } from "../ui/social";
 import { tileRarity } from "../ui/tileRarity";
 import { setTime, timeText, TIMES, useTime } from "../time";
+import { CampaignCard } from "./lobby/CampaignCard";
 import { Search } from "./Search";
 import { SoloPanel } from "./SoloPanel";
 import "./lobby.css";
@@ -157,6 +158,8 @@ export function Lobby({ state }: { state: AppState }) {
           <p className="jp-note">{mode === "ranked" ? `Votre Elo (${elo}) et une compétence sont en jeu` : "Sans enjeu : ni Elo ni compétence à gagner"}</p>
         </div>
 
+        <CampaignCard accountId={account?.player_id ?? null} isAccount={isAccount} />
+
         <a className="jp-deck" href={hrefFor({ name: "collection" })} aria-label="Votre deck">
           <span className="jp-deck-hex" aria-hidden="true">
             {Array.from({ length: DECK_SLOTS }, (_, i) => {
@@ -186,10 +189,6 @@ export function Lobby({ state }: { state: AppState }) {
           <button type="button" className="link" onClick={() => setSheet("solo")}>
             Contre l'IA
           </button>
-          <span aria-hidden="true">·</span>
-          <a className="link" href={hrefFor({ name: "campaign" })}>
-            Campagne
-          </a>
         </div>
       </div>
 
