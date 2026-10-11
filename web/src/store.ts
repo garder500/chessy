@@ -180,7 +180,7 @@ const KNOWN_ERRORS = new Set([
   "not_your_turn", "illegal_action", "no_such_room", "own_room", "already_in_game", "invalid_deck", "replaced",
   "session_revoked", "flooded", "queue_full", "rooms_full", "account_required", "spectate_full", "no_such_game",
   "invalid_target", "blocked", "block_list_full",
-  "unknown_level", "boss_locked", "bad_deck",
+  "unknown_level", "chapter_locked", "level_locked", "boss_locked", "bad_deck",
 ]);
 const errorText = (code: string, fallback: string) => (KNOWN_ERRORS.has(code) ? t(`errors.${code}`) : fallback);
 

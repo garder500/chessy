@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, apiErrorText } from "../api";
-import { type CampaignChapterView, type CampaignLevelView, type CampaignView, totalLabel, withLiveForge } from "../campaign";
+import { type CampaignView, currentLevel, currentTitle, defaultSelection, lockReason, withLiveForge } from "../campaign";
 import { hrefFor } from "../router";
 import { readToken, useAppState } from "../store";
+import { useCompact } from "../ui/useCompact";
 import { BossForge } from "./campaign/BossForge";
-import { ChapterSection } from "./campaign/ChapterSection";
-import { LevelSheet } from "./campaign/LevelSheet";
+import { CampaignHeader } from "./campaign/CampaignHeader";
+import { ChapterMap } from "./campaign/ChapterMap";
+import { ChapterRail } from "./campaign/ChapterRail";
+import { LevelPanel, showPanel } from "./campaign/LevelPanel";
 import "./campaign.css";
+import "./campaign-map.css";
 
 type Loaded = { status: "loading" } | { status: "error"; text: string } | ({ status: "ready" } & CampaignView);
 
-/** Page `#/campaign` : les chapitres, leurs niveaux avec leurs étoiles, et le boss. */
+/** Page `#/campaign` : la carte de progression, chapitre par chapitre, avec ses niveaux verrouillés. */
 export function Campaign() {
   const { account, connection, soloPending, deck, bossForge } = useAppState();
+  const compact = useCompact();
   const accountId = account?.player_id ?? null;
   const isAccount = !!account && !account.guest;
   const [loaded, setLoaded] = useState<Loaded>({ status: "loading" });
@@ -34,17 +39,18 @@ export function Campaign() {
   }, [accountId, isAccount]);
 
   const chapters = loaded.status === "ready" ? withLiveForge(loaded.chapters, bossForge) : [];
-  const pickedChapter = chapters.find((c) => c.chapter === picked?.chapter);
-  const pickedLevel = pickedChapter?.levels.find((l) => l.level === picked?.level) ?? null;
-  const pick = (chapter: CampaignChapterView) => (level: CampaignLevelView) => setPicked({ chapter: chapter.chapter, level: level.level });
+  const selection = picked ?? (chapters.length > 0 ? defaultSelection(chapters) : null);
+  const chapter = chapters.find((c) => c.chapter === selection?.chapter);
+  const level = chapter?.levels.find((l) => l.level === selection?.level);
 
   return (
     <main className="cp-page">
       <header className="cp-head">
-        <p className="eyebrow">Mode solo</p>
-        <h1 className="cp-title">Campagne</h1>
-        {loaded.status === "ready" && <p className="mono cp-total">{totalLabel(loaded.total_stars, loaded.max_stars)}</p>}
-        <p className="muted">Affrontez Sage avec des mains imposées. Trois étoiles par niveau : victoire, objectif, défi.</p>
+        <div>
+          <p className="eyebrow">Mode solo</p>
+          <h1 className="cp-title">Campagne</h1>
+        </div>
+        {loaded.status === "ready" && <CampaignHeader totalStars={loaded.total_stars} maxStars={loaded.max_stars} title={currentTitle(chapters)} />}
       </header>
       {account && !isAccount && (
         <p className="muted">
@@ -56,13 +62,34 @@ export function Campaign() {
       )}
       {isAccount && loaded.status === "loading" && <p className="muted">Chargement…</p>}
       {isAccount && loaded.status === "error" && <p className="cp-error" role="alert">{loaded.text}</p>}
-      {chapters.map((chapter) => (
-        <ChapterSection key={chapter.chapter} chapter={chapter} onPick={pick(chapter)} onReveal={setForgeChapter} />
-      ))}
-      {forgeChapter !== null && <BossForge chapter={forgeChapter} initial={chapters.find((c) => c.chapter === forgeChapter)?.boss_forge} onClose={closeForge} />}
-      {pickedChapter && (
-        <LevelSheet key={`${picked?.chapter}-${picked?.level}`} chapter={pickedChapter} level={pickedLevel} ownDeck={deck} connected={connection === "open"} pending={soloPending} onClose={() => setPicked(null)} />
+      {chapter && level && (
+        <>
+          <ChapterRail chapters={chapters} selected={chapter.chapter} onSelect={(c) => setPicked({ chapter: c, level: currentLevel(chapters[c]) })} />
+          <div className="cp-board">
+            <ChapterMap
+              chapters={chapters}
+              chapter={chapter}
+              selectedLevel={level.level}
+              compact={compact}
+              onPick={(l) => {
+                setPicked({ chapter: chapter.chapter, level: l });
+                if (compact) showPanel();
+              }}
+              onReveal={setForgeChapter}
+            />
+            <LevelPanel
+              key={`${chapter.chapter}-${level.level}`}
+              chapter={chapter}
+              level={level}
+              lockReason={lockReason(chapters, chapter, level)}
+              ownDeck={deck}
+              connected={connection === "open"}
+              pending={soloPending}
+            />
+          </div>
+        </>
       )}
+      {forgeChapter !== null && <BossForge chapter={forgeChapter} initial={chapters.find((c) => c.chapter === forgeChapter)?.boss_forge} onClose={closeForge} />}
     </main>
   );
 }

@@ -13,6 +13,7 @@ const DRAW_EXPLANATIONS: Partial<Record<Outcome["type"], string>> = {
 /** Progression vers le boss, ou annonce de son déverrouillage. */
 function BossStatus({ campaign }: { campaign: CampaignResult }) {
   if (campaign.boss_just_unlocked) return <strong> · Boss débloqué !</strong>;
+  if (campaign.chapter_just_unlocked) return <strong> · Chapitre suivant débloqué !</strong>;
   if (campaign.boss_unlocked) return null;
   return <span className="muted"> · Boss : {campaign.chapter_stars}/{campaign.boss_stars_required} ★</span>;
 }

@@ -71,9 +71,53 @@ export function countStars(stars: CampaignStars): number {
   return stars.filter(Boolean).length;
 }
 
-/** Le boss reste fermé tant que le chapitre n'a pas assez d'étoiles. */
-export function isLocked(chapter: Pick<CampaignChapter, "boss_unlocked">, level: Pick<CampaignLevel, "boss">): boolean {
-  return level.boss && !chapter.boss_unlocked;
+/** Seul le serveur décide de l'ouverture d'un niveau : le client n'affiche que son drapeau. */
+export function isLocked(level: Pick<CampaignLevel, "unlocked">): boolean {
+  return !level.unlocked;
+}
+
+export function bossOf(chapter: Pick<CampaignChapterView, "levels">): CampaignLevelView | undefined {
+  return chapter.levels.find((l) => l.boss);
+}
+
+export type ChapterStatus = "sealed" | "current" | "done";
+
+export function chapterStatus(chapter: Pick<CampaignChapterView, "unlocked" | "levels">): ChapterStatus {
+  if (!chapter.unlocked) return "sealed";
+  return bossOf(chapter)?.best[0] ? "done" : "current";
+}
+
+export function wonLevels(chapter: Pick<CampaignChapterView, "levels">): number {
+  return chapter.levels.filter((l) => l.best[0]).length;
+}
+
+/** Pourquoi un niveau est fermé, ou `null` s'il est jouable. */
+export function lockReason(chapters: CampaignChapterView[], chapter: CampaignChapterView, level: CampaignLevelView): string | null {
+  if (!chapter.unlocked) {
+    const previousBoss = chapters[chapter.chapter - 1] && bossOf(chapters[chapter.chapter - 1]);
+    return `Battez ${previousBoss?.name ?? "le boss du chapitre précédent"} pour ouvrir ce chapitre.`;
+  }
+  if (level.unlocked) return null;
+  if (level.boss && !chapter.boss_unlocked) return `Il manque ${chapter.boss_stars_required - chapter.stars} ★ dans ce chapitre pour ouvrir la porte du boss.`;
+  const previous = chapter.levels.find((l) => l.level === level.level - 1);
+  return `Gagnez d'abord ${previous?.name ?? "le niveau précédent"}.`;
+}
+
+/** Premier niveau ouvert et pas encore gagné, sinon le dernier : le « vous êtes ici » du chapitre. */
+export function currentLevel(chapter: Pick<CampaignChapterView, "levels">): number {
+  const open = chapter.levels.find((l) => l.unlocked && !l.best[0]);
+  return (open ?? chapter.levels[chapter.levels.length - 1]).level;
+}
+
+/** À l'ouverture : le plus avancé des chapitres ouverts et son niveau courant. */
+export function defaultSelection(chapters: CampaignChapterView[]): { chapter: number; level: number } {
+  const chapter = [...chapters].reverse().find((c) => c.unlocked) ?? chapters[0];
+  return { chapter: chapter.chapter, level: currentLevel(chapter) };
+}
+
+/** Dernier titre obtenu, dans l'ordre des chapitres. */
+export function currentTitle(chapters: Pick<CampaignChapter, "title" | "title_earned">[]): string | null {
+  return [...chapters].reverse().find((c) => c.title_earned)?.title ?? null;
 }
 
 export function bossProgress(chapter: Pick<CampaignChapter, "stars" | "boss_stars_required">): string {

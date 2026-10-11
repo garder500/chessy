@@ -1,29 +1,38 @@
-/* Campagne (#/campaign) : chapitres, niveaux, détail d'un niveau. */
-.cp-page { max-width: 880px; margin: 0 auto; padding: 40px 24px 64px; display: grid; gap: 20px; }
-.cp-head { display: grid; gap: 6px; }
-.cp-title { font-size: 40px; letter-spacing: -0.03em; font-weight: 600; margin: 0; }
+/* Campagne (#/campaign) : en-tête, panneau du niveau choisi. La carte et les onglets sont dans campaign-map.css. */
+.cp-page { max-width: 1240px; margin: 0 auto; padding: 32px 24px 64px; display: grid; gap: 22px; }
+.cp-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.cp-title { font-family: var(--font-display); font-size: 52px; line-height: 1; letter-spacing: 0.01em; font-weight: 800; text-transform: uppercase; margin: 0; }
 .cp-error { color: var(--warn); }
-.cp-total { margin: 0; font-size: 16px; color: var(--text-2); }
 .cp-hint { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--fam, var(--line-2)); color: var(--text-2); }
 .cp-forge-table { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; max-width: 280px; }
 .cp-forge-table li { display: flex; justify-content: space-between; gap: 12px; }
 .cp-forge-btn { justify-self: start; }
-
-.cp-chapter { display: grid; gap: 12px; padding-left: 14px; border-left: 3px solid var(--fam); }
-.cp-chapter-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
-.cp-chapter-title { font-size: 20px; font-weight: 600; margin: 2px 0 0; }
-.cp-chapter .eyebrow { color: var(--fam); }
-.cp-chapter-honor { margin: 2px 0 0; font-size: 13.5px; color: var(--text-3, var(--text-2)); font-style: italic; opacity: 0.8; }
-.cp-chapter-honor.earned { color: var(--fam); font-style: normal; font-weight: 600; opacity: 1; }
 .cp-pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 8px; margin-top: 6px; }
 
-.cp-levels { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 10px; }
-.cp-level { width: 100%; display: grid; gap: 4px; justify-items: start; text-align: left; padding: 12px 14px; cursor: pointer; font: inherit; color: inherit; }
-.cp-level:hover { border-color: var(--fam); }
-.cp-level.boss { border-color: color-mix(in srgb, var(--fam) 60%, var(--line)); }
-.cp-level.locked { opacity: 0.7; }
-.cp-level-name { font-weight: 600; }
-.cp-level-elo { font-size: 12.5px; }
+.cp-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
+.cp-progress-main { display: grid; gap: 6px; min-width: 240px; }
+.cp-progress-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-2); }
+.cp-total { color: var(--gold); font-weight: 600; }
+.cp-bar { height: 8px; background: var(--sunken); border: 1px solid var(--line-2); }
+.cp-bar > span { display: block; height: 100%; background: var(--gold); }
+.cp-title-badge {
+  display: grid; padding: 8px 14px; background: var(--surface); border: 1px solid var(--line-2);
+  clip-path: polygon(var(--cut-s) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut-s));
+}
+.cp-title-badge strong { color: var(--text-2); }
+
+.cp-board { display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch; }
+.cp-board > .cp-chapter { flex: 1 1 520px; min-width: 0; }
+
+.cp-panel {
+  flex: 1 1 320px; max-width: 420px; min-width: 0; box-sizing: border-box; padding: 22px; align-content: start;
+  display: flex; flex-direction: column; gap: 4px; background: var(--surface); border: 1px solid var(--line);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut));
+}
+.cp-panel .eyebrow { color: var(--fam); margin-bottom: 0; }
+.cp-panel-title { font-family: var(--font-display); font-weight: 800; font-size: 36px; line-height: 1; text-transform: uppercase; margin: 0; }
+.cp-panel > .btn.cp-play { margin-top: auto; min-height: 52px; font-family: var(--font-display); font-size: 22px; letter-spacing: 0.06em; text-transform: uppercase; }
+.cp-lock-reason { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; padding: 12px; border: 1px dashed var(--line-3); color: var(--muted); }
 
 .cp-goals { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 12px 0; }
 .cp-goals dt { font-weight: 600; }
@@ -34,5 +43,7 @@
 
 @media (max-width: 820px), (orientation: landscape) and (max-height: 520px) {
   .cp-page { padding: 24px 16px 96px; }
-  .cp-title { font-size: 30px; }
+  .cp-title { font-size: 36px; }
+  .cp-panel { max-width: none; flex-basis: 100%; padding: 16px; scroll-margin-bottom: calc(var(--tabbar-h) + 16px); }
+  .cp-panel-title { font-size: 28px; }
 }
