@@ -15,5 +15,8 @@
   "no_such_game": "Esta partida no existe o ha terminado.",
   "invalid_target": "Acción imposible sobre tu propia cuenta.",
   "blocked": "Has bloqueado a este jugador: desbloquéalo primero.",
-  "block_list_full": "Tu lista de jugadores bloqueados está llena."
+  "block_list_full": "Tu lista de jugadores bloqueados está llena.",
+  "unknown_level": "Este nivel de campaña todavía no existe.",
+  "boss_locked": "El jefe está bloqueado: gana más estrellas en este capítulo.",
+  "bad_deck": "Mazo de campaña no válido: elige de 1 a 3 habilidades de tu mazo."
 }
