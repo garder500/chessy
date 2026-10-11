@@ -76,6 +76,8 @@ pub struct PlayerRow {
     pub losses: u32,
     pub created_at: String,
     pub last_seen: Option<String>,
+    /// Chapter of the campaign title the player chose to display.
+    pub title_active: Option<u8>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -428,7 +430,49 @@ const MIGRATIONS: &[&str] = &[
          rewarded INTEGER NOT NULL DEFAULT 0,
          PRIMARY KEY (player_id, chapter, level)
      );",
+    // Campaign v2: consecutive defeats (hint unlock), the chosen title (chapter,
+    // NULL = none), the boss forge state machine and the rewards waiting for a
+    // winner's choice (kept across restarts). The columns are guarded by `migrate`.
+    "ALTER TABLE campaign_progress ADD COLUMN defeats INTEGER NOT NULL DEFAULT 0;
+     ALTER TABLE players ADD COLUMN title_active INTEGER;
+     CREATE TABLE IF NOT EXISTS campaign_boss_forges (
+         player_id TEXT NOT NULL REFERENCES players(id),
+         chapter INTEGER NOT NULL,
+         skill_id INTEGER,
+         state TEXT NOT NULL CHECK (state IN ('forging', 'pending', 'placed')),
+         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+         PRIMARY KEY (player_id, chapter)
+     );
+     CREATE TABLE IF NOT EXISTS pending_rewards (
+         winner_id TEXT PRIMARY KEY REFERENCES players(id),
+         loser_id TEXT NOT NULL,
+         loser_skills TEXT NOT NULL,
+         expires_at TEXT NOT NULL,
+         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+     );",
 ];
+
+/// SQLite has no ADD COLUMN IF NOT EXISTS: drops the `ALTER TABLE .. ADD COLUMN`
+/// statements whose column is already there (a test rewound `user_version`
+/// over a newer schema).
+fn without_existing_columns(conn: &Connection, sql: &str) -> StoreResult<String> {
+    let mut kept = Vec::new();
+    for statement in sql.split(';') {
+        let words: Vec<&str> = statement.split_whitespace().collect();
+        if let ["ALTER", "TABLE", table, "ADD", "COLUMN", column, ..] = words[..] {
+            let exists = conn.query_row(
+                "SELECT COUNT(*) FROM pragma_table_info(?1) WHERE name = ?2",
+                params![table, column],
+                |r| r.get::<_, i64>(0),
+            )? > 0;
+            if exists {
+                continue;
+            }
+        }
+        kept.push(statement);
+    }
+    Ok(kept.join(";"))
+}
 
 fn migrate(conn: &mut Connection) -> StoreResult<()> {
     let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
@@ -441,17 +485,7 @@ fn migrate(conn: &mut Connection) -> StoreResult<()> {
     let result = (|| -> StoreResult<()> {
         for (i, sql) in MIGRATIONS.iter().enumerate().skip(version as usize) {
             let tx = conn.transaction()?;
-            // SQLite has no ADD COLUMN IF NOT EXISTS: skip when a test rewound
-            // `user_version` over a schema that already has the column.
-            let has_time_control = sql.contains("ADD COLUMN time_control")
-                && tx.query_row(
-                    "SELECT COUNT(*) FROM pragma_table_info('games') WHERE name = 'time_control'",
-                    [],
-                    |r| r.get::<_, i64>(0),
-                )? > 0;
-            if !has_time_control {
-                tx.execute_batch(sql)?;
-            }
+            tx.execute_batch(&without_existing_columns(&tx, sql)?)?;
             tx.pragma_update(None, "user_version", i as i64 + 1)?;
             tx.commit()?;
         }
@@ -742,6 +776,15 @@ impl Store {
     pub fn account_by_name(&self, username: &str) -> StoreResult<Option<PlayerRow>> {
         let conn = self.db();
         player_row(&conn, "username_lower", &username.to_ascii_lowercase())
+    }
+
+    /// Chooses the campaign title shown on the profile (`None` shows none).
+    pub fn set_title_active(&self, player: &str, chapter: Option<u8>) -> StoreResult<()> {
+        self.db().execute(
+            "UPDATE players SET title_active = ?2 WHERE id = ?1",
+            params![player, chapter],
+        )?;
+        Ok(())
     }
 
     pub fn me(&self, player: &str) -> StoreResult<Option<Me>> {
@@ -1176,7 +1219,7 @@ fn player_row(conn: &Connection, column: &str, value: &str) -> StoreResult<Optio
     // `column` is one of two literals chosen by this module, never user input.
     let sql = format!(
         "SELECT id, username, elo, peak_elo, games, wins, draws, losses,
-                strftime('%Y-%m-%dT%H:%M:%SZ', created_at), last_seen
+                strftime('%Y-%m-%dT%H:%M:%SZ', created_at), last_seen, title_active
          FROM players WHERE {column} = ?1"
     );
     Ok(conn
@@ -1192,6 +1235,7 @@ fn player_row(conn: &Connection, column: &str, value: &str) -> StoreResult<Optio
                 losses: r.get(7)?,
                 created_at: r.get(8)?,
                 last_seen: r.get(9)?,
+                title_active: r.get(10)?,
             })
         })
         .optional()?)
@@ -1331,6 +1375,50 @@ fn player_games(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn user_version(conn: &Connection) -> i64 {
+        conn.query_row("PRAGMA user_version", [], |r| r.get(0))
+            .unwrap()
+    }
+
+    #[test]
+    fn the_campaign_step_runs_again_over_a_rewound_version() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        migrate(&mut conn).unwrap();
+        let latest = user_version(&conn);
+        conn.pragma_update(None, "user_version", latest - 1)
+            .unwrap();
+        migrate(&mut conn).unwrap();
+        assert_eq!(user_version(&conn), latest);
+        let columns: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('campaign_progress') WHERE name = 'defeats'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(columns, 1);
+    }
+
+    #[test]
+    fn the_active_title_is_stored_and_cleared() {
+        let store = Store::open(":memory:").unwrap();
+        let (player, _) = store.create_player().unwrap();
+        assert_eq!(
+            store.player_row(&player).unwrap().unwrap().title_active,
+            None
+        );
+        store.set_title_active(&player, Some(3)).unwrap();
+        assert_eq!(
+            store.player_row(&player).unwrap().unwrap().title_active,
+            Some(3)
+        );
+        store.set_title_active(&player, None).unwrap();
+        assert_eq!(
+            store.player_row(&player).unwrap().unwrap().title_active,
+            None
+        );
+    }
 
     /// A panic while another thread holds the connection poisons the mutex. Later
     /// requests must keep working (the guard is taken back), not panic in turn.
