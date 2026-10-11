@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { CampaignResult, Color, EloChange, Outcome } from "../../protocol";
+import { BossForge } from "../campaign/BossForge";
 import { CampaignRecap } from "./CampaignRecap";
 import { LostSkill } from "./LostSkill";
 import { formatDelta, resultFor, resultHeadline } from "../../outcome";
@@ -39,6 +40,9 @@ export function Result({ outcome, you, rated, solo = false, elo, campaign = null
   const reason = failed && result === "draw" ? headline.title : headline.reason;
   const delta = elo ? elo.you_after - elo.you_before : null;
   const first = useRef<HTMLElement>(null);
+  const bossForge = failed ? null : campaign?.boss_forge ?? null;
+  const [forgeOpen, setForgeOpen] = useState(bossForge !== null && bossForge.state !== "placed");
+  const closeForge = useCallback(() => setForgeOpen(false), []);
   useEffect(() => {
     first.current?.focus();
   }, []);
@@ -159,6 +163,7 @@ export function Result({ outcome, you, rated, solo = false, elo, campaign = null
           </div>
         </div>
       </main>
+      {forgeOpen && bossForge && <BossForge chapter={bossForge.chapter} initial={bossForge} onClose={closeForge} />}
     </div>
   );
 }
