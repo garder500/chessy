@@ -61,6 +61,9 @@ de difficulté soit sur lui. L'écran affiche l'Elo de Sage seul (« Sage · 1 0
   il n'est pas nécessaire de réussir les trois dans la même partie. Une défaite, une nulle ou un abandon ne retire jamais d'étoile : le serveur n'écrit alors qu'une ligne de progression sans étoile,
   qui compte la série de défaites.
   L'écran « Échoué » propose « Réessayer » et « Carte ».
+- Progression linéaire, imposée par le serveur (le client n'affiche que les drapeaux `unlocked`) : un chapitre s'ouvre quand le boss du précédent
+  est gagné (victoire simple, pas forcément 3 étoiles) ; un niveau s'ouvre quand le précédent du même chapitre est gagné. Refus de `campaign_start`, dans l'ordre :
+  `unknown_level`, `chapter_locked`, `level_locked` (niveau précédent non gagné, boss compris), `boss_locked`.
 - Le boss s'ouvre à 12 étoiles sur les 18 des six niveaux (`boss_locked` sinon). Le boss a lui aussi 3 étoiles ; elles comptent
   dans le total sur 105 (5 chapitres × 7 niveaux × 3) et donnent le titre.
 - Les objectifs possibles : « Mater avant le coup N », « Terminer avec une pièce », « Utiliser une compétence (précise ou
@@ -150,15 +153,15 @@ Force Field : la pièce peut être prise, mais celui qui la prend est repoussé 
 - Client : `{"type":"campaign_start","chapter":2,"level":0,"deck":["freeze","clone"]}`.
   `deck` est facultatif, et utile seulement si le niveau a `deck_choice` (erreur `bad_deck` s'il est invalide) :
   1 à 3 classiques distinctes du deck du joueur ou prêtées par le niveau. Un invité reçoit `account_required`.
-- `game_over` gagne `campaign: {chapter, level, stars:[3 bool], best:[3 bool], chapter_stars, boss_unlocked, boss_stars_required, boss_just_unlocked, title, total_stars, hint_available, boss_forge} | null`.
-  `boss_just_unlocked` est vrai quand cette partie ouvre le boss ; `title` (texte ou `null`) est renseigné quand cette partie donne un titre.
+- `game_over` gagne `campaign: {chapter, level, stars:[3 bool], best:[3 bool], chapter_stars, boss_unlocked, boss_stars_required, boss_just_unlocked, chapter_just_unlocked, title, total_stars, hint_available, boss_forge} | null`.
+  `boss_just_unlocked` est vrai quand cette partie ouvre le boss ; `chapter_just_unlocked` est vrai quand cette partie est la première victoire sur un boss et qu'un chapitre suivant existe ; `title` (texte ou `null`) est renseigné quand cette partie donne un titre.
 - Contexte de partie : `campaign: {chapter, level, move_limit, objective, challenge} | null`.
 - Boss : `boss_forge { info }` (serveur), `boss_forge_claim { chapter }` et `boss_forge_place { chapter, replace }` (client) ;
   `BossForgeInfo { chapter, state: forging|pending|placed, skill, deck_full, legendary_unavailable }` (`skill` est absent en `forging`).
   Erreurs : `account_required`, `no_boss_forge`, `forging` (claim avec une tâche en vol), `not_pending`, `deck_full`.
 - Client (builds de debug uniquement, erreur `dev_only` sinon) : `{"type":"dev_finish","result":"win"}` termine la partie de campagne en cours par une victoire (`win`), une défaite (`loss`) ou une victoire qui enregistre toutes les étoiles du niveau (`all_stars`) ; erreur `not_campaign` hors partie de campagne.
-- `GET /api/campaign` (compte authentifié) : `{total_stars, max_stars, chapters:[{chapter, family, name, title, title_earned, titles, available, stars, boss_stars_required, boss_unlocked, forge_table:[{rarity, percent}], boss_forge, levels:[{level, name, elo, boss, player_deck, bot_deck, lent, deck_choice, start_fen, human_color, move_limit, objective, challenge, hint, best, rewarded}]}]}`.
-  `best` est le masque d'étoiles sous forme de 3 booléens ; `hint` n'est présent qu'après 3 défaites d'affilée ; `objective` et `challenge` sont des textes français (ou `null`).
+- `GET /api/campaign` (compte authentifié) : `{total_stars, max_stars, chapters:[{chapter, family, name, title, title_earned, titles, available, unlocked, stars, boss_stars_required, boss_unlocked, forge_table:[{rarity, percent}], boss_forge, levels:[{level, name, elo, boss, player_deck, bot_deck, lent, deck_choice, start_fen, human_color, move_limit, objective, challenge, hint, best, rewarded, unlocked}]}]}`.
+  `unlocked` d'un niveau inclut le seuil d'étoiles du boss. `best` est le masque d'étoiles sous forme de 3 booléens ; `hint` n'est présent qu'après 3 défaites d'affilée ; `objective` et `challenge` sont des textes français (ou `null`).
 - `POST /api/profile/title { chapter }` (400 si le titre n'est pas gagné ; `null` retire le titre choisi). Le profil public gagne `title` (texte ou `null`) et, pour soi, `titles [{chapter, name}]`.
 
 ## Chapitre 1 : Attaque (main imposée)

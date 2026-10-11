@@ -383,6 +383,8 @@ pub struct CampaignInfo {
     pub boss_stars_required: u8,
     /// This game opened the boss.
     pub boss_just_unlocked: bool,
+    /// This game was the first win of a boss and a next chapter exists.
+    pub chapter_just_unlocked: bool,
     /// The chapter title, on a boss win.
     pub title: Option<String>,
     pub total_stars: u16,

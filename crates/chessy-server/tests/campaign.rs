@@ -7,7 +7,9 @@ use chessy_engine::{parse_square, Action, Color, SkillId};
 use chessy_server::campaign::{LevelRef, BOSS_LEVEL, STAR_CHALLENGE, STAR_OBJECTIVE, STAR_WIN};
 use chessy_server::hub::Timer;
 use chessy_server::hub::{Hub, HubConfig};
-use chessy_server::protocol::{CampaignInfo, ClientMsg, RewardOffer, ServerMsg, StateView};
+use chessy_server::protocol::{
+    CampaignInfo, ClientMsg, DevResult, RewardOffer, ServerMsg, StateView,
+};
 use chessy_server::store::Store;
 use common::*;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
@@ -29,6 +31,29 @@ fn at(level: u8) -> LevelRef {
     LevelRef {
         chapter: ATTACK,
         level,
+    }
+}
+
+fn boss_of(chapter: u8) -> LevelRef {
+    LevelRef {
+        chapter,
+        level: BOSS_LEVEL,
+    }
+}
+
+/// Records the wins that make `target` playable: earlier bosses, then earlier
+/// levels of its chapter (with the 12 stars a boss asks for).
+fn unlock(store: &Store, player: &str, target: LevelRef) {
+    let earlier_bosses = (0..target.chapter).map(boss_of);
+    let earlier_levels =
+        (0..target.level.min(BOSS_LEVEL)).map(|level| LevelRef { level, ..target });
+    for at in earlier_bosses.chain(earlier_levels) {
+        let stars = if at.is_boss() || at.level >= 4 {
+            STAR_WIN
+        } else {
+            ALL_STARS
+        };
+        store.record_campaign(player, at, stars).unwrap();
     }
 }
 
@@ -123,6 +148,13 @@ impl Player {
         self.finished()
     }
 
+    /// Ends the level as a win without playing it (boss decks escape a scripted mate).
+    fn beat(&mut self, level: LevelRef) -> Finished {
+        self.start(level);
+        self.hub.dev_finish(&self.id.clone(), DevResult::Win);
+        self.finished()
+    }
+
     fn lose(&mut self, level: LevelRef) -> Finished {
         self.start(level);
         self.hub.resign(&self.id.clone());
@@ -146,10 +178,7 @@ impl Player {
     }
 
     fn open_boss_of(&mut self, chapter: u8) {
-        for level in 0..4 {
-            let at = LevelRef { chapter, level };
-            self.store.record_campaign(&self.id, at, ALL_STARS).unwrap();
-        }
+        unlock(&self.store, &self.id, boss_of(chapter));
     }
 }
 
@@ -171,7 +200,49 @@ fn unknown_and_locked_levels_are_refused() {
         assert_eq!(p.error_code().as_deref(), Some("unknown_level"));
     }
     p.hub.campaign_start(&p.id.clone(), at(BOSS_LEVEL), None);
+    assert_eq!(p.error_code().as_deref(), Some("level_locked"));
+    for level in 0..BOSS_LEVEL {
+        p.store.record_campaign(&p.id, at(level), STAR_WIN).unwrap();
+    }
+    p.hub.campaign_start(&p.id.clone(), at(BOSS_LEVEL), None);
     assert_eq!(p.error_code().as_deref(), Some("boss_locked"));
+}
+
+#[test]
+fn chapters_and_levels_open_in_order() {
+    let mut p = player(true);
+    for (target, code) in [
+        (
+            LevelRef {
+                chapter: DEFENSE,
+                level: 0,
+            },
+            "chapter_locked",
+        ),
+        (at(1), "level_locked"),
+        (at(BOSS_LEVEL), "level_locked"),
+    ] {
+        p.hub.campaign_start(&p.id.clone(), target, None);
+        assert_eq!(p.error_code().as_deref(), Some(code));
+    }
+    p.open_boss();
+    p.hub.campaign_start(&p.id.clone(), at(BOSS_LEVEL), None);
+    assert_eq!(p.error_code(), None);
+}
+
+#[test]
+fn a_boss_win_opens_the_next_chapter_once() {
+    let mut p = player(true);
+    p.open_boss();
+    let first = p.beat(at(BOSS_LEVEL)).campaign.unwrap();
+    assert!(first.chapter_just_unlocked);
+    let again = p.beat(at(BOSS_LEVEL)).campaign.unwrap();
+    assert!(!again.chapter_just_unlocked);
+    let next = LevelRef {
+        chapter: DEFENSE,
+        level: 0,
+    };
+    assert!(!p.win(next).campaign.unwrap().chapter_just_unlocked);
 }
 
 #[test]
@@ -232,6 +303,12 @@ async fn the_rest_api_lists_the_levels_and_the_progress() {
     let chapters = v["chapters"].as_array().unwrap();
     assert_eq!(chapters.len(), 5);
     assert_eq!(chapters[1]["available"], true);
+    assert_eq!(chapters[0]["unlocked"], true);
+    assert_eq!(chapters[1]["unlocked"], false);
+    assert_eq!(chapters[0]["levels"][0]["unlocked"], true);
+    assert_eq!(chapters[0]["levels"][1]["unlocked"], false);
+    assert_eq!(chapters[0]["levels"][2]["unlocked"], false);
+    assert_eq!(chapters[1]["levels"][0]["unlocked"], false);
     assert_eq!(chapters[1]["levels"].as_array().unwrap().len(), 7);
 
     let attack = &chapters[0];
@@ -268,6 +345,7 @@ const CHOICE: LevelRef = LevelRef {
 
 fn player_with_deck() -> Player {
     let p = player(true);
+    unlock(&p.store, &p.id, CHOICE);
     p.store.set_deck(&p.id, &OWNED).unwrap();
     p
 }
@@ -378,13 +456,7 @@ fn a_custom_start_boss_begins_on_its_position_and_the_bot_moves_first() {
 async fn the_replay_of_a_custom_start_boss_starts_from_its_position() {
     let (app, store) = new_app(HubConfig::default());
     let mut c = account(&app, &store, "ana");
-    for level in 0..4 {
-        let at = LevelRef {
-            chapter: DEFENSE,
-            level,
-        };
-        store.record_campaign(&c.id, at, ALL_STARS).unwrap();
-    }
+    unlock(&store, &c.id, boss_of(DEFENSE));
     c.send(ClientMsg::CampaignStart {
         chapter: DEFENSE,
         level: BOSS_LEVEL,

@@ -37,6 +37,16 @@ impl Hub {
             Ok(rows) => rows,
             Err(e) => return self.internal_error(player, e),
         };
+        if !campaign::chapter_unlocked(&rows, at.chapter) {
+            return self.fail(
+                player,
+                "chapter_locked",
+                "this chapter opens when the previous boss is beaten",
+            );
+        }
+        if !campaign::previous_level_won(&rows, at) {
+            return self.fail(player, "level_locked", "win the previous level first");
+        }
         if at.is_boss() && !campaign::boss_unlocked(&rows, at.chapter) {
             return self.fail(player, "boss_locked", "the boss is still locked");
         }
@@ -79,6 +89,10 @@ impl Hub {
         let was_unlocked = rows_before
             .as_ref()
             .is_none_or(|rows| campaign::boss_unlocked(rows, at.chapter));
+        let next_chapter = at.chapter + 1;
+        let next_was_open = rows_before
+            .as_ref()
+            .is_none_or(|rows| campaign::chapter_unlocked(rows, next_chapter));
         let had_title = rows_before
             .as_ref()
             .is_none_or(|rows| campaign::title_earned(rows, at.chapter));
@@ -109,6 +123,9 @@ impl Hub {
                 boss_unlocked,
                 boss_stars_required: BOSS_STARS,
                 boss_just_unlocked: boss_unlocked && !was_unlocked,
+                chapter_just_unlocked: usize::from(next_chapter) < CHAPTERS.len()
+                    && !next_was_open
+                    && campaign::chapter_unlocked(&rows, next_chapter),
                 title: (!had_title && campaign::title_earned(&rows, at.chapter))
                     .then(|| CHAPTERS[usize::from(at.chapter)].title.to_string()),
                 total_stars: campaign::total_stars(&rows),
