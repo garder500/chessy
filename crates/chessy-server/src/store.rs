@@ -450,6 +450,18 @@ const MIGRATIONS: &[&str] = &[
          expires_at TEXT NOT NULL,
          created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
      );",
+    // Reward announcements for a loser who was offline when the winner chose;
+    // `skill`/`refilled` are JSON skill ids (wire names), delivered then deleted.
+    "CREATE TABLE IF NOT EXISTS reward_outcomes (
+         id INTEGER PRIMARY KEY,
+         player_id TEXT NOT NULL REFERENCES players(id),
+         by_name TEXT NOT NULL,
+         kind TEXT NOT NULL CHECK (kind IN ('stolen', 'forged', 'spared')),
+         skill TEXT,
+         refilled TEXT,
+         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+     );
+     CREATE INDEX IF NOT EXISTS reward_outcomes_player ON reward_outcomes(player_id);",
 ];
 
 /// SQLite has no ADD COLUMN IF NOT EXISTS: drops the `ALTER TABLE .. ADD COLUMN`
