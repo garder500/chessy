@@ -393,14 +393,14 @@ export class Store {
     const solo: SoloSetting = { elo: clampElo(elo), color };
     writeSolo(solo);
     this.send({ type: "solo_start", elo: solo.elo, color: solo.color });
-    this.set({ solo, campaignGame: false });
+    this.set({ solo, campaignGame: false, rewardOutcome: null });
     this.awaitSoloGame();
   }
 
   /** Lance un niveau de la campagne (decks imposés par le niveau, ou `deck` choisi si le niveau le demande). */
   startCampaign(chapter: number, level: number, deck?: SkillId[]) {
     this.send({ type: "campaign_start", chapter, level, deck });
-    this.set({ campaignGame: true });
+    this.set({ campaignGame: true, rewardOutcome: null });
     this.awaitSoloGame();
   }
 
@@ -605,6 +605,8 @@ export class Store {
         break;
       case "reward_outcome":
         this.set({ rewardOutcome: { by: msg.by, kind: msg.kind, skill: msg.skill, refilled: msg.refilled } });
+        // Sans résultat affiché (reconnexion du perdant), l'annonce n'aurait sinon aucune trace à l'écran.
+        if (!this.state.over) this.notify(`Récompense classée : ${msg.by} a une issue pour vous.`);
         break;
       case "boss_forge":
         this.set({ bossForge: msg.info });
