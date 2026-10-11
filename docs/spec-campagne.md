@@ -58,13 +58,15 @@ de difficulté soit sur lui. L'écran affiche l'Elo de Sage seul (« Sage · 1 0
 - **Victoire = mat, et rien d'autre.** Toute nulle (pat, 50 coups, répétition, matériel insuffisant) est un niveau non réussi,
   sans étoile et sans pénalité. L'écran l'explique : « Pat : aux échecs, c'est une nulle. »
 - Chaque étoile est acquise pour de bon et se cumule d'un essai à l'autre (OU de bits d'un masque de 3 bits par niveau et par compte) :
-  il n'est pas nécessaire de réussir les trois dans la même partie. Une défaite, une nulle ou un abandon ne retire jamais d'étoile.
+  il n'est pas nécessaire de réussir les trois dans la même partie. Une défaite, une nulle ou un abandon ne retire jamais d'étoile : le serveur n'écrit alors qu'une ligne de progression sans étoile,
+  qui compte la série de défaites.
   L'écran « Échoué » propose « Réessayer » et « Carte ».
 - Le boss s'ouvre à 12 étoiles sur les 18 des six niveaux (`boss_locked` sinon). Le boss a lui aussi 3 étoiles ; elles comptent
   dans le total sur 105 (5 chapitres × 7 niveaux × 3) et donnent le titre.
 - Les objectifs possibles : « Mater avant le coup N », « Terminer avec une pièce », « Utiliser une compétence (précise ou
-  n'importe laquelle) », « Utiliser toutes ses compétences », « Gagner sans utiliser de compétence » et « Ne perdre aucune pièce
-  avant le coup N ». Chaque niveau vérifie que ses défis sont compatibles avec sa main (pas de « Garder la dame » avec Queen Sacrifice,
+  n'importe laquelle) », « Utiliser toutes ses compétences » (sur un niveau à choix de deck, seules les compétences prêtées comptent :
+  le deck du joueur n'a pas à être épuisé), « Gagner sans utiliser de compétence » et « Ne perdre aucune pièce
+  avant le coup N » (jugé au coup de la première perte du joueur, dans sa propre notation). Chaque niveau vérifie que ses défis sont compatibles avec sa main (pas de « Garder la dame » avec Queen Sacrifice,
   pas de défi « sans compétence » aux chapitres 1 et 2, qui servent à apprendre les compétences).
 - **Comptage des coups.** Un coup est un numéro de coup de la notation (une paire blanc + noir) du côté du joueur ; une compétence qui
   coûte le tour compte pour un coup. Mind Reading et Mind Control, actions gratuites, ne font pas avancer le compteur.
@@ -80,25 +82,32 @@ La forge de boss a **son propre chemin**, distinct de la récompense classée : 
 La forge de campagne a son propre déclencheur : la première victoire d'un compte sur un boss (voir aussi `docs/spec-forge.md`).
 
 - **États** (table `campaign_boss_forges`, une ligne par compte et par chapitre, 5 au plus) : aucune ligne → `forging` à la première victoire →
-  `pending` quand la compétence est enregistrée → `placed` quand elle est dans le deck. Un claim n'est accepté qu'en `forging` sans tâche en vol ;
-  un placement n'est accepté qu'en `pending`.
+  `pending` quand la compétence est enregistrée → `placed` quand elle est dans le deck. La forge tourne hors du verrou du hub.
+  `boss_forge_claim` ne relance une forge que si la ligne est `forging` sans tâche en vol ; en `pending` ou `placed` il renvoie seulement l'état
+  courant, et avec une tâche en vol il répond `forging`. `boss_forge_place` n'est accepté qu'en `pending` (`not_pending` sinon).
+  Sans ligne pour ce boss, les deux répondent `no_boss_forge` ; à un invité, `account_required`.
 - **Pas de deuxième forge.** Rejouer un boss ne relance jamais la forge : le serveur refuse une deuxième forge pour le même compte et le même boss.
-- **Révélation rejouable.** Le serveur enregistre la compétence avant l'animation ; si la révélation est interrompue (déconnexion, appli fermée),
-  elle est rejouée au retour du joueur depuis la carte de campagne.
+- **Reprise à la connexion.** Le serveur enregistre la compétence avant l'animation. À chaque connexion il renvoie un `boss_forge` pour chaque ligne
+  qui n'est pas `placed` : une révélation interrompue (déconnexion, appli fermée) est donc rejouée depuis la carte de campagne. Une ligne `forging`
+  que plus aucune tâche ne porte (redémarrage du serveur) est relancée par un `boss_forge_claim` du client.
 - **Deck plein (7).** Si le deck a de la place, la compétence y entre. Sinon le joueur remplace une compétence (elle part dans l'historique comme
-  « remplacée ») ou choisit « Plus tard » : la forgée reste `pending` sans expiration et se place depuis la carte de campagne ou la Collection.
+  « remplacée ») ou choisit « Plus tard » (le client n'envoie rien) : la forgée reste `pending` sans expiration et se place depuis la carte de campagne ou la Collection.
+  Avec un deck plein, `boss_forge_place` sans `replace` valide dans le deck est refusé (`deck_full`).
   Il n'y a pas de réserve générale.
-- **Tirage.** On prend `DROP_WEIGHTS` [55, 25, 13, 6, 1], on garde les raretés au-dessus du plancher du chapitre, on retire celles que la famille
-  ne peut pas atteindre, et on renormalise (plus grand reste). La table du chapitre est affichée sur l'écran du boss.
+- **Tirage.** Le serveur tire la rareté visée dans la table du chapitre (`campaign/forge_table.rs`), puis demande à `forge_at_least` une compétence
+  de cette rareté au moins, dans la famille du chapitre. La table vient de `DROP_WEIGHTS` [55, 25, 13, 6, 1] : raretés au-dessus du plancher du chapitre,
+  sans celles que la famille ne peut pas atteindre, renormalisées (plus grand reste, test à l'appui). Elle est affichée sur l'écran du boss.
   Les effets Légendaires n'existent qu'en Contrôle et en Création : la Légendaire est donc **réservée au chapitre 5**.
 - **Famille.** Aux chapitres 1 à 4 la forge ne produit que des effets de la famille du chapitre ; au chapitre 5 la famille est libre.
   Exemple au chapitre 2 : « Égide d'Orvane · Rare · Défense : une de vos pièces (pas le roi) ne peut pas être prise pendant 3 tours ».
 - **Chapitre 5.** Épique ou mieux, 14 % de Légendaire tant qu'il reste une signature de bascule libre. Quand il n'en reste plus, l'écran le dit
-  (« plus aucune Légendaire disponible : Épique garantie ») au lieu de baisser la rareté sans prévenir. Exemple :
+  (« plus aucune Légendaire disponible : Épique garantie », drapeau `legendary_unavailable`) au lieu de baisser la rareté sans prévenir.
+  Le drapeau n'est vrai que dans le message `boss_forge` qui annonce la compétence (`pending`) ; `GET /api/campaign` le renvoie toujours à `false`. Exemple :
   « Armistice d'Alfen · Légendaire · Contrôle · Unique : pendant 4 demi-coups, rien n'attaque rien, ni prise ni échec. »
   Une Légendaire est unique au monde et ne compte pas dans les 3 ; le titre de fin de campagne est garanti.
 - **Garanties.** La forge ne rend jamais une compétence redondante, sous le plancher ou hors famille (`forge_at_least`, voir `docs/spec-forge.md`).
-  Si aucune candidate n'est acceptable dans le budget, la ligne reste `forging` et sera reprise.
+  Si aucune candidate n'est acceptable dans le budget, ou si l'enregistrement échoue, la ligne reste `forging` : le serveur envoie `boss_forge`
+  `forging` sans compétence, et une nouvelle tentative a lieu au prochain claim.
 - **Perte en classée.** Les forgées de campagne sont des compétences comme les autres : elles peuvent être volées ou perdues en classée.
   C'est annoncé sur l'écran de forge du boss (« Elle vous suit en classée, où elle peut être perdue ») et avant la première partie classée.
 - Le boss ne retire rien au joueur.
@@ -145,7 +154,8 @@ Force Field : la pièce peut être prise, mais celui qui la prend est repoussé 
   `boss_just_unlocked` est vrai quand cette partie ouvre le boss ; `title` (texte ou `null`) est renseigné quand cette partie donne un titre.
 - Contexte de partie : `campaign: {chapter, level, move_limit, objective, challenge} | null`.
 - Boss : `boss_forge { info }` (serveur), `boss_forge_claim { chapter }` et `boss_forge_place { chapter, replace }` (client) ;
-  `BossForgeInfo { chapter, state: forging|pending|placed, skill, deck_full, legendary_unavailable }`.
+  `BossForgeInfo { chapter, state: forging|pending|placed, skill, deck_full, legendary_unavailable }` (`skill` est absent en `forging`).
+  Erreurs : `account_required`, `no_boss_forge`, `forging` (claim avec une tâche en vol), `not_pending`, `deck_full`.
 - Client (builds de debug uniquement, erreur `dev_only` sinon) : `{"type":"dev_finish","result":"win"}` termine la partie de campagne en cours par une victoire (`win`), une défaite (`loss`) ou une victoire qui enregistre toutes les étoiles du niveau (`all_stars`) ; erreur `not_campaign` hors partie de campagne.
 - `GET /api/campaign` (compte authentifié) : `{total_stars, max_stars, chapters:[{chapter, family, name, title, title_earned, titles, available, stars, boss_stars_required, boss_unlocked, forge_table:[{rarity, percent}], boss_forge, levels:[{level, name, elo, boss, player_deck, bot_deck, lent, deck_choice, start_fen, human_color, move_limit, objective, challenge, hint, best, rewarded}]}]}`.
   `best` est le masque d'étoiles sous forme de 3 booléens ; `hint` n'est présent qu'après 3 défaites d'affilée ; `objective` et `challenge` sont des textes français (ou `null`).
