@@ -5,6 +5,7 @@
 //! [`Timer`] for the caller to schedule. Friends, challenges, chat and
 //! rematches live in the `social` submodule.
 
+mod boss_forge;
 mod campaign;
 mod campaign_deck;
 #[cfg(test)]
@@ -16,6 +17,7 @@ mod solo;
 mod spectate;
 mod view;
 
+pub use boss_forge::{BossForgeJob, BossForgeMade};
 pub use spectate::{LiveGame, LiveSeat, SpectatorView, UsedSkills, MAX_SPECTATORS};
 
 use std::collections::{HashMap, VecDeque};
@@ -315,6 +317,8 @@ struct Session {
     /// Every action as each colour saw it (indexed by `Color::index()`), so a
     /// player who reloads the page gets their journal back.
     history: [Vec<HistoryEntry>; 2],
+    /// The ply at which each colour lost its first piece.
+    first_loss_ply: [Option<u32>; 2],
 }
 
 impl Session {
@@ -379,6 +383,10 @@ pub struct Hub {
     rewards: HashMap<PlayerId, PendingReward>,
     /// Announcements for losers with no connection, to store (see `rewards`).
     reward_outcome_pushes: Vec<(PlayerId, crate::reward_outcome_store::RewardOutcomeRow)>,
+    /// Boss forges to run off the lock, taken by the app (see `boss_forge`).
+    boss_forge_jobs: Vec<BossForgeJob>,
+    /// Boss forges running right now: a second claim must not start another.
+    boss_forges_in_flight: std::collections::HashSet<(PlayerId, u8)>,
     /// Open challenges by challenger.
     challenges: HashMap<PlayerId, social::Challenge>,
     next_challenge: u64,
@@ -423,6 +431,8 @@ impl Hub {
             player_game: HashMap::new(),
             rewards: HashMap::new(),
             reward_outcome_pushes: Vec::new(),
+            boss_forge_jobs: Vec::new(),
+            boss_forges_in_flight: std::collections::HashSet::new(),
             challenges: HashMap::new(),
             next_challenge: 0,
             rematches: HashMap::new(),
@@ -529,6 +539,7 @@ impl Hub {
                 account,
             },
         );
+        self.push_boss_forges(&id);
         self.push_friends(&id);
         self.resume(&id);
         self.spectate_resume(&id);
@@ -1061,6 +1072,7 @@ impl Hub {
             },
             solo: seat_solo,
             history: [Vec::new(), Vec::new()],
+            first_loss_ply: [None, None],
         };
         for player in &humans {
             self.player_game.insert((*player).clone(), game_id.clone());
@@ -1536,6 +1548,10 @@ impl Hub {
             return;
         };
         for color in Color::BOTH {
+            let lost_a_piece = game.pos.graveyard.iter().any(|p| p.color == color);
+            if lost_a_piece && session.first_loss_ply[color.index()].is_none() {
+                session.first_loss_ply[color.index()] = Some(game.pos.ply);
+            }
             let hidden = view::hidden_ids(&game.pos, color);
             let seen = view::events(events.to_vec(), color, game, &hidden);
             let landed = seen
@@ -1671,8 +1687,8 @@ impl Hub {
             let own_campaign = campaign.as_ref().filter(|c| &c.player == player);
             // Only a rated game (ranked, between accounts, long enough) pays a skill:
             // friendly games and Solo would otherwise be farmed.
-            let reward = if let Some(c) = own_campaign {
-                c.reward.clone()
+            let reward = if own_campaign.is_some() {
+                None
             } else if !solo && change.is_some() && Some(color) == winner {
                 let loser = &session.players[color.opposite().index()];
                 let loser_deck = self.deck_of(loser).unwrap_or_default();

@@ -1,13 +1,15 @@
-//! Boss rewards. A boss game is ended by the bot resigning: its skills escape
-//! any scripted mate, and the reward rules do not depend on how the game ends.
+//! Campaign results and the boss forge. A boss game is ended by the bot
+//! resigning: its skills escape any scripted mate, and the forge rules do not
+//! depend on how the game ends.
 
-use chessy_engine::forge::Rarity;
 use chessy_engine::{Outcome, SkillId};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 use super::{Hub, HubConfig};
 use crate::campaign::{self, LevelRef, BOSS_LEVEL, STAR_CHALLENGE, STAR_OBJECTIVE, STAR_WIN};
-use crate::protocol::{CampaignInfo, DevResult, RewardChoice, RewardOffer, ServerMsg, SoloColor};
+use crate::protocol::{
+    BossForgeInfo, BossForgeState, CampaignInfo, DevResult, ServerMsg, SoloColor,
+};
 use crate::store::Store;
 
 const BOSS: LevelRef = LevelRef {
@@ -40,30 +42,21 @@ fn player(account: bool) -> Player {
 
 impl Player {
     /// Starts the boss and has the bot resign: the human wins.
-    fn beat_boss(&mut self) -> Option<RewardOffer> {
-        self.beat_boss_over().1
+    fn beat_boss(&mut self) -> Option<BossForgeInfo> {
+        self.beat_boss_over().and_then(|info| info.boss_forge)
     }
 
-    fn beat_boss_over(&mut self) -> (Option<CampaignInfo>, Option<RewardOffer>) {
+    fn beat_boss_over(&mut self) -> Option<CampaignInfo> {
         self.hub.campaign_start(&self.id.clone(), BOSS, None);
         let game_id = self.hub.player_game[&self.id].clone();
         let bot = self.hub.games[&game_id].solo.as_ref().unwrap().bot;
         self.hub.end_by_resignation(&game_id, bot, "resignation");
         std::iter::from_fn(|| self.rx.try_recv().ok())
             .find_map(|m| match m {
-                ServerMsg::GameOver {
-                    campaign, reward, ..
-                } => Some((campaign, reward)),
+                ServerMsg::GameOver { campaign, .. } => Some(campaign),
                 _ => None,
             })
             .expect("the game is over")
-    }
-}
-
-impl Player {
-    fn boss_rewarded(&self) -> bool {
-        let rows = self.store.campaign_rows(&self.id).unwrap();
-        rows.iter().any(|r| r.at.is_boss() && r.rewarded)
     }
 }
 
@@ -108,10 +101,7 @@ fn dev_finish_all_stars_on_a_boss_records_its_three_stars() {
     let rows = p.store.campaign_rows(&p.id).unwrap();
     let boss = rows.iter().find(|r| r.at == BOSS).unwrap();
     assert_eq!(boss.stars, STAR_WIN | STAR_OBJECTIVE | STAR_CHALLENGE);
-    assert!(
-        p.hub.rewards.contains_key(&p.id),
-        "the boss reward is offered"
-    );
+    assert_eq!(p.hub.boss_forge_jobs.len(), 1, "the boss forge starts");
 }
 
 #[test]
@@ -145,32 +135,24 @@ fn a_boss_won_with_three_stars_gives_the_chapter_title_and_shows_on_the_profile(
 }
 
 #[test]
-fn an_unresolved_boss_offer_is_made_again() {
+fn the_first_boss_win_queues_one_forge_and_replaying_queues_none() {
     let mut p = player(true);
-    let offer = p.beat_boss().expect("first boss win is rewarded");
-    assert!(offer.steal_options.is_empty());
+    let info = p.beat_boss().expect("first boss win starts a forge");
+    assert_eq!(info.state, BossForgeState::Forging);
+    assert_eq!(p.hub.boss_forge_jobs.len(), 1);
+    assert!(!p.hub.rewards.contains_key(&p.id), "no ranked reward");
 
-    let job = p.hub.begin_forge(&p.id.clone(), None).expect("a forge job");
-    assert_eq!(job.range, Rarity::Uncommon..=Rarity::Epic);
-    assert!(job.range.contains(&job.target));
-    assert!(!p.boss_rewarded(), "the offer is not resolved yet");
-
-    p.hub.finish_forge(&p.id.clone(), None, None);
-    assert!(!p.boss_rewarded(), "a failed forge leaves the offer open");
-
-    assert!(
-        p.beat_boss().is_some(),
-        "a lost offer comes back on the next win"
-    );
+    p.hub.take_boss_forge_jobs();
+    assert!(p.beat_boss().is_none(), "no second forge");
+    assert!(p.hub.boss_forge_jobs.is_empty());
 }
 
 #[test]
-fn the_boss_pays_once_resolved() {
+fn a_lost_boss_forge_starts_nothing() {
     let mut p = player(true);
-    p.beat_boss().expect("first boss win is rewarded");
-    p.hub.reward_choice(&p.id.clone(), RewardChoice::Skip);
-    assert!(p.boss_rewarded());
-    assert!(p.beat_boss().is_none(), "no second reward");
+    p.hub.campaign_start(&p.id.clone(), BOSS, None);
+    p.hub.dev_finish(&p.id.clone(), DevResult::Loss);
+    assert!(p.hub.boss_forge_jobs.is_empty());
 }
 
 #[test]

@@ -1,12 +1,9 @@
 //! Campaign content and rules (see `docs/spec-campagne.md`): the level table,
-//! the objectives behind the stars and the boss reward range.
+//! the objectives behind the stars and the forge table of each boss.
 //!
 //! A campaign game is an ordinary Solo game with imposed decks; this module is
 //! pure data and rules, the game flow lives in `hub/campaign.rs`.
 
-use std::ops::RangeInclusive;
-
-use chessy_engine::forge::Rarity;
 use chessy_engine::{Color, Game, PieceKind, SkillId};
 use serde::Deserialize;
 
@@ -68,22 +65,36 @@ pub enum Objective {
     UseAnySkill,
     NoSkillUsed,
     UseAllSkills,
-    /// No piece lost before this move number; the game keeps no dated loss, so
-    /// a single lost piece fails it.
+    /// No piece lost before this move number of the player's own notation.
     NoPieceLostBefore(u16),
 }
 
+/// What a finished game knows beyond its final position.
+#[derive(Clone, Copy, Default)]
+pub struct Context<'a> {
+    /// Ply at which the human lost their first piece.
+    pub first_loss_ply: Option<u32>,
+    /// The only skills `UseAllSkills` counts: on a level where the player
+    /// brings their own deck, that deck must not have to be used up.
+    pub counted: Option<&'a [SkillId]>,
+}
+
 impl Objective {
-    pub fn met(self, game: &Game, human: Color) -> bool {
+    pub fn met(self, game: &Game, human: Color, context: &Context) -> bool {
         let slots = &game.loadout(human).slots;
         match self {
-            Objective::WinWithin(max) => own_turns(game, human) < max,
+            Objective::WinWithin(max) => own_turns(game.pos.ply, human) < max,
             Objective::KeepPiece(kind) => game.pos.pieces(human).any(|(_, p)| p.kind == kind),
             Objective::UseSkill(skill) => slots.iter().any(|s| s.skill == skill && s.uses > 0),
             Objective::UseAnySkill => slots.iter().any(|s| s.uses > 0),
             Objective::NoSkillUsed => slots.iter().all(|s| s.uses == 0),
-            Objective::UseAllSkills => slots.iter().all(|s| s.uses > 0),
-            Objective::NoPieceLostBefore(_) => game.pos.graveyard.iter().all(|p| p.color != human),
+            Objective::UseAllSkills => slots
+                .iter()
+                .filter(|s| context.counted.is_none_or(|only| only.contains(&s.skill)))
+                .all(|s| s.uses > 0),
+            Objective::NoPieceLostBefore(min) => context
+                .first_loss_ply
+                .is_none_or(|ply| own_turns(ply, human) >= u32::from(min)),
         }
     }
 
@@ -106,9 +117,9 @@ impl Objective {
 /// and White moves on even plies. Every start has White to move and
 /// `Position::from_fen` yields ply 0 whatever the fullmove number, so the
 /// count is the same for a custom start.
-fn own_turns(game: &Game, human: Color) -> u32 {
+fn own_turns(ply: u32, human: Color) -> u32 {
     let white_first = u32::from(human == Color::White);
-    (game.pos.ply + white_first) / 2
+    (ply + white_first) / 2
 }
 
 fn piece_label(kind: PieceKind) -> &'static str {
@@ -213,11 +224,21 @@ pub fn level(at: LevelRef) -> Option<&'static Level> {
 }
 
 /// Stars mask of a finished game; objective and challenge only count on a win.
-pub fn stars_earned(at: LevelRef, game: &Game, human: Color, won: bool) -> u8 {
+pub fn stars_earned(
+    at: LevelRef,
+    game: &Game,
+    human: Color,
+    first_loss_ply: Option<u32>,
+    won: bool,
+) -> u8 {
     let Some(level) = level(at).filter(|_| won) else {
         return 0;
     };
-    level_stars(level, |goal| goal.met(game, human))
+    let context = Context {
+        first_loss_ply,
+        counted: level.deck_choice.then_some(level.lent),
+    };
+    level_stars(level, |goal| goal.met(game, human, &context))
 }
 
 /// Every star the level offers.
@@ -228,15 +249,6 @@ pub fn all_stars(at: LevelRef) -> u8 {
 fn level_stars(level: &Level, reached: impl Fn(Objective) -> bool) -> u8 {
     let star = |goal: Option<Objective>, bit: u8| if goal.is_some_and(&reached) { bit } else { 0 };
     STAR_WIN | star(level.objective, STAR_OBJECTIVE) | star(level.challenge, STAR_CHALLENGE)
-}
-
-/// Rarities the boss of a chapter may forge.
-pub fn rarity_range(chapter: u8) -> RangeInclusive<Rarity> {
-    match chapter {
-        0 => Rarity::Uncommon..=Rarity::Epic,
-        1 | 2 => Rarity::Rare..=Rarity::Legendary,
-        _ => Rarity::Epic..=Rarity::Legendary,
-    }
 }
 
 /// Stars of a mask as `[win, objective, challenge]`.
@@ -268,6 +280,11 @@ mod tests {
 
     use super::*;
 
+    const NONE: Context = Context {
+        first_loss_ply: None,
+        counted: None,
+    };
+
     fn game_at(ply: u32) -> Game {
         let mut game = Game::new(&[], &[]);
         game.pos.ply = ply;
@@ -290,20 +307,20 @@ mod tests {
     fn win_within_counts_the_players_own_turns() {
         let within = Objective::WinWithin(4);
         // White has played turns 1-3 after five plies, Black two.
-        assert!(within.met(&game_at(5), Color::White));
-        assert!(!within.met(&game_at(7), Color::White));
-        assert!(within.met(&game_at(7), Color::Black));
-        assert!(!within.met(&game_at(8), Color::Black));
+        assert!(within.met(&game_at(5), Color::White, &NONE));
+        assert!(!within.met(&game_at(7), Color::White, &NONE));
+        assert!(within.met(&game_at(7), Color::Black, &NONE));
+        assert!(!within.met(&game_at(8), Color::Black, &NONE));
     }
 
     #[test]
     fn win_within_n_means_mate_before_move_n() {
         let within = Objective::WinWithin(3);
         // White's mating move is its turn n - 1 (ply 3) or its turn n (ply 5).
-        assert!(within.met(&game_at(3), Color::White));
-        assert!(!within.met(&game_at(5), Color::White));
-        assert!(within.met(&game_at(4), Color::Black));
-        assert!(!within.met(&game_at(6), Color::Black));
+        assert!(within.met(&game_at(3), Color::White, &NONE));
+        assert!(!within.met(&game_at(5), Color::White, &NONE));
+        assert!(within.met(&game_at(4), Color::Black, &NONE));
+        assert!(!within.met(&game_at(6), Color::Black, &NONE));
     }
 
     #[test]
@@ -314,9 +331,9 @@ mod tests {
             let mut game = Game::from_position(pos, &[], &[]);
             assert_eq!(game.pos.ply, 0);
             game.pos.ply = 5;
-            assert!(Objective::WinWithin(4).met(&game, Color::White));
-            assert!(!Objective::WinWithin(3).met(&game, Color::White));
-            assert!(Objective::WinWithin(3).met(&game, Color::Black));
+            assert!(Objective::WinWithin(4).met(&game, Color::White, &NONE));
+            assert!(!Objective::WinWithin(3).met(&game, Color::White, &NONE));
+            assert!(Objective::WinWithin(3).met(&game, Color::Black, &NONE));
         }
     }
 
@@ -374,11 +391,11 @@ mod tests {
     #[test]
     fn use_all_skills_needs_every_slot_used() {
         let mut game = Game::new(&[SkillId::Trap, SkillId::Wall], &[]);
-        assert!(!Objective::UseAllSkills.met(&game, Color::White));
+        assert!(!Objective::UseAllSkills.met(&game, Color::White, &NONE));
         game.loadouts[0].slots[0].uses = 1;
-        assert!(!Objective::UseAllSkills.met(&game, Color::White));
+        assert!(!Objective::UseAllSkills.met(&game, Color::White, &NONE));
         game.loadouts[0].slots[1].uses = 1;
-        assert!(Objective::UseAllSkills.met(&game, Color::White));
+        assert!(Objective::UseAllSkills.met(&game, Color::White, &NONE));
         assert_eq!(
             Objective::UseAllSkills.text(),
             "Utiliser toutes ses compétences"
@@ -386,17 +403,30 @@ mod tests {
     }
 
     #[test]
-    fn no_piece_lost_fails_on_any_lost_piece_of_the_player() {
-        let mut game = Game::new(&[], &[]);
+    fn use_all_skills_on_a_chosen_deck_counts_only_the_lent_skills() {
+        let mut game = Game::new(&[SkillId::Trap, SkillId::Wall], &[]);
+        let lent = [SkillId::Wall];
+        let context = Context {
+            first_loss_ply: None,
+            counted: Some(&lent),
+        };
+        assert!(!Objective::UseAllSkills.met(&game, Color::White, &context));
+        game.loadouts[0].slots[1].uses = 1;
+        assert!(Objective::UseAllSkills.met(&game, Color::White, &context));
+    }
+
+    #[test]
+    fn no_piece_lost_is_judged_on_the_move_of_the_first_loss() {
         let goal = Objective::NoPieceLostBefore(20);
-        assert!(goal.met(&game, Color::White));
-        let mut lost = game.pos.pieces(Color::Black).next().unwrap().1;
-        game.pos.graveyard.push(lost);
-        assert!(goal.met(&game, Color::White));
-        assert!(!goal.met(&game, Color::Black));
-        lost.color = Color::White;
-        game.pos.graveyard.push(lost);
-        assert!(!goal.met(&game, Color::White));
+        let game = Game::new(&[], &[]);
+        let lost_at = |ply| Context {
+            first_loss_ply: Some(ply),
+            counted: None,
+        };
+        assert!(goal.met(&game, Color::White, &NONE));
+        assert!(goal.met(&game, Color::White, &lost_at(40)));
+        assert!(!goal.met(&game, Color::White, &lost_at(30)));
+        assert!(!goal.met(&game, Color::Black, &lost_at(30)));
         assert_eq!(goal.text(), "Ne perdre aucune pièce avant le coup 20");
     }
 
@@ -454,7 +484,7 @@ mod tests {
             level: 0,
         };
         assert_eq!(
-            stars_earned(at, &Game::new(&[], &[]), Color::White, false),
+            stars_earned(at, &Game::new(&[], &[]), Color::White, None, false),
             0
         );
     }
