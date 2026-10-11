@@ -64,16 +64,6 @@ impl Store {
             |r| r.get(0),
         )?)
     }
-
-    /// Marks the reward of a level as given.
-    pub fn mark_campaign_rewarded(&self, player: &str, at: LevelRef) -> StoreResult<()> {
-        self.db().execute(
-            "UPDATE campaign_progress SET rewarded = 1
-             WHERE player_id = ?1 AND chapter = ?2 AND level = ?3",
-            params![player, at.chapter, at.level],
-        )?;
-        Ok(())
-    }
 }
 
 #[cfg(test)]

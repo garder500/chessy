@@ -355,8 +355,6 @@ struct PendingReward {
     /// What the loser owned when the game ended: the only skills the winner
     /// may take (and only those the loser still owns when they claim).
     loser_deck: Vec<SkillId>,
-    /// The boss this reward comes from: marked as rewarded once resolved.
-    boss: Option<crate::campaign::LevelRef>,
     created: Instant,
 }
 
@@ -1686,10 +1684,8 @@ impl Hub {
             let player = &session.players[color.index()];
             let own_campaign = campaign.as_ref().filter(|c| &c.player == player);
             // Only a rated game (ranked, between accounts, long enough) pays a skill:
-            // friendly games and Solo would otherwise be farmed.
-            let reward = if own_campaign.is_some() {
-                None
-            } else if !solo && change.is_some() && Some(color) == winner {
+            // friendly games and Solo (campaign included) would otherwise be farmed.
+            let reward = if !solo && change.is_some() && Some(color) == winner {
                 let loser = &session.players[color.opposite().index()];
                 let loser_deck = self.deck_of(loser).unwrap_or_default();
                 let offer = self.offer_for(player, Some(loser), &loser_deck).ok();
@@ -1698,7 +1694,6 @@ impl Hub {
                     loser: Some(loser.clone()),
                     range: Rarity::Common..=Rarity::Legendary,
                     loser_deck,
-                    boss: None,
                     created: Instant::now(),
                 };
                 self.save_pending_reward(player, &pending);

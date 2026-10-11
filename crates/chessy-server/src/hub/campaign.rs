@@ -3,7 +3,7 @@
 
 use chessy_engine::{Color, SkillId};
 
-use super::{Hub, PendingReward, Phase, Session};
+use super::{Hub, Phase, Session};
 use crate::campaign::{self, LevelRef, BOSS_STARS, CHAPTERS, HINT_AFTER_DEFEATS};
 use crate::protocol::{CampaignInfo, DevResult};
 
@@ -160,15 +160,5 @@ impl Hub {
             bot
         };
         self.end_by_resignation(&game_id, loser, "resignation");
-    }
-
-    /// Called once a reward is resolved (taken, forged or skipped).
-    pub(super) fn mark_boss_rewarded(&self, player: &str, pending: &PendingReward) {
-        let Some(at) = pending.boss else {
-            return;
-        };
-        if let Err(e) = self.store.mark_campaign_rewarded(player, at) {
-            tracing::error!("could not mark the boss reward as given: {e}");
-        }
     }
 }

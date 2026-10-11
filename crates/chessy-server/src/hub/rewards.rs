@@ -31,8 +31,7 @@ fn unix_of_iso(iso: &str) -> Option<i64> {
 
 impl Hub {
     /// Writes a ranked reward to the database so it survives a restart. A
-    /// campaign boss reward (no loser) is offered again on the next win and
-    /// is not kept.
+    /// reward taken from nobody is not kept.
     pub(super) fn save_pending_reward(&self, winner: &str, pending: &PendingReward) {
         let Some(loser) = &pending.loser else {
             return;
@@ -79,7 +78,6 @@ impl Hub {
                     loser: Some(row.loser_id),
                     range: Rarity::Common..=Rarity::Legendary,
                     loser_deck: row.loser_skills,
-                    boss: None,
                     created: Instant::now()
                         .checked_sub(elapsed)
                         .unwrap_or_else(Instant::now),
@@ -154,7 +152,6 @@ impl Hub {
         ) {
             Ok(()) => {
                 self.delete_pending_reward(player);
-                self.mark_boss_rewarded(player, &pending);
             }
             Err(msg) => {
                 // Let the player try again with a corrected choice.
@@ -229,7 +226,6 @@ impl Hub {
         match result {
             Ok(()) => {
                 self.delete_pending_reward(player);
-                self.mark_boss_rewarded(player, &pending);
             }
             Err(msg) => {
                 self.rewards.insert(player.to_string(), pending);
