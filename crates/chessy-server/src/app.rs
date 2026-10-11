@@ -10,7 +10,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::bot;
 use crate::campaign::LevelRef;
-use crate::hub::{ForgeJob, Hub, HubConfig, Timer};
+use crate::hub::{BossForgeJob, ForgeJob, Hub, HubConfig, Timer};
 use crate::limits::{bucket, ConnSlot, ConnectionLimiter, FailureWindow, Refusal};
 use crate::protocol::{ClientMsg, PlayerId, RewardChoice, ServerMsg};
 use crate::store::{Store, StoreError};
@@ -209,17 +209,43 @@ impl App {
 
     /// Runs `f` on the hub, then schedules any timers it asked for.
     fn run<R>(self: &Arc<Self>, f: impl FnOnce(&mut Hub) -> R) -> R {
-        let (result, timers) = {
+        let (result, timers, boss_forges) = {
             let mut hub = self.hub.lock().unwrap_or_else(|e| e.into_inner());
             let held = Instant::now();
             let result = f(&mut hub);
             self.store_reward_outcomes(&mut hub);
             let timers = hub.take_timers();
+            let boss_forges = hub.take_boss_forge_jobs();
             self.note_hold(held);
-            (result, timers)
+            (result, timers, boss_forges)
         };
         self.schedule(timers);
+        self.fire_boss_forges(boss_forges);
         result
+    }
+
+    /// Forges the skill of each beaten boss off the hub lock, then hands it
+    /// over. (Takes the lock directly, like `fire_forge`.)
+    fn fire_boss_forges(self: &Arc<Self>, jobs: Vec<BossForgeJob>) {
+        for job in jobs {
+            let app = Arc::clone(self);
+            tokio::spawn(async move {
+                let store = app.store.clone();
+                let (job, made) = tokio::task::spawn_blocking(move || {
+                    let made = job.forge(&store);
+                    (job, made)
+                })
+                .await
+                .expect("the boss forge does not panic");
+                let timers = {
+                    let mut hub = app.hub.lock().unwrap_or_else(|e| e.into_inner());
+                    hub.finish_boss_forge(&job.player, job.chapter, made);
+                    app.store_reward_outcomes(&mut hub);
+                    hub.take_timers()
+                };
+                app.schedule(timers);
+            });
+        }
     }
 
     fn schedule(self: &Arc<Self>, timers: Vec<(Duration, Timer)>) {
@@ -238,15 +264,17 @@ impl App {
         if let Timer::BotMove { game_id, ply } = timer {
             return self.fire_bot(game_id, ply);
         }
-        let timers = {
+        let (timers, boss_forges) = {
             let mut hub = self.hub.lock().unwrap_or_else(|e| e.into_inner());
             let held = Instant::now();
             hub.on_timer(timer);
             let timers = hub.take_timers();
+            let boss_forges = hub.take_boss_forge_jobs();
             self.note_hold(held);
-            timers
+            (timers, boss_forges)
         };
         self.schedule(timers);
+        self.fire_boss_forges(boss_forges);
     }
 
     /// The bot's turn: snapshot the game under the lock, search off it (the
@@ -264,12 +292,13 @@ impl App {
                 .await
                 .ok()
                 .flatten();
-            let timers = {
+            let (timers, boss_forges) = {
                 let mut hub = app.hub.lock().unwrap_or_else(|e| e.into_inner());
                 hub.apply_bot_move(&game_id, ply, action);
-                hub.take_timers()
+                (hub.take_timers(), hub.take_boss_forge_jobs())
             };
             app.schedule(timers);
+            app.fire_boss_forges(boss_forges);
         });
     }
 
@@ -366,7 +395,10 @@ impl App {
                 } => hub.campaign_start(player, LevelRef { chapter, level }, deck),
                 ClientMsg::Spectate { game_id } => hub.spectate(player, &game_id),
                 ClientMsg::Unspectate => hub.unspectate(player),
-                ClientMsg::BossForgeClaim { .. } | ClientMsg::BossForgePlace { .. } => {}
+                ClientMsg::BossForgeClaim { chapter } => hub.boss_forge_claim(player, chapter),
+                ClientMsg::BossForgePlace { chapter, replace } => {
+                    hub.boss_forge_place(player, chapter, replace)
+                }
             }
             None
         });

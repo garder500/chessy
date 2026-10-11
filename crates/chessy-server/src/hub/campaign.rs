@@ -1,13 +1,11 @@
 //! Campaign mode: a Solo game against the bot with imposed decks, and what a
-//! finished one earns (stars, boss reward). See `docs/spec-campagne.md`.
-
-use std::time::Instant;
+//! finished one earns (stars, boss forge). See `docs/spec-campagne.md`.
 
 use chessy_engine::{Color, SkillId};
 
 use super::{Hub, PendingReward, Phase, Session};
 use crate::campaign::{self, LevelRef, BOSS_STARS, CHAPTERS, HINT_AFTER_DEFEATS};
-use crate::protocol::{CampaignInfo, DevResult, RewardOffer};
+use crate::protocol::{CampaignInfo, DevResult};
 
 /// Release builds (`make serve`, Docker) never end a game through `dev_finish`.
 const DEV_SHORTCUTS_ENABLED: bool = cfg!(debug_assertions);
@@ -16,7 +14,6 @@ const DEV_SHORTCUTS_ENABLED: bool = cfg!(debug_assertions);
 pub(super) struct CampaignResult {
     pub player: String,
     pub info: CampaignInfo,
-    pub reward: Option<RewardOffer>,
 }
 
 impl Hub {
@@ -53,12 +50,12 @@ impl Hub {
         self.start_solo(player, at.elo(), human, Some(at), deck);
     }
 
-    fn is_account(&self, player: &str) -> bool {
+    pub(super) fn is_account(&self, player: &str) -> bool {
         matches!(self.store.player_row(player), Ok(Some(row)) if row.username.is_some())
     }
 
-    /// Records the stars of a finished campaign game and prepares the boss
-    /// reward; `None` when the game was not a campaign level.
+    /// Records the stars of a finished campaign game and starts the boss
+    /// forge; `None` when the game was not a campaign level.
     pub(super) fn finish_campaign(
         &mut self,
         session: &Session,
@@ -75,7 +72,7 @@ impl Hub {
         let earned = if won && solo.dev_all_stars {
             campaign::all_stars(at)
         } else {
-            campaign::stars_earned(at, game, human, won)
+            campaign::stars_earned(at, game, human, session.first_loss_ply[human.index()], won)
         };
         // A read error counts as already unlocked: never announce a false unlock.
         let rows_before = self.store.campaign_rows(&player).ok();
@@ -97,9 +94,8 @@ impl Hub {
         let rows = self.store.campaign_rows(&player).unwrap_or_default();
         let best = rows.iter().find(|r| r.at == at).map_or(0, |r| r.stars);
         let boss_unlocked = campaign::boss_unlocked(&rows, at.chapter);
-        let already_rewarded = rows.iter().any(|r| r.at == at && r.rewarded);
-        let reward = if won && at.is_boss() && !already_rewarded {
-            self.boss_reward(&player, at)
+        let boss_forge = if won && at.is_boss() {
+            self.start_boss_forge(&player, at.chapter)
         } else {
             None
         };
@@ -117,10 +113,9 @@ impl Hub {
                     .then(|| CHAPTERS[usize::from(at.chapter)].title.to_string()),
                 total_stars: campaign::total_stars(&rows),
                 hint_available,
-                boss_forge: None,
+                boss_forge,
             },
             player,
-            reward,
         })
     }
 
@@ -165,24 +160,6 @@ impl Hub {
             bot
         };
         self.end_by_resignation(&game_id, loser, "resignation");
-    }
-
-    /// The forged skill of a boss, offered until the account has resolved it
-    /// (a lost offer is made again on the next win).
-    fn boss_reward(&mut self, player: &str, at: LevelRef) -> Option<RewardOffer> {
-        let offer = self.offer_for(player, None, &[]).ok()?;
-        self.rewards.insert(
-            player.to_string(),
-            PendingReward {
-                forging: false,
-                loser: None,
-                range: campaign::rarity_range(at.chapter),
-                loser_deck: Vec::new(),
-                boss: Some(at),
-                created: Instant::now(),
-            },
-        );
-        Some(offer)
     }
 
     /// Called once a reward is resolved (taken, forged or skipped).
