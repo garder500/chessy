@@ -7,6 +7,7 @@ mod clone;
 mod control;
 mod destiny_swapper;
 mod evolve;
+mod family;
 mod forcefield;
 mod freeze;
 mod geomancy;
