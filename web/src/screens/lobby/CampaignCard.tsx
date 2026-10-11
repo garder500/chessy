@@ -20,6 +20,7 @@ interface Props {
 /** Entrée de la campagne dans l'accueil : chapitre en cours et total d'étoiles. */
 export function CampaignCard({ accountId, isAccount }: Props) {
   const [view, setView] = useState<CampaignView | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (accountId === null || !isAccount) return;
@@ -27,7 +28,7 @@ export function CampaignCard({ accountId, isAccount }: Props) {
     api
       .campaign(readToken() ?? "", ctl.signal)
       .then((res) => setView(res as CampaignView))
-      .catch(() => undefined);
+      .catch(() => setFailed(true));
     return () => ctl.abort();
   }, [accountId, isAccount]);
 
@@ -42,15 +43,17 @@ export function CampaignCard({ accountId, isAccount }: Props) {
   return (
     <a className="jp-campaign" href={hrefFor({ name: "campaign" })}>
       <strong>Campagne</strong>
-      <span className="muted">
-        {view ? (
-          <>
-            Chapitre {currentChapter(view.chapters) + 1} · <span className="num">{totalLabel(view.total_stars, view.max_stars)}</span>
-          </>
-        ) : (
-          "Chargement…"
-        )}
-      </span>
+      {!failed && (
+        <span className="muted">
+          {view ? (
+            <>
+              Chapitre {currentChapter(view.chapters) + 1} · <span className="num">{totalLabel(view.total_stars, view.max_stars)}</span>
+            </>
+          ) : (
+            "Chargement…"
+          )}
+        </span>
+      )}
     </a>
   );
 }
