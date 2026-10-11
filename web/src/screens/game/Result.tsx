@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
 import type { CampaignResult, Color, EloChange, Outcome } from "../../protocol";
 import { CampaignRecap } from "./CampaignRecap";
+import { LostSkill } from "./LostSkill";
 import { formatDelta, resultFor, resultHeadline } from "../../outcome";
 import { navigate } from "../../router";
 import { store } from "../../store";
@@ -31,8 +32,11 @@ interface Props {
 
 /** Fin de partie plein écran : la pièce sous le faisceau, le titre, l'Elo, puis l'étape suivante (récompense, revanche, analyse). */
 export function Result({ outcome, you, rated, solo = false, elo, campaign = null, rematch, reward, gameId, onReward, onHide }: Props) {
-  const { title, reason } = resultHeadline(outcome, you);
+  const headline = resultHeadline(outcome, you);
   const result = resultFor(outcome, you);
+  const failed = !!campaign && result !== "win";
+  const title = failed ? "Échoué" : headline.title;
+  const reason = failed && result === "draw" ? headline.title : headline.reason;
   const delta = elo ? elo.you_after - elo.you_before : null;
   const first = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -77,7 +81,7 @@ export function Result({ outcome, you, rated, solo = false, elo, campaign = null
 
         <div className="rs-chips">
           {campaign ? (
-            <CampaignRecap campaign={campaign} />
+            <CampaignRecap campaign={campaign} outcome={outcome} won={!failed} onBriefing={backToCampaign} />
           ) : !solo && rated && elo && delta !== null ? (
             <span className="card rs-elo">
               <CountUp className="num rs-elo-n" to={elo.you_after} />
@@ -96,6 +100,7 @@ export function Result({ outcome, you, rated, solo = false, elo, campaign = null
           )}
         </div>
         {result === "loss" && rated && !solo && <p className="muted rs-lost">Battez votre adversaire en classée pour reprendre une compétence perdue.</p>}
+        {result === "loss" && rated && !solo && <LostSkill />}
 
         <div className="rs-act">
           {reward && (
@@ -118,11 +123,17 @@ export function Result({ outcome, you, rated, solo = false, elo, campaign = null
           ) : (
             <div className="rs-pair">
               <button type="button" className={`btn${reward ? "" : " pri"}`} disabled={rematch === "offered"} onClick={() => store.requestRematch()}>
-                {rematch === "offered" ? (solo ? "Nouvelle partie…" : "Revanche proposée…") : campaign ? "Rejouer" : "Revanche"}
+                {rematch === "offered" ? (solo ? "Nouvelle partie…" : "Revanche proposée…") : failed ? "Réessayer" : campaign ? "Rejouer" : "Revanche"}
               </button>
-              <button type="button" className="btn" onClick={() => analyse("analyse")}>
-                Analyser
-              </button>
+              {failed ? (
+                <button type="button" className="btn" onClick={backToCampaign}>
+                  Carte
+                </button>
+              ) : (
+                <button type="button" className="btn" onClick={() => analyse("analyse")}>
+                  Analyser
+                </button>
+              )}
             </div>
           )}
           <div className="rs-links">
