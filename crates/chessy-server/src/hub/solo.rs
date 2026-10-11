@@ -335,26 +335,39 @@ mod tests {
         let Phase::Playing { game } = &hub.games[game_id].phase else {
             panic!("the game is running");
         };
-        hub.bot_job(game_id, game.pos.ply).expect("the bot is to move")
+        hub.bot_job(game_id, game.pos.ply)
+            .expect("the bot is to move")
     }
 
     #[test]
     fn a_campaign_boss_bot_always_plays_its_skills() {
-        let (hub, game_id) = campaign_game(LevelRef { chapter: 0, level: BOSS_LEVEL });
+        let (hub, game_id) = campaign_game(LevelRef {
+            chapter: 0,
+            level: BOSS_LEVEL,
+        });
         let job = bot_job_at_start(&hub, &game_id);
         assert_eq!(job.strength.skill_permille, BOSS_SKILL_PERMILLE);
     }
 
     #[test]
     fn a_campaign_level_that_is_not_a_boss_keeps_the_elo_skill() {
-        let (hub, game_id) = campaign_game(LevelRef { chapter: 0, level: 0 });
+        let (hub, game_id) = campaign_game(LevelRef {
+            chapter: 0,
+            level: 0,
+        });
         let job = bot_job_at_start(&hub, &game_id);
-        assert_eq!(job.strength.skill_permille, Strength::from_elo(1200).skill_permille);
+        assert_eq!(
+            job.strength.skill_permille,
+            Strength::from_elo(1200).skill_permille
+        );
     }
 
     #[test]
     fn a_campaign_never_accepts_a_draw() {
-        let (mut hub, game_id) = campaign_game(LevelRef { chapter: 0, level: 0 });
+        let (mut hub, game_id) = campaign_game(LevelRef {
+            chapter: 0,
+            level: 0,
+        });
         hub.solo_answer_draw(&game_id, Color::Black);
         assert!(matches!(hub.games[&game_id].phase, Phase::Playing { .. }));
     }
