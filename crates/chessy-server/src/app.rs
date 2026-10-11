@@ -57,8 +57,10 @@ pub struct App {
 
 impl App {
     pub fn new(store: Store, config: HubConfig) -> Arc<Self> {
+        let mut hub = Hub::new(store.clone(), config);
+        hub.restore_rewards();
         Arc::new(App {
-            hub: Mutex::new(Hub::new(store.clone(), config)),
+            hub: Mutex::new(hub),
             config,
             max_hold_ns: AtomicU64::new(0),
             store,
@@ -211,6 +213,7 @@ impl App {
             let mut hub = self.hub.lock().unwrap_or_else(|e| e.into_inner());
             let held = Instant::now();
             let result = f(&mut hub);
+            self.store_reward_outcomes(&mut hub);
             let timers = hub.take_timers();
             self.note_hold(held);
             (result, timers)
@@ -275,7 +278,30 @@ impl App {
         token: Option<String>,
         tx: UnboundedSender<ServerMsg>,
     ) -> Result<(PlayerId, u64), StoreError> {
-        self.run(|hub| hub.connect(token, tx))
+        let announcements = tx.clone();
+        let (player, conn_id) = self.run(|hub| hub.connect(token, tx))?;
+        match self.store.take_reward_outcomes(&player) {
+            Ok(rows) => rows.into_iter().for_each(|row| {
+                let _ = announcements.send(ServerMsg::RewardOutcome {
+                    by: row.by,
+                    kind: row.kind,
+                    skill: row.skill,
+                    refilled: row.refilled,
+                });
+            }),
+            Err(e) => tracing::error!("could not read the reward outcomes of {player}: {e}"),
+        }
+        Ok((player, conn_id))
+    }
+
+    /// Stores the announcements the hub could not deliver (loser offline).
+    /// Done under the hub lock, so a loser who connects right after finds them.
+    fn store_reward_outcomes(&self, hub: &mut Hub) {
+        for (player, outcome) in hub.take_reward_outcome_pushes() {
+            if let Err(e) = self.store.push_reward_outcome(&player, &outcome) {
+                tracing::error!("could not store a reward outcome for {player}: {e}");
+            }
+        }
     }
 
     pub fn disconnect(self: &Arc<Self>, player: &str, conn_id: u64) {
@@ -379,6 +405,7 @@ impl App {
             let timers = {
                 let mut hub = app.hub.lock().unwrap_or_else(|e| e.into_inner());
                 hub.finish_forge(&player, replace, made);
+                app.store_reward_outcomes(&mut hub);
                 hub.take_timers()
             };
             app.schedule(timers);

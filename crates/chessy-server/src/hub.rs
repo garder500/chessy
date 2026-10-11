@@ -9,6 +9,7 @@ mod campaign;
 #[cfg(test)]
 mod campaign_tests;
 mod moderation;
+mod rewards;
 mod social;
 mod solo;
 mod spectate;
@@ -375,6 +376,8 @@ pub struct Hub {
     games: HashMap<String, Session>,
     player_game: HashMap<PlayerId, String>,
     rewards: HashMap<PlayerId, PendingReward>,
+    /// Announcements for losers with no connection, to store (see `rewards`).
+    reward_outcome_pushes: Vec<(PlayerId, crate::reward_outcome_store::RewardOutcomeRow)>,
     /// Open challenges by challenger.
     challenges: HashMap<PlayerId, social::Challenge>,
     next_challenge: u64,
@@ -418,6 +421,7 @@ impl Hub {
             games: HashMap::new(),
             player_game: HashMap::new(),
             rewards: HashMap::new(),
+            reward_outcome_pushes: Vec::new(),
             challenges: HashMap::new(),
             next_challenge: 0,
             rematches: HashMap::new(),
@@ -772,15 +776,13 @@ impl Hub {
         self.rooms.retain(|_, (p, _)| p != player);
     }
 
-    /// Checks the player may start looking for a game; clears any unclaimed
-    /// reward (starting a new game forfeits it), any rematch they were
-    /// weighing and any previous lobby spot.
+    /// Checks the player may start looking for a game; clears any rematch
+    /// they were weighing and any previous lobby spot.
     fn enter_lobby(&mut self, player: &str) -> bool {
         if self.player_game.contains_key(player) {
             self.fail(player, "already_in_game", "finish your current game first");
             return false;
         }
-        self.rewards.remove(player);
         self.drop_rematch(player, true);
         self.leave_lobby_silently(player);
         self.spectate_leave(player);
@@ -1017,7 +1019,6 @@ impl Hub {
             }
         }
         for player in &humans {
-            self.rewards.remove(*player);
             self.leave_lobby_silently(player);
             self.spectate_leave(player);
             self.drop_challenges(player);
@@ -1675,17 +1676,16 @@ impl Hub {
                 let loser = &session.players[color.opposite().index()];
                 let loser_deck = self.deck_of(loser).unwrap_or_default();
                 let offer = self.offer_for(player, Some(loser), &loser_deck).ok();
-                self.rewards.insert(
-                    player.clone(),
-                    PendingReward {
-                        forging: false,
-                        loser: Some(loser.clone()),
-                        range: Rarity::Common..=Rarity::Legendary,
-                        loser_deck,
-                        boss: None,
-                        created: Instant::now(),
-                    },
-                );
+                let pending = PendingReward {
+                    forging: false,
+                    loser: Some(loser.clone()),
+                    range: Rarity::Common..=Rarity::Legendary,
+                    loser_deck,
+                    boss: None,
+                    created: Instant::now(),
+                };
+                self.save_pending_reward(player, &pending);
+                self.rewards.insert(player.clone(), pending);
                 offer
             } else {
                 None
@@ -1799,203 +1799,6 @@ impl Hub {
             deck,
             steal_options,
         })
-    }
-
-    pub fn reward_choice(&mut self, player: &str, choice: RewardChoice) {
-        if matches!(choice, RewardChoice::Random { .. }) {
-            // A random skill is forged: see `begin_forge`, which the app calls.
-            return self.fail(
-                player,
-                "invalid_reward",
-                "a random skill is forged, not drawn",
-            );
-        }
-        let Some(pending) = self.rewards.remove(player) else {
-            return self.fail(player, "no_reward", "you have no reward to claim");
-        };
-        if pending.created.elapsed() >= self.config.reward_ttl {
-            return self.fail(player, "no_reward", "that reward has expired");
-        }
-        if pending.forging {
-            self.rewards.insert(player.to_string(), pending);
-            return self.fail(player, "forging", "a skill is already being forged for you");
-        }
-        match self.resolve_reward(
-            player,
-            pending.loser.as_deref(),
-            &pending.loser_deck,
-            choice,
-            None,
-        ) {
-            Ok(()) => self.mark_boss_rewarded(player, &pending),
-            Err(msg) => {
-                // Let the player try again with a corrected choice.
-                self.rewards.insert(player.to_string(), pending);
-                self.fail(player, "invalid_reward", msg);
-            }
-        }
-    }
-
-    /// The winner chose a random skill: checks the reward and returns what
-    /// the forge needs. The forging itself takes a while (it measures the
-    /// candidates on real positions), so the app does it off the lock and then
-    /// calls [`Hub::finish_forge`].
-    pub fn begin_forge(&mut self, player: &str, replace: Option<SkillId>) -> Option<ForgeJob> {
-        let Some(pending) = self.rewards.get_mut(player) else {
-            self.fail(player, "no_reward", "you have no reward to claim");
-            return None;
-        };
-        if pending.created.elapsed() >= self.config.reward_ttl {
-            self.rewards.remove(player);
-            self.fail(player, "no_reward", "that reward has expired");
-            return None;
-        }
-        if pending.forging {
-            self.fail(player, "forging", "a skill is already being forged for you");
-            return None;
-        }
-        let known = match self.store.forged_signatures() {
-            Ok(known) => known,
-            Err(_) => {
-                self.fail(player, "internal", "internal error");
-                return None;
-            }
-        };
-        let seed: u64 = rand::random();
-        let pending = self.rewards.get_mut(player)?;
-        pending.forging = true;
-        let range = pending.range.clone();
-        let target = chessy_engine::forge::generate::roll_rarity_in(
-            &mut chessy_engine::ai::Rng::new(seed ^ 0xA5A5),
-            *range.start(),
-            *range.end(),
-        );
-        Some(ForgeJob {
-            player: player.to_string(),
-            replace,
-            target,
-            range,
-            seed,
-            known,
-            store: self.store.clone(),
-        })
-    }
-
-    /// The forge is done: `skill` is what it made, `None` if it failed.
-    pub fn finish_forge(&mut self, player: &str, replace: Option<SkillId>, skill: Option<SkillId>) {
-        let Some(mut pending) = self.rewards.remove(player) else {
-            return;
-        };
-        pending.forging = false;
-        let result = match skill {
-            None => Err("the forge could not make a skill, try again"),
-            Some(_) => self.resolve_reward(
-                player,
-                pending.loser.as_deref(),
-                &pending.loser_deck,
-                RewardChoice::Random { replace },
-                skill,
-            ),
-        };
-        match result {
-            Ok(()) => self.mark_boss_rewarded(player, &pending),
-            Err(msg) => {
-                self.rewards.insert(player.to_string(), pending);
-                self.fail(player, "invalid_reward", msg);
-            }
-        }
-    }
-
-    fn resolve_reward(
-        &mut self,
-        winner: &str,
-        loser: Option<&str>,
-        snapshot: &[SkillId],
-        choice: RewardChoice,
-        forged: Option<SkillId>,
-    ) -> Result<(), &'static str> {
-        let db = |_: StoreError| "internal error";
-        let winner_deck = self.deck_of(winner).map_err(db)?;
-        // Only what the loser had at the end of the game and still has now
-        // (they may have won skills elsewhere since, or lost some).
-        let loser_deck: Vec<SkillId> = match loser {
-            Some(loser) => self
-                .deck_of(loser)
-                .map_err(db)?
-                .into_iter()
-                .filter(|s| snapshot.contains(s))
-                .collect(),
-            None => Vec::new(),
-        };
-
-        let (gain, loser_loses, replace) = match choice {
-            RewardChoice::Skip => {
-                self.send(
-                    winner,
-                    ServerMsg::DeckUpdate {
-                        deck: winner_deck,
-                        gained: None,
-                        lost: None,
-                    },
-                );
-                return Ok(());
-            }
-            RewardChoice::Steal { skill, replace } => {
-                if !loser_deck.contains(&skill) {
-                    return Err("that skill is not available to take any more");
-                }
-                if winner_deck.contains(&skill) {
-                    return Err("you already have that skill");
-                }
-                (Some(skill), Some(skill), replace)
-            }
-            RewardChoice::Random { replace } => {
-                // The forge made the skill; the loser loses one of theirs at random.
-                let skill = forged.ok_or("no skill was forged")?;
-                if winner_deck.contains(&skill) {
-                    return Err("you already have that skill");
-                }
-                let mut rng = rand::rng();
-                (Some(skill), loser_deck.choose(&mut rng).copied(), replace)
-            }
-        };
-
-        let winner_drops = if gain.is_some() && winner_deck.len() >= MAX_DECK {
-            match replace {
-                Some(r) if winner_deck.contains(&r) && Some(r) != gain => Some(r),
-                _ => return Err("your deck is full: choose a skill to replace"),
-            }
-        } else {
-            None
-        };
-
-        self.store
-            .apply_deck_change(winner, loser, gain, loser_loses, winner_drops)
-            .map_err(|_| "could not apply that reward")?;
-
-        let winner_after = self.deck_of(winner).map_err(db)?;
-        self.send(
-            winner,
-            ServerMsg::DeckUpdate {
-                deck: winner_after,
-                gained: gain,
-                lost: winner_drops,
-            },
-        );
-        if let Some(loser) = loser {
-            let _ = self.store.refill_if_empty(loser);
-            if let Ok(loser_after) = self.deck_of(loser) {
-                self.send(
-                    loser,
-                    ServerMsg::DeckUpdate {
-                        deck: loser_after,
-                        gained: None,
-                        lost: loser_loses,
-                    },
-                );
-            }
-        }
-        Ok(())
     }
 }
 
