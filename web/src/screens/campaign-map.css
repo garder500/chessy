@@ -22,7 +22,8 @@
 
 .cp-map {
   position: relative; width: 100%; overflow: hidden; border: 1px solid var(--line);
-  background-color: var(--bg-2); background-image: conic-gradient(var(--surface) 25%, var(--bg-2) 0 50%, var(--surface) 0 75%, var(--bg-2) 0);
+  --tile: color-mix(in srgb, var(--surface) 30%, var(--bg-2));
+  background-color: var(--bg-2); background-image: conic-gradient(var(--tile) 25%, var(--bg-2) 0 50%, var(--tile) 0 75%, var(--bg-2) 0);
   background-size: 110px 110px; clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut));
 }
 .cp-trail { position: absolute; inset: 0; width: 100%; height: 100%; }
