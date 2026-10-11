@@ -243,7 +243,7 @@ async fn the_rest_api_lists_the_levels_and_the_progress() {
     assert_eq!(levels.len(), 7);
     assert_eq!(levels[0]["elo"], 400);
     assert_eq!(levels[5]["elo"], 650);
-    assert_eq!(levels[6]["elo"], 750);
+    assert_eq!(levels[6]["elo"], 800);
     assert_eq!(levels[6]["boss"], true);
     assert_eq!(levels[2]["best"], serde_json::json!([true, true, false]));
     assert_eq!(levels[2]["rewarded"], false);
@@ -437,12 +437,12 @@ async fn the_rest_api_describes_titles_decks_and_starts() {
         store.record_campaign(&id, at(level), ALL_STARS).unwrap();
     }
     store
-        .record_campaign(&id, at(BOSS_LEVEL), STAR_WIN)
+        .record_campaign(&id, at(BOSS_LEVEL), ALL_STARS)
         .unwrap();
 
     let (_, v) = api.get("/api/campaign", Some(&token)).await;
     let chapters = v["chapters"].as_array().unwrap();
-    assert_eq!(chapters[0]["title"], "Fer de Lance");
+    assert_eq!(chapters[0]["title"], "Tombeur du Bélier");
     assert_eq!(chapters[0]["title_earned"], true);
     assert_eq!(chapters[1]["title_earned"], false);
     let boss = |c: usize| &chapters[c]["levels"][usize::from(BOSS_LEVEL)];
