@@ -15,5 +15,8 @@
   "no_such_game": "This game doesn't exist or has ended.",
   "invalid_target": "Action not possible on your own account.",
   "blocked": "You blocked this player: unblock them first.",
-  "block_list_full": "Your blocked players list is full."
+  "block_list_full": "Your blocked players list is full.",
+  "unknown_level": "This campaign level doesn't exist yet.",
+  "boss_locked": "The boss is locked: earn more stars in this chapter.",
+  "bad_deck": "Invalid campaign deck: choose 1 to 3 skills from your deck."
 }

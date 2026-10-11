@@ -15,5 +15,8 @@
   "no_such_game": "Diese Partie existiert nicht oder ist beendet.",
   "invalid_target": "Aktion auf dem eigenen Konto nicht möglich.",
   "blocked": "Du hast diesen Spieler blockiert: Hebe die Blockierung zuerst auf.",
-  "block_list_full": "Deine Liste blockierter Spieler ist voll."
+  "block_list_full": "Deine Liste blockierter Spieler ist voll.",
+  "unknown_level": "Dieses Kampagnenlevel existiert noch nicht.",
+  "boss_locked": "Der Boss ist gesperrt: Sammle mehr Sterne in diesem Kapitel.",
+  "bad_deck": "Ungültiges Kampagnen-Deck: Wähle 1 bis 3 Fähigkeiten aus deinem Deck."
 }
