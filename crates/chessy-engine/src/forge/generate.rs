@@ -192,6 +192,15 @@ impl Budget {
             positions: calibration().positions as usize,
         }
     }
+
+    /// What a campaign boss forge spends: more candidates, since the floor
+    /// and the family reject many of them.
+    pub fn campaign() -> Budget {
+        Budget {
+            attempts: 96,
+            ..Budget::live()
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
