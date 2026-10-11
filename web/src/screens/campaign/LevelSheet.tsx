@@ -1,5 +1,5 @@
 import { type CSSProperties, useState } from "react";
-import { colorLabel, forgeNote, formatElo, isLocked, splitDeck, STAR_LABELS, toggleDeckPick, validPicks } from "../../campaign";
+import { colorLabel, forgeNote, formatElo, isLocked, requiredPicks, splitDeck, STAR_LABELS, toggleDeckPick, validPicks } from "../../campaign";
 import type { CampaignChapterView, CampaignLevelView } from "../../campaign";
 import { familyVar } from "../../catalog";
 import { RARITY_LABEL } from "../../forged";
@@ -71,7 +71,7 @@ export function LevelSheet({ chapter, level, ownDeck, connected, pending, onClos
   const pickable = splitDeck(ownDeck, level.lent).pickable;
   const picked = validPicks(chosen, pickable);
   const locked = isLocked(chapter, level);
-  const needsPick = level.deck_choice && picked.length === 0;
+  const needsPick = level.deck_choice && picked.length < requiredPicks(pickable);
   const play = () => {
     store.startCampaign(chapter.chapter, level.level, level.deck_choice ? picked : undefined);
     onClose();

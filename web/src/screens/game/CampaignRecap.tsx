@@ -1,8 +1,6 @@
-import { STAR_LABELS } from "../../campaign";
+import { MAX_STARS, STAR_LABELS } from "../../campaign";
 import type { CampaignResult, Outcome } from "../../protocol";
 import { Stars } from "../../ui/Stars";
-
-const MAX_STARS = 105;
 
 /** En campagne, une nulle ne vaut pas une victoire : on dit pourquoi. */
 const DRAW_EXPLANATIONS: Partial<Record<Outcome["type"], string>> = {

@@ -8,6 +8,7 @@ import {
   formatElo,
   isLocked,
   LEGENDARY_CHAPTER,
+  requiredPicks,
   splitDeck,
   toggleDeckPick,
   totalLabel,
@@ -46,6 +47,13 @@ const chapter = (boss_unlocked: boolean): CampaignChapter => ({
 });
 
 describe("campagne", () => {
+  it("exige trois choix, ou tout le deck s'il est plus court", () => {
+    const skills = ["a", "b", "c", "d"] as unknown as SkillId[];
+    expect(requiredPicks(skills)).toBe(3);
+    expect(requiredPicks(skills.slice(0, 2))).toBe(2);
+    expect(requiredPicks([])).toBe(0);
+  });
+
   it("compte les étoiles obtenues", () => {
     expect(countStars([true, false, true])).toBe(2);
     expect(countStars([false, false, false])).toBe(0);
