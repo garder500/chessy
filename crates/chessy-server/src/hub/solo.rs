@@ -28,6 +28,9 @@ use crate::games_store::GameKind;
 use crate::protocol::*;
 use crate::store::reason_of;
 
+/// Skill of the bot in a campaign boss fight: it always plays its skills.
+const BOSS_SKILL_PERMILLE: u32 = 1000;
+
 /// The bot's seat in a Solo session.
 #[derive(Clone, Debug)]
 pub(super) struct Solo {
@@ -170,7 +173,10 @@ impl Hub {
         if game.outcome().is_over() || game.pos.ply != ply || game.side_to_move() != solo.bot {
             return None;
         }
-        let strength = Strength::from_elo(solo.elo);
+        let mut strength = Strength::from_elo(solo.elo);
+        if solo.campaign.is_some_and(LevelRef::is_boss) {
+            strength.skill_permille = BOSS_SKILL_PERMILLE;
+        }
         let max_think = Duration::from_millis(strength.think_ms).min(self.config.bot_think_max);
         // The bot plays the board its side sees: what Fog or Invisibility hides
         // from it is not on the board it searches (so it cannot cheat). An
@@ -239,6 +245,11 @@ impl Hub {
             return;
         };
         let human = players[offerer.index()].clone();
+        // A campaign level is won by mate only: no draw, whatever the bot thinks.
+        if solo.campaign.is_some() {
+            *draw_offer = None;
+            return self.send(&human, ServerMsg::DrawDeclined {});
+        }
         let accept = bot::accepts_draw(
             &game.pos,
             solo.bot,
@@ -302,5 +313,49 @@ impl Hub {
                 setup.deck,
             ),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::campaign::BOSS_LEVEL;
+    use crate::hub::{Hub, HubConfig, Phase};
+    use crate::store::Store;
+
+    /// A campaign game where the human is Black, so the bot moves first.
+    fn campaign_game(at: LevelRef) -> (Hub, String) {
+        let mut hub = Hub::new(Store::open(":memory:").unwrap(), HubConfig::default());
+        hub.start_solo("p", 1200, Color::Black, Some(at), Vec::new());
+        let game_id = hub.player_game["p"].clone();
+        (hub, game_id)
+    }
+
+    fn bot_job_at_start(hub: &Hub, game_id: &str) -> BotJob {
+        let Phase::Playing { game } = &hub.games[game_id].phase else {
+            panic!("the game is running");
+        };
+        hub.bot_job(game_id, game.pos.ply).expect("the bot is to move")
+    }
+
+    #[test]
+    fn a_campaign_boss_bot_always_plays_its_skills() {
+        let (hub, game_id) = campaign_game(LevelRef { chapter: 0, level: BOSS_LEVEL });
+        let job = bot_job_at_start(&hub, &game_id);
+        assert_eq!(job.strength.skill_permille, BOSS_SKILL_PERMILLE);
+    }
+
+    #[test]
+    fn a_campaign_level_that_is_not_a_boss_keeps_the_elo_skill() {
+        let (hub, game_id) = campaign_game(LevelRef { chapter: 0, level: 0 });
+        let job = bot_job_at_start(&hub, &game_id);
+        assert_eq!(job.strength.skill_permille, Strength::from_elo(1200).skill_permille);
+    }
+
+    #[test]
+    fn a_campaign_never_accepts_a_draw() {
+        let (mut hub, game_id) = campaign_game(LevelRef { chapter: 0, level: 0 });
+        hub.solo_answer_draw(&game_id, Color::Black);
+        assert!(matches!(hub.games[&game_id].phase, Phase::Playing { .. }));
     }
 }
