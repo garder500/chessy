@@ -129,6 +129,7 @@ export function BossForge({ chapter, initial = null, onClose }: Props) {
     const revealed = () => {
       markRevealed(info);
       setSeenNow(true);
+      if (!info.deck_full && placing.current === null) place();
     };
     return (
       <div className="bf-reveal" onClick={(e) => (e.target as Element).closest(".fr-fin") && revealed()} onKeyDown={(e) => e.key === "Escape" && revealed()}>
