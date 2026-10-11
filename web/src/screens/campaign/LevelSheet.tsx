@@ -1,7 +1,9 @@
 import { type CSSProperties, useState } from "react";
-import { colorLabel, isLocked, STAR_LABELS, toggleDeckPick, validPicks } from "../../campaign";
+import { colorLabel, forgeNote, formatElo, isLocked, splitDeck, STAR_LABELS, toggleDeckPick, validPicks } from "../../campaign";
+import type { CampaignChapterView, CampaignLevelView } from "../../campaign";
 import { familyVar } from "../../catalog";
-import type { CampaignChapter, CampaignLevel, SkillId } from "../../protocol";
+import { RARITY_LABEL } from "../../forged";
+import type { SkillId } from "../../protocol";
 import { skillInfo } from "../../skills";
 import { store } from "../../store";
 import { SkillArt } from "../../ui/SkillArt";
@@ -10,19 +12,19 @@ import { Stars } from "../../ui/Stars";
 import { DeckPicker } from "./DeckPicker";
 
 interface Props {
-  chapter: CampaignChapter;
-  level: CampaignLevel | null;
+  chapter: CampaignChapterView;
+  level: CampaignLevelView | null;
   ownDeck: SkillId[];
   connected: boolean;
   pending: boolean;
-  guest: boolean;
   onClose: () => void;
 }
 
-function Deck({ label, skills }: { label: string; skills: SkillId[] }) {
+function Deck({ label, note, skills }: { label: string; note?: string; skills: SkillId[] }) {
   return (
     <div className="cp-deck">
       <p className="lab">{label}</p>
+      {note && <p className="muted">{note}</p>}
       {skills.length === 0 ? (
         <p className="muted">Aucune compétence</p>
       ) : (
@@ -42,11 +44,32 @@ function Deck({ label, skills }: { label: string; skills: SkillId[] }) {
   );
 }
 
-/** Détail d'un niveau : adversaire, objectif et défi, decks imposés, lancement. */
-export function LevelSheet({ chapter, level, ownDeck, connected, pending, guest, onClose }: Props) {
+/** Ce que le boss peut offrir : rareté et taux, affichés avant le combat. */
+function ForgeTable({ chapter }: { chapter: CampaignChapterView }) {
+  if (chapter.forge_table.length === 0) return null;
+  const note = forgeNote(chapter);
+  return (
+    <div className="cp-deck">
+      <p className="lab">Forge du boss</p>
+      <ul className="cp-forge-table">
+        {chapter.forge_table.map(({ rarity, percent }) => (
+          <li key={rarity}>
+            <span>{RARITY_LABEL[rarity]}</span>
+            <span className="mono">{percent} %</span>
+          </li>
+        ))}
+      </ul>
+      {note && <p className="muted">{note}</p>}
+    </div>
+  );
+}
+
+/** Détail d'un niveau : adversaire, objectif et défi, mains, lancement. */
+export function LevelSheet({ chapter, level, ownDeck, connected, pending, onClose }: Props) {
   const [chosen, setChosen] = useState<SkillId[]>([]);
   if (!level) return null;
-  const picked = validPicks(chosen, ownDeck);
+  const pickable = splitDeck(ownDeck, level.lent).pickable;
+  const picked = validPicks(chosen, pickable);
   const locked = isLocked(chapter, level);
   const needsPick = level.deck_choice && picked.length === 0;
   const play = () => {
@@ -57,9 +80,9 @@ export function LevelSheet({ chapter, level, ownDeck, connected, pending, guest,
   return (
     <Sheet open title={level.name} onClose={onClose}>
       <p className="sheet-sub">
-        {level.boss ? "Boss · " : ""}Sage · Elo {level.elo}
+        {level.boss ? "Boss · " : ""}Sage · {formatElo(level.elo)}
       </p>
-      <Stars stars={level.best} size={22} boss={level.boss} />
+      <Stars stars={level.best} size={22} />
       <dl className="cp-goals">
         <dt>{STAR_LABELS[0]}</dt>
         <dd>Gagner la partie</dd>
@@ -76,18 +99,27 @@ export function LevelSheet({ chapter, level, ownDeck, connected, pending, guest,
           </>
         )}
       </dl>
+      {level.hint && (
+        <p className="cp-hint">
+          <span className="lab">Conseil</span> {level.hint}
+        </p>
+      )}
       {level.start_fen && (
         <p className="muted">
           Position de départ spéciale{level.human_color && <> · vous jouez {colorLabel(level.human_color)}</>}
         </p>
       )}
       {level.deck_choice ? (
-        <DeckPicker deck={ownDeck} picked={picked} onToggle={(skill) => setChosen((cur) => toggleDeckPick(validPicks(cur, ownDeck), skill))} />
+        <DeckPicker deck={ownDeck} lent={level.lent} picked={picked} onToggle={(skill) => setChosen((cur) => toggleDeckPick(validPicks(cur, pickable), skill))} />
       ) : (
-        <Deck label="Votre deck" skills={level.player_deck} />
+        <Deck label="Compétences imposées · une fois par partie" skills={level.player_deck} />
       )}
-      <Deck label="Deck de Sage" skills={level.bot_deck} />
-      {level.boss && guest && <p className="muted">La récompense de forge du boss demande un compte : créez-en un pour la recevoir.</p>}
+      <Deck
+        label="Main de Sage"
+        note={level.boss ? "Rien n'est caché. Ses 3 compétences sont dans sa main dès le premier coup." : "Rien n'est caché."}
+        skills={level.bot_deck}
+      />
+      {level.boss && <ForgeTable chapter={chapter} />}
       <button type="button" className="btn pri block" disabled={locked || needsPick || !connected || pending} onClick={play}>
         {locked ? "Boss verrouillé" : "Jouer"}
       </button>
