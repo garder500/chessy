@@ -30,6 +30,9 @@ export interface CampaignView {
 /** Dernier chapitre : sa forge est la seule où la Légendaire est possible. */
 export const LEGENDARY_CHAPTER = 4;
 
+/** Total d'étoiles de la campagne (7 niveaux sur 5 chapitres, 3 étoiles chacun). */
+export const MAX_STARS = 105;
+
 export function totalLabel(total: number, max: number): string {
   return `${total} / ${max} ★`;
 }
@@ -83,6 +86,11 @@ export const MAX_DECK_PICKS = 3;
 export function toggleDeckPick(picked: SkillId[], skill: SkillId): SkillId[] {
   if (picked.includes(skill)) return picked.filter((s) => s !== skill);
   return picked.length < MAX_DECK_PICKS ? [...picked, skill] : picked;
+}
+
+/** Un deck plus court que la limite se prend en entier. */
+export function requiredPicks(pickable: SkillId[]): number {
+  return Math.min(MAX_DECK_PICKS, pickable.length);
 }
 
 /** Écarte les choix qui ne sont plus dans le deck (après un `deck_update`). */
