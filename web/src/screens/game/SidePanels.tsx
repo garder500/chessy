@@ -9,6 +9,7 @@ import { ModerationActions } from "../../ui/Moderation";
 import { SkillArt } from "../../ui/SkillArt";
 import { UniqueBadge } from "../../ui/UniqueBadge";
 import { useCompact } from "../../ui/useCompact";
+import { DevFinish } from "./DevFinish";
 import { tileRarity } from "../../ui/tileRarity";
 
 interface SkillListProps {
@@ -225,11 +226,14 @@ export function Actions({ view, over }: { view: StateView; over: boolean }) {
           <button type="button" className="btn sm danger" onClick={() => setConfirm(true)}>
             {t("game.resign_btn")}
           </button>
-          <button type="button" className="btn sm" disabled={view.draw_offer !== "none"} onClick={() => store.offerDraw()}>
-            {view.draw_offer === "you" ? t("game.draw_offered_title") : t("game.offer_draw")}
-          </button>
+          {!view.campaign && (
+            <button type="button" className="btn sm" disabled={view.draw_offer !== "none"} onClick={() => store.offerDraw()}>
+              {view.draw_offer === "you" ? t("game.draw_offered_title") : t("game.offer_draw")}
+            </button>
+          )}
         </div>
       )}
+      <DevFinish />
     </section>
   );
 }
@@ -367,20 +371,23 @@ export function Options({ view, onClose }: { view: StateView; onClose: () => voi
   }
   return (
     <div className="gm-opts">
-      <button
-        type="button"
-        className="btn block"
-        disabled={view.draw_offer !== "none"}
-        onClick={() => {
-          store.offerDraw();
-          onClose();
-        }}
-      >
-        {view.draw_offer === "you" ? t("game.draw_offered_title") : t("game.offer_draw_long")}
-      </button>
+      {!view.campaign && (
+        <button
+          type="button"
+          className="btn block"
+          disabled={view.draw_offer !== "none"}
+          onClick={() => {
+            store.offerDraw();
+            onClose();
+          }}
+        >
+          {view.draw_offer === "you" ? t("game.draw_offered_title") : t("game.offer_draw_long")}
+        </button>
+      )}
       <button type="button" className="btn block danger" onClick={() => setConfirm(true)}>
         {t("game.resign_do")}
       </button>
+      <DevFinish />
       <button type="button" className="link" onClick={onClose}>
         {t("game.back_to_game")}
       </button>

@@ -16,7 +16,9 @@
   "invalid_target": "Ação impossível na sua própria conta.",
   "blocked": "Bloqueou este jogador: desbloqueie-o primeiro.",
   "block_list_full": "A sua lista de jogadores bloqueados está cheia.",
-  "level_locked": "Esse nível ainda não está aberto.",
-  "no_forge": "Nenhum chefe lhe deve uma forja.",
-  "forging": "Já está a ser forjada uma habilidade."
+  "unknown_level": "Este nível da campanha ainda não existe.",
+  "chapter_locked": "Este capítulo está selado: derrote o chefe do capítulo anterior.",
+  "level_locked": "Nível bloqueado: ganhe primeiro o nível anterior.",
+  "boss_locked": "O chefe está bloqueado: ganhe mais estrelas neste capítulo.",
+  "bad_deck": "Baralho de campanha inválido: escolha de 1 a 3 habilidades do seu baralho."
 }

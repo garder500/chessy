@@ -196,6 +196,5 @@
   "amb_domain_opp_name": "Domaine adverse",
   "amb_silenced_own": "Silence : vous ne pouvez plus utiliser de compétence",
   "amb_silenced_opp": "Silence : l'adversaire ne peut plus utiliser de compétence",
-  "amb_silenced_name": "Silence",
-  "cad_campaign": "Campagne"
+  "amb_silenced_name": "Silence"
 }

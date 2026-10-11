@@ -1,615 +1,554 @@
-//! Campaign mode (docs/spec-v6.md): five chapters against Sage, six levels and a
-//! boss each. This module is pure data and rules: the levels, what earns a
-//! star, and how a finished game is judged. The hub runs the games
-//! (`hub::solo`) and the store keeps the stars.
+//! Campaign content and rules (see `docs/spec-campagne.md`): the level table,
+//! the objectives behind the stars and the forge table of each boss.
+//!
+//! A campaign game is an ordinary Solo game with imposed decks; this module is
+//! pure data and rules, the game flow lives in `hub/campaign.rs`.
 
-use std::collections::HashMap;
+use chessy_engine::{Color, Game, PieceKind, SkillId};
+use serde::Deserialize;
 
-use chessy_engine::forge::Rarity;
-use chessy_engine::{Color, Event, Outcome, PieceKind, SkillId};
-use serde::Serialize;
+use crate::campaign_store::CampaignRow;
 
-pub const CHAPTERS: u8 = 5;
-/// Ordinary levels in a chapter; the boss comes after them.
-pub const LEVELS: u8 = 6;
-/// A level id is `chapter * 10 + index`, `index` 1..=6, the boss being 7.
-pub const BOSS_INDEX: u8 = LEVELS + 1;
-/// Stars (out of `LEVELS * 3`) that open the boss of a chapter.
-pub const BOSS_GATE: u32 = 12;
-/// Skills a player brings when they choose them (chapters 3 to 5).
-pub const MAX_HAND: usize = 3;
+mod forge_table;
+mod levels;
+mod titles;
+pub use forge_table::{forge_table, ForgeTable};
+pub use levels::CHAPTERS;
+pub use titles::{best_title, title_earned, titles_earned};
 
-/// The star bits stored for a level.
+pub const LEVELS_PER_CHAPTER: u8 = 6;
+/// Wire level of the boss of a chapter.
+pub const BOSS_LEVEL: u8 = LEVELS_PER_CHAPTER;
+/// Stars (out of `3 * LEVELS_PER_CHAPTER`) that open the boss.
+pub const BOSS_STARS: u8 = 12;
+/// Stars of the whole campaign: three per level, the bosses included.
+pub const MAX_STARS: u16 = 105;
+/// Consecutive defeats on a level after which its written hint is shown.
+pub const HINT_AFTER_DEFEATS: u32 = 3;
+
+const ELO_PER_CHAPTER: i32 = 400;
+const ELO_PER_LEVEL: i32 = 50;
+
+/// Bits of the stars mask stored per level.
 pub const STAR_WIN: u8 = 1;
 pub const STAR_OBJECTIVE: u8 = 2;
 pub const STAR_CHALLENGE: u8 = 4;
-pub const STAR_ALL: u8 = STAR_WIN | STAR_OBJECTIVE | STAR_CHALLENGE;
 
-pub fn star_count(mask: u8) -> u32 {
-    (mask & STAR_ALL).count_ones()
-}
-
-/// What the level asks for besides winning. Every objective is judged on a game
-/// the player won.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Objective {
-    /// Checkmate before move `moves`.
-    MateBefore { moves: u32 },
-    /// Capture a piece of this kind.
-    Capture { piece: PieceKind },
-    /// Capture at least `count` enemy pieces.
-    Take { count: u32 },
-    /// Promote a pawn.
-    Promote,
-    /// Lose fewer than `count` pieces (pawns not counted).
-    LoseFewer { count: u32 },
-}
-
-/// A constraint the player chooses to play under.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum Challenge {
-    /// Never lose the queen.
-    KeepQueen,
-    /// Never lose a knight or a bishop.
-    NoMinorLoss,
-    /// Do not lose your queen while taking theirs.
-    NoQueenTrade,
-    /// Play at least one skill.
-    UseSkill,
-    /// Play no skill at all.
-    NoSkill,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Level {
-    pub id: u8,
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+pub struct LevelRef {
     pub chapter: u8,
-    pub index: u8,
-    pub boss: bool,
-    /// Sage's level.
-    pub elo: i32,
-    /// The skills the level imposes (chapters 1 and 2), empty when the player chooses.
-    pub hand: Vec<SkillId>,
-    /// The player brings up to [`MAX_HAND`] skills of their own.
-    pub choose: bool,
-    /// Sage's skills.
-    pub enemy: Vec<SkillId>,
-    pub objective: Objective,
-    pub challenge: Challenge,
-    /// The least rarity of the forge a boss pays (boss only).
-    pub forge_min: Option<Rarity>,
+    pub level: u8,
 }
 
-/// The three skills each chapter teaches.
-const TAUGHT: [[SkillId; 3]; CHAPTERS as usize] = [
-    [SkillId::Terminator, SkillId::Canceller, SkillId::Queensac],
-    [SkillId::Imune, SkillId::Forcefield, SkillId::Rollback],
-    [
-        SkillId::Teleportation,
-        SkillId::Transposition,
-        SkillId::Bench,
-    ],
-    [SkillId::Freeze, SkillId::Tornado, SkillId::Invisibility],
-    [SkillId::Clone, SkillId::Morph, SkillId::Trap],
-];
-
-/// The two signature skills of each boss.
-const SIGNATURE: [[SkillId; 2]; CHAPTERS as usize] = [
-    [SkillId::Terminator, SkillId::Queensac],
-    [SkillId::Forcefield, SkillId::Imune],
-    [SkillId::Teleportation, SkillId::Transposition],
-    [SkillId::Invisibility, SkillId::Trap],
-    [SkillId::Clone, SkillId::Morph],
-];
-
-const FORGE_MIN: [Rarity; CHAPTERS as usize] = [
-    Rarity::Uncommon,
-    Rarity::Rare,
-    Rarity::Rare,
-    Rarity::Epic,
-    Rarity::Legendary,
-];
-
-/// Skills Sage may bring on the levels where it plays any.
-const ENEMY_POOL: [SkillId; 10] = [
-    SkillId::Teleportation,
-    SkillId::Imune,
-    SkillId::Freeze,
-    SkillId::Rollback,
-    SkillId::Clone,
-    SkillId::Tornado,
-    SkillId::Invisibility,
-    SkillId::Trap,
-    SkillId::Bench,
-    SkillId::Transposition,
-];
-
-pub fn level_id(chapter: u8, index: u8) -> u8 {
-    chapter * 10 + index
-}
-
-pub fn boss_id(chapter: u8) -> u8 {
-    level_id(chapter, BOSS_INDEX)
-}
-
-/// Every level id in play order.
-pub fn all_ids() -> impl Iterator<Item = u8> {
-    (1..=CHAPTERS).flat_map(|c| (1..=BOSS_INDEX).map(move |i| level_id(c, i)))
-}
-
-/// The level with this id, if there is one.
-pub fn level(id: u8) -> Option<Level> {
-    let (chapter, index) = (id / 10, id % 10);
-    if !(1..=CHAPTERS).contains(&chapter) || !(1..=BOSS_INDEX).contains(&index) {
-        return None;
+impl LevelRef {
+    pub fn is_boss(self) -> bool {
+        self.level == BOSS_LEVEL
     }
-    let c = usize::from(chapter - 1);
-    let boss = index == BOSS_INDEX;
-    let start = 400 + 400 * i32::from(chapter - 1);
-    let elo = if boss {
-        start + 350
-    } else {
-        start + 50 * i32::from(index - 1)
-    };
-    // The first two chapters hand out the skills they teach, one at a time then
-    // together; from the third on, the player brings their own.
-    let choose = chapter >= 3;
-    let taught = TAUGHT[c];
-    let hand = if choose {
-        Vec::new()
-    } else if boss {
-        taught.to_vec()
-    } else {
-        match index {
-            1 => vec![taught[0]],
-            2 => vec![taught[1]],
-            3 => vec![taught[2]],
-            4 => vec![taught[0], taught[1]],
-            _ => taught.to_vec(),
+
+    pub fn elo(self) -> i32 {
+        let chapter = i32::from(self.chapter) + 1;
+        if self.is_boss() {
+            return ELO_PER_CHAPTER * (chapter + 1);
         }
-    };
-    let enemy = if boss {
-        SIGNATURE[c].to_vec()
-    } else {
-        // None on the first two levels, one skill, then two: never one the
-        // player is handed.
-        let count = usize::from((index - 1) / 2);
-        ENEMY_POOL
-            .iter()
-            .cycle()
-            .skip(usize::from(id) % ENEMY_POOL.len())
-            .filter(|s| !hand.contains(s))
-            .take(count)
-            .copied()
-            .collect()
-    };
-    let n = u32::from(chapter - 1);
-    let objective = match index {
-        1 => Objective::MateBefore { moves: 40 - 2 * n },
-        2 => Objective::Capture {
-            piece: [
-                PieceKind::Rook,
-                PieceKind::Bishop,
-                PieceKind::Knight,
-                PieceKind::Rook,
-                PieceKind::Bishop,
-            ][c],
-        },
-        3 => Objective::Take { count: 5 + n },
-        4 => Objective::Promote,
-        5 => Objective::LoseFewer { count: 3 },
-        6 => Objective::MateBefore { moves: 32 - 2 * n },
-        _ => Objective::Capture {
-            piece: PieceKind::Queen,
-        },
-    };
-    let challenge = match index {
-        1 | 5 => Challenge::KeepQueen,
-        2 | 7 => Challenge::NoQueenTrade,
-        3 | 6 => Challenge::NoMinorLoss,
-        _ if choose => Challenge::NoSkill,
-        _ => Challenge::UseSkill,
-    };
-    Some(Level {
-        id,
-        chapter,
-        index,
-        boss,
-        elo,
-        hand,
-        choose,
-        enemy,
-        objective,
-        challenge,
-        forge_min: boss.then_some(FORGE_MIN[c]),
-    })
-}
-
-/// What a boss's forge can come out as: the tiers from `min` up in the
-/// proportions of the forge's own drop weights, in percent (rounded, the first
-/// tier takes the remainder so the list adds up to 100).
-pub fn forge_odds(min: Rarity) -> Vec<crate::protocol::ForgeOdds> {
-    use chessy_engine::forge::generate::DROP_WEIGHTS;
-    let weights = &DROP_WEIGHTS[min.index()..];
-    let sum: u64 = weights.iter().sum();
-    let mut odds: Vec<crate::protocol::ForgeOdds> = Rarity::ALL[min.index()..]
-        .iter()
-        .zip(weights)
-        .map(|(&rarity, &w)| crate::protocol::ForgeOdds {
-            rarity,
-            percent: (w * 100 / sum) as u32,
-        })
-        .collect();
-    let rest = 100 - odds.iter().map(|o| o.percent).sum::<u32>();
-    odds[0].percent += rest;
-    odds
-}
-
-// ---- progress --------------------------------------------------------------
-
-/// What a player has done on one level.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Record {
-    pub stars: u8,
-    /// A boss won whose forge was not claimed yet.
-    pub forge_pending: bool,
-}
-
-pub type Progress = HashMap<u8, Record>;
-
-pub fn stars_of(progress: &Progress, id: u8) -> u8 {
-    progress.get(&id).map_or(0, |r| r.stars & STAR_ALL)
-}
-
-/// Stars won on the six ordinary levels of `chapter`.
-pub fn chapter_stars(progress: &Progress, chapter: u8) -> u32 {
-    (1..=LEVELS)
-        .map(|i| star_count(stars_of(progress, level_id(chapter, i))))
-        .sum()
-}
-
-/// Whether the boss of `chapter` may be played: enough stars on its levels.
-pub fn boss_open(progress: &Progress, chapter: u8) -> bool {
-    chapter_stars(progress, chapter) >= BOSS_GATE
-}
-
-/// Whether `id` may be started: the first level, the level after one that was
-/// won, the boss once the gate is passed. A chapter opens when the boss of the
-/// one before is beaten.
-pub fn unlocked(progress: &Progress, id: u8) -> bool {
-    let Some(l) = level(id) else { return false };
-    if l.chapter > 1 && stars_of(progress, boss_id(l.chapter - 1)) & STAR_WIN == 0 {
-        return false;
+        ELO_PER_CHAPTER * chapter + ELO_PER_LEVEL * i32::from(self.level)
     }
-    if l.boss {
-        return boss_open(progress, l.chapter);
+}
+
+/// A condition checked on the finished game, once it is won.
+#[derive(Clone, Copy, Debug)]
+pub enum Objective {
+    /// Mate before this move number of the player's own notation (a skill that
+    /// ends the turn counts as one).
+    WinWithin(u32),
+    KeepPiece(PieceKind),
+    UseSkill(SkillId),
+    UseAnySkill,
+    NoSkillUsed,
+    UseAllSkills,
+    /// No piece lost before this move number of the player's own notation.
+    NoPieceLostBefore(u16),
+}
+
+/// What a finished game knows beyond its final position.
+#[derive(Clone, Copy, Default)]
+pub struct Context<'a> {
+    /// Ply at which the human lost their first piece.
+    pub first_loss_ply: Option<u32>,
+    /// The only skills `UseAllSkills` counts: on a level where the player
+    /// brings their own deck, that deck must not have to be used up.
+    pub counted: Option<&'a [SkillId]>,
+}
+
+impl Objective {
+    pub fn met(self, game: &Game, human: Color, context: &Context) -> bool {
+        let slots = &game.loadout(human).slots;
+        match self {
+            Objective::WinWithin(max) => own_turns(game.pos.ply, human) < max,
+            Objective::KeepPiece(kind) => game.pos.pieces(human).any(|(_, p)| p.kind == kind),
+            Objective::UseSkill(skill) => slots.iter().any(|s| s.skill == skill && s.uses > 0),
+            Objective::UseAnySkill => slots.iter().any(|s| s.uses > 0),
+            Objective::NoSkillUsed => slots.iter().all(|s| s.uses == 0),
+            Objective::UseAllSkills => slots
+                .iter()
+                .filter(|s| context.counted.is_none_or(|only| only.contains(&s.skill)))
+                .all(|s| s.uses > 0),
+            Objective::NoPieceLostBefore(min) => context
+                .first_loss_ply
+                .is_none_or(|ply| own_turns(ply, human) >= u32::from(min)),
+        }
     }
-    l.index == 1 || stars_of(progress, id - 1) & STAR_WIN != 0
-}
 
-/// Whether `hand` is a valid choice for `level`: distinct classic skills
-/// from `deck`, one to [`MAX_HAND`]. A level that imposes its hand takes none.
-pub fn valid_hand(level: &Level, hand: &[SkillId], deck: &[SkillId]) -> bool {
-    if !level.choose {
-        return hand.is_empty();
-    }
-    let mut seen = Vec::new();
-    !hand.is_empty()
-        && hand.len() <= MAX_HAND
-        && hand.iter().all(|s| {
-            let fresh = !seen.contains(s);
-            seen.push(*s);
-            fresh && deck.contains(s) && s.kind() == chessy_engine::SkillKind::Classic
-        })
-}
-
-// ---- judging a game ----------------------------------------------------------
-
-/// What a game showed of the player's side, collected action by action.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Tally {
-    /// Enemy pieces the player took.
-    pub taken: Vec<PieceKind>,
-    /// The player's pieces that were taken.
-    pub lost: Vec<PieceKind>,
-    pub promoted: bool,
-    pub skills_used: u32,
-}
-
-impl Tally {
-    /// Notes what `events`, the result of an action by `actor`, did to `human`'s side.
-    pub fn observe(&mut self, human: Color, actor: Color, events: &[Event]) {
-        for event in events {
-            match event {
-                Event::Captured { piece, .. } => {
-                    if piece.color == human {
-                        self.lost.push(piece.kind);
-                    } else {
-                        self.taken.push(piece.kind);
-                    }
-                }
-                Event::Promoted { .. } if actor == human => self.promoted = true,
-                Event::SkillUsed { color, .. } if *color == human => self.skills_used += 1,
-                _ => {}
+    pub fn text(self) -> String {
+        match self {
+            Objective::WinWithin(turns) => format!("Mater avant le coup {turns}"),
+            Objective::KeepPiece(kind) => format!("Terminer avec {}", piece_label(kind)),
+            Objective::UseSkill(skill) => format!("Utiliser {}", skill_label(skill)),
+            Objective::UseAnySkill => "Utiliser une compétence".to_string(),
+            Objective::NoSkillUsed => "Gagner sans utiliser de compétence".to_string(),
+            Objective::UseAllSkills => "Utiliser toutes ses compétences".to_string(),
+            Objective::NoPieceLostBefore(turns) => {
+                format!("Ne perdre aucune pièce avant le coup {turns}")
             }
         }
     }
+}
 
-    fn lost_any(&self, kinds: &[PieceKind]) -> bool {
-        self.lost.iter().any(|k| kinds.contains(k))
+/// Turns the player has finished: `pos.ply` advances on every turn handed over,
+/// and White moves on even plies. Every start has White to move and
+/// `Position::from_fen` yields ply 0 whatever the fullmove number, so the
+/// count is the same for a custom start.
+fn own_turns(ply: u32, human: Color) -> u32 {
+    let white_first = u32::from(human == Color::White);
+    (ply + white_first) / 2
+}
+
+fn piece_label(kind: PieceKind) -> &'static str {
+    match kind {
+        PieceKind::Pawn => "un pion",
+        PieceKind::Knight => "un cavalier",
+        PieceKind::Bishop => "un fou",
+        PieceKind::Rook => "une tour",
+        PieceKind::Queen => "sa dame",
+        PieceKind::King => "son roi",
     }
 }
 
-/// The stars a finished game earns. Only a win earns any: `mover` is the move
-/// number the game ended on (the full-move counter, as chess scores it).
-pub fn judge(level: &Level, human: Color, outcome: &Outcome, tally: &Tally, mover: u32) -> u8 {
-    if outcome.winner() != Some(human) {
-        return 0;
+fn skill_label(skill: SkillId) -> &'static str {
+    match skill {
+        SkillId::Teleportation => "Teleportation",
+        SkillId::Imune => "Imune",
+        SkillId::Freeze => "Freeze",
+        SkillId::Rollback => "Rollback",
+        SkillId::Clone => "Clone",
+        SkillId::DestinySwapper => "Destiny Swapper",
+        SkillId::Remover => "Remover",
+        SkillId::Wall => "Wall",
+        SkillId::Mirage => "Mirage",
+        SkillId::Evolve => "Evolve",
+        SkillId::Switch => "Switch Sides",
+        SkillId::Mind => "Mind Reading",
+        SkillId::Control => "Mind Control",
+        SkillId::Morph => "Morph",
+        SkillId::Canceller => "Canceller",
+        SkillId::Tornado => "Tornado",
+        SkillId::Invisibility => "Invisibility",
+        SkillId::Terminator => "Terminator",
+        SkillId::Trap => "Trap Card",
+        SkillId::Bench => "The Bench",
+        SkillId::Forcefield => "Force Field",
+        SkillId::Transposition => "Transposition",
+        SkillId::Queensac => "Queen Sacrifice",
+        SkillId::Temporal => "Temporal Distortion",
+        SkillId::Geomancy => "Geomancy",
+        SkillId::Celestial => "Celestial Intervention",
+        SkillId::Godhelp => "God Help",
+        SkillId::Forged(_) => "une compétence forgée",
     }
-    let objective = match level.objective {
-        Objective::MateBefore { moves } => {
-            matches!(outcome, Outcome::Checkmate { .. }) && mover < moves
-        }
-        Objective::Capture { piece } => tally.taken.contains(&piece),
-        Objective::Take { count } => tally.taken.len() as u32 >= count,
-        Objective::Promote => tally.promoted,
-        Objective::LoseFewer { count } => {
-            (tally.lost.iter().filter(|k| **k != PieceKind::Pawn).count() as u32) < count
-        }
+}
+
+/// A custom starting position (White to move), designed for one side.
+pub struct Start {
+    pub fen: &'static str,
+    pub human: Color,
+}
+
+pub struct Level {
+    pub name: &'static str,
+    pub player_deck: &'static [SkillId],
+    pub bot_deck: &'static [SkillId],
+    /// The player picks 1..=3 skills of their own deck; `player_deck` is then empty.
+    pub deck_choice: bool,
+    pub start: Option<Start>,
+    pub objective: Option<Objective>,
+    pub challenge: Option<Objective>,
+    /// Written advice shown after `HINT_AFTER_DEFEATS` defeats.
+    pub hint: &'static str,
+    /// Skills lent to the player for this level.
+    pub lent: &'static [SkillId],
+}
+
+impl Level {
+    /// The move number before which the mate must come, if a goal sets one.
+    pub fn move_limit(&self) -> Option<u32> {
+        [self.objective, self.challenge]
+            .into_iter()
+            .flatten()
+            .find_map(|goal| match goal {
+                Objective::WinWithin(turns) => Some(turns),
+                _ => None,
+            })
+    }
+}
+
+pub struct Chapter {
+    pub family: &'static str,
+    pub name: &'static str,
+    /// Title earned by beating the boss.
+    pub title: &'static str,
+    /// The six levels then the boss.
+    pub levels: &'static [Level],
+}
+
+impl Chapter {
+    pub fn available(&self) -> bool {
+        !self.levels.is_empty()
+    }
+}
+
+/// The level behind a reference, if the chapter has content for it.
+pub fn level(at: LevelRef) -> Option<&'static Level> {
+    CHAPTERS
+        .get(usize::from(at.chapter))?
+        .levels
+        .get(usize::from(at.level))
+}
+
+/// Stars mask of a finished game; objective and challenge only count on a win.
+pub fn stars_earned(
+    at: LevelRef,
+    game: &Game,
+    human: Color,
+    first_loss_ply: Option<u32>,
+    won: bool,
+) -> u8 {
+    let Some(level) = level(at).filter(|_| won) else {
+        return 0;
     };
-    let challenge = match level.challenge {
-        Challenge::KeepQueen => !tally.lost_any(&[PieceKind::Queen]),
-        Challenge::NoMinorLoss => !tally.lost_any(&[PieceKind::Knight, PieceKind::Bishop]),
-        Challenge::NoQueenTrade => {
-            !(tally.lost_any(&[PieceKind::Queen]) && tally.taken.contains(&PieceKind::Queen))
-        }
-        Challenge::UseSkill => tally.skills_used > 0,
-        Challenge::NoSkill => tally.skills_used == 0,
+    let context = Context {
+        first_loss_ply,
+        counted: level.deck_choice.then_some(level.lent),
     };
-    STAR_WIN
-        | if objective { STAR_OBJECTIVE } else { 0 }
-        | if challenge { STAR_CHALLENGE } else { 0 }
+    level_stars(level, |goal| goal.met(game, human, &context))
+}
+
+/// Every star the level offers.
+pub fn all_stars(at: LevelRef) -> u8 {
+    level(at).map_or(0, |level| level_stars(level, |_| true))
+}
+
+fn level_stars(level: &Level, reached: impl Fn(Objective) -> bool) -> u8 {
+    let star = |goal: Option<Objective>, bit: u8| if goal.is_some_and(&reached) { bit } else { 0 };
+    STAR_WIN | star(level.objective, STAR_OBJECTIVE) | star(level.challenge, STAR_CHALLENGE)
+}
+
+/// Stars of a mask as `[win, objective, challenge]`.
+pub fn star_flags(mask: u8) -> [bool; 3] {
+    [STAR_WIN, STAR_OBJECTIVE, STAR_CHALLENGE].map(|bit| mask & bit != 0)
+}
+
+/// Stars gathered on the six levels of a chapter (the boss does not count
+/// towards opening itself).
+pub fn chapter_stars(rows: &[CampaignRow], chapter: u8) -> u8 {
+    rows.iter()
+        .filter(|r| r.at.chapter == chapter && r.at.level < BOSS_LEVEL)
+        .map(|r| r.stars.count_ones() as u8)
+        .sum()
+}
+
+pub fn boss_unlocked(rows: &[CampaignRow], chapter: u8) -> bool {
+    chapter_stars(rows, chapter) >= BOSS_STARS
+}
+
+fn level_won(rows: &[CampaignRow], at: LevelRef) -> bool {
+    rows.iter().any(|r| r.at == at && r.stars & STAR_WIN != 0)
+}
+
+/// A chapter opens once the boss of the previous one has been won.
+pub fn chapter_unlocked(rows: &[CampaignRow], chapter: u8) -> bool {
+    chapter == 0
+        || level_won(
+            rows,
+            LevelRef {
+                chapter: chapter - 1,
+                level: BOSS_LEVEL,
+            },
+        )
+}
+
+/// Whether the previous level of the same chapter has been won (always true for the first).
+pub fn previous_level_won(rows: &[CampaignRow], at: LevelRef) -> bool {
+    at.level == 0
+        || level_won(
+            rows,
+            LevelRef {
+                level: at.level - 1,
+                ..at
+            },
+        )
+}
+
+/// Playable now: chapter open, previous level won and, for a boss, the star threshold met.
+pub fn level_unlocked(rows: &[CampaignRow], at: LevelRef) -> bool {
+    chapter_unlocked(rows, at.chapter)
+        && previous_level_won(rows, at)
+        && (!at.is_boss() || boss_unlocked(rows, at.chapter))
+}
+
+/// Stars gathered on the whole campaign, the bosses included.
+pub fn total_stars(rows: &[CampaignRow]) -> u16 {
+    rows.iter().map(|r| r.stars.count_ones() as u16).sum()
 }
 
 #[cfg(test)]
 mod tests {
+    use chessy_engine::Position;
+
     use super::*;
 
-    #[test]
-    fn thirty_five_levels_with_the_elo_of_the_design() {
-        assert_eq!(all_ids().count(), 35);
-        assert!(level(0).is_none() && level(18).is_none() && level(61).is_none());
-        let elo = |id| level(id).unwrap().elo;
-        assert_eq!((elo(11), elo(16), elo(17)), (400, 650, 750));
-        assert_eq!((elo(21), elo(26), elo(27)), (800, 1050, 1150));
-        assert_eq!((elo(51), elo(56), elo(57)), (2000, 2250, 2350));
+    const NONE: Context = Context {
+        first_loss_ply: None,
+        counted: None,
+    };
+
+    fn game_at(ply: u32) -> Game {
+        let mut game = Game::new(&[], &[]);
+        game.pos.ply = ply;
+        game
+    }
+
+    fn row(chapter: u8, level: u8, stars: u8) -> CampaignRow {
+        CampaignRow {
+            at: LevelRef { chapter, level },
+            stars,
+            rewarded: false,
+        }
     }
 
     #[test]
-    fn chapters_one_and_two_impose_their_hand_the_others_let_you_choose() {
-        let l = level(25).unwrap();
+    fn levels_unlock_in_order_and_chapters_after_the_boss() {
+        let at = |chapter, level| LevelRef { chapter, level };
+        let mut rows = vec![];
+        assert!(level_unlocked(&rows, at(0, 0)));
+        assert!(!level_unlocked(&rows, at(0, 1)));
+        assert!(!chapter_unlocked(&rows, 1));
+        rows.extend((0..BOSS_LEVEL - 1).map(|l| row(0, l, 7)));
+        assert!(level_unlocked(&rows, at(0, 5)));
+        assert!(!level_unlocked(&rows, at(0, BOSS_LEVEL)));
+        rows.push(row(0, 5, 7));
+        assert!(level_unlocked(&rows, at(0, BOSS_LEVEL)));
+        assert!(!chapter_unlocked(&rows, 1));
+        rows.push(row(0, BOSS_LEVEL, STAR_WIN));
+        assert!(chapter_unlocked(&rows, 1) && level_unlocked(&rows, at(1, 0)));
+        assert!(!level_unlocked(&rows, at(1, 1)));
+    }
+
+    #[test]
+    fn a_boss_needs_stars_as_well_as_the_previous_level() {
+        let boss = LevelRef {
+            chapter: 0,
+            level: BOSS_LEVEL,
+        };
+        let rows: Vec<_> = (0..BOSS_LEVEL - 1).map(|l| row(0, l, STAR_WIN)).collect();
+        assert!(!level_unlocked(&rows, boss));
+    }
+
+    fn all_levels() -> impl Iterator<Item = &'static Level> {
+        CHAPTERS.iter().flat_map(|c| c.levels)
+    }
+
+    #[test]
+    fn win_within_counts_the_players_own_turns() {
+        let within = Objective::WinWithin(4);
+        // White has played turns 1-3 after five plies, Black two.
+        assert!(within.met(&game_at(5), Color::White, &NONE));
+        assert!(!within.met(&game_at(7), Color::White, &NONE));
+        assert!(within.met(&game_at(7), Color::Black, &NONE));
+        assert!(!within.met(&game_at(8), Color::Black, &NONE));
+    }
+
+    #[test]
+    fn win_within_n_means_mate_before_move_n() {
+        let within = Objective::WinWithin(3);
+        // White's mating move is its turn n - 1 (ply 3) or its turn n (ply 5).
+        assert!(within.met(&game_at(3), Color::White, &NONE));
+        assert!(!within.met(&game_at(5), Color::White, &NONE));
+        assert!(within.met(&game_at(4), Color::Black, &NONE));
+        assert!(!within.met(&game_at(6), Color::Black, &NONE));
+    }
+
+    #[test]
+    fn win_within_counts_from_a_custom_start() {
+        for level in all_levels().filter(|l| l.start.is_some()) {
+            let start = level.start.as_ref().unwrap();
+            let pos = Position::from_fen(start.fen).unwrap();
+            let mut game = Game::from_position(pos, &[], &[]);
+            assert_eq!(game.pos.ply, 0);
+            game.pos.ply = 5;
+            assert!(Objective::WinWithin(4).met(&game, Color::White, &NONE));
+            assert!(!Objective::WinWithin(3).met(&game, Color::White, &NONE));
+            assert!(Objective::WinWithin(3).met(&game, Color::Black, &NONE));
+        }
+    }
+
+    #[test]
+    fn every_chapter_has_six_levels_and_a_boss() {
+        for chapter in &CHAPTERS {
+            assert_eq!(chapter.levels.len(), usize::from(LEVELS_PER_CHAPTER) + 1);
+        }
+    }
+
+    #[test]
+    fn no_level_pairs_a_skill_use_with_no_skill_used() {
+        let uses_skill = |goal: Option<Objective>| {
+            matches!(
+                goal,
+                Some(Objective::UseSkill(_) | Objective::UseAnySkill | Objective::UseAllSkills)
+            )
+        };
+        let no_skill = |goal: Option<Objective>| matches!(goal, Some(Objective::NoSkillUsed));
+        for level in all_levels() {
+            let (a, b) = (level.objective, level.challenge);
+            assert!(!(uses_skill(a) && no_skill(b)) && !(no_skill(a) && uses_skill(b)));
+        }
+    }
+
+    #[test]
+    fn decks_are_small_and_the_bot_never_gets_mind_or_control() {
+        for level in all_levels() {
+            assert!(level.player_deck.len() <= 3 && level.bot_deck.len() <= 3);
+            assert!(!level
+                .bot_deck
+                .iter()
+                .any(|s| matches!(s, SkillId::Mind | SkillId::Control)));
+        }
+    }
+
+    #[test]
+    fn starts_are_playable_positions() {
+        for start in all_levels().filter_map(|l| l.start.as_ref()) {
+            let pos = Position::from_fen(start.fen).unwrap();
+            assert_eq!(pos.side, Color::White);
+            assert!(!pos.legal_moves().is_empty(), "{}", start.fen);
+        }
+    }
+
+    #[test]
+    fn chosen_deck_levels_have_no_imposed_deck_or_use_skill_goal() {
+        let is_use_skill = |goal: Option<Objective>| matches!(goal, Some(Objective::UseSkill(_)));
+        for level in all_levels().filter(|l| l.deck_choice) {
+            assert!(level.player_deck.is_empty());
+            assert!(!is_use_skill(level.objective) && !is_use_skill(level.challenge));
+        }
+    }
+
+    #[test]
+    fn use_all_skills_needs_every_slot_used() {
+        let mut game = Game::new(&[SkillId::Trap, SkillId::Wall], &[]);
+        assert!(!Objective::UseAllSkills.met(&game, Color::White, &NONE));
+        game.loadouts[0].slots[0].uses = 1;
+        assert!(!Objective::UseAllSkills.met(&game, Color::White, &NONE));
+        game.loadouts[0].slots[1].uses = 1;
+        assert!(Objective::UseAllSkills.met(&game, Color::White, &NONE));
         assert_eq!(
-            l.hand,
-            vec![SkillId::Imune, SkillId::Forcefield, SkillId::Rollback]
+            Objective::UseAllSkills.text(),
+            "Utiliser toutes ses compétences"
         );
-        assert!(!l.choose);
-        assert_eq!(level(11).unwrap().hand, vec![SkillId::Terminator]);
-        let l = level(35).unwrap();
-        assert!(l.choose && l.hand.is_empty());
     }
 
     #[test]
-    fn bosses_bring_two_signatures_and_a_rising_floor() {
-        let floors: Vec<_> = (1..=CHAPTERS)
-            .map(|c| level(boss_id(c)).unwrap().forge_min.unwrap())
+    fn use_all_skills_on_a_chosen_deck_counts_only_the_lent_skills() {
+        let mut game = Game::new(&[SkillId::Trap, SkillId::Wall], &[]);
+        let lent = [SkillId::Wall];
+        let context = Context {
+            first_loss_ply: None,
+            counted: Some(&lent),
+        };
+        assert!(!Objective::UseAllSkills.met(&game, Color::White, &context));
+        game.loadouts[0].slots[1].uses = 1;
+        assert!(Objective::UseAllSkills.met(&game, Color::White, &context));
+    }
+
+    #[test]
+    fn no_piece_lost_is_judged_on_the_move_of_the_first_loss() {
+        let goal = Objective::NoPieceLostBefore(20);
+        let game = Game::new(&[], &[]);
+        let lost_at = |ply| Context {
+            first_loss_ply: Some(ply),
+            counted: None,
+        };
+        assert!(goal.met(&game, Color::White, &NONE));
+        assert!(goal.met(&game, Color::White, &lost_at(40)));
+        assert!(!goal.met(&game, Color::White, &lost_at(30)));
+        assert!(!goal.met(&game, Color::Black, &lost_at(30)));
+        assert_eq!(goal.text(), "Ne perdre aucune pièce avant le coup 20");
+    }
+
+    #[test]
+    fn win_within_text_and_move_limit() {
+        assert_eq!(Objective::WinWithin(31).text(), "Mater avant le coup 31");
+        let limit = |level: &Level| level.move_limit();
+        let levels: Vec<_> = all_levels().collect();
+        assert!(levels.iter().any(|l| limit(l).is_some()));
+        assert!(levels.iter().any(|l| limit(l).is_none()));
+    }
+
+    #[test]
+    fn elo_climbs_by_chapter_and_level_and_the_boss_tops_the_chapter() {
+        let at = |chapter, level| LevelRef { chapter, level }.elo();
+        assert_eq!((at(0, 0), at(0, 1), at(0, 5)), (400, 450, 650));
+        assert_eq!(
+            (at(0, BOSS_LEVEL), at(4, 0), at(4, BOSS_LEVEL)),
+            (800, 2000, 2400)
+        );
+    }
+
+    #[test]
+    fn every_boss_offers_three_stars() {
+        for chapter in 0..CHAPTERS.len() as u8 {
+            let boss = LevelRef {
+                chapter,
+                level: BOSS_LEVEL,
+            };
+            assert_eq!(all_stars(boss), STAR_WIN | STAR_OBJECTIVE | STAR_CHALLENGE);
+        }
+        let all: Vec<_> = (0..CHAPTERS.len() as u8)
+            .flat_map(|chapter| (0..=BOSS_LEVEL).map(move |level| row(chapter, level, 7)))
             .collect();
-        assert!(floors.windows(2).all(|w| w[0] <= w[1]));
-        assert_eq!(floors[4], Rarity::Legendary);
-        for c in 1..=CHAPTERS {
-            let boss = level(boss_id(c)).unwrap();
-            assert_eq!(boss.enemy.len(), 2);
-            assert!(level(level_id(c, 1)).unwrap().forge_min.is_none());
-        }
+        assert_eq!(total_stars(&all), MAX_STARS);
     }
 
     #[test]
-    fn sage_never_brings_a_skill_the_player_is_handed() {
-        for id in all_ids() {
-            let l = level(id).unwrap();
-            if !l.boss {
-                assert!(l.enemy.iter().all(|s| !l.hand.contains(s)), "{id}");
+    fn boss_goals_respect_the_hands() {
+        for (chapter, c) in CHAPTERS.iter().enumerate() {
+            let boss = &c.levels[usize::from(BOSS_LEVEL)];
+            let goals = [boss.objective, boss.challenge];
+            let queen_sac = boss.player_deck.contains(&SkillId::Queensac);
+            for goal in goals.into_iter().flatten() {
+                assert!(!(queen_sac && matches!(goal, Objective::KeepPiece(PieceKind::Queen))));
+                assert!(chapter > 2 || !matches!(goal, Objective::NoSkillUsed));
             }
-            assert!(l
-                .enemy
-                .iter()
-                .all(|s| s.kind() == chessy_engine::SkillKind::Classic));
         }
     }
 
-    fn progress(entries: &[(u8, u8)]) -> Progress {
-        entries
-            .iter()
-            .map(|&(id, stars)| {
-                (
-                    id,
-                    Record {
-                        stars,
-                        forge_pending: false,
-                    },
-                )
-            })
-            .collect()
-    }
-
     #[test]
-    fn levels_open_one_after_another_and_the_boss_at_twelve_stars() {
-        let mut p = progress(&[]);
-        assert!(unlocked(&p, 11));
-        assert!(!unlocked(&p, 12) && !unlocked(&p, 17) && !unlocked(&p, 21));
-        p.extend(progress(&[(11, STAR_WIN)]));
-        assert!(unlocked(&p, 12) && !unlocked(&p, 13));
-        // Six wins is six stars: not enough for the boss.
-        let mut p = progress(&(1..=6).map(|i| (10 + i, STAR_WIN)).collect::<Vec<_>>());
-        assert!(!boss_open(&p, 1) && !unlocked(&p, 17));
-        // Six more stars open it.
-        for i in 1..=6 {
-            p.insert(
-                10 + i,
-                Record {
-                    stars: STAR_ALL,
-                    forge_pending: false,
-                },
-            );
-        }
-        assert_eq!(chapter_stars(&p, 1), 18);
-        assert!(unlocked(&p, 17));
-        // The next chapter waits for the boss to be beaten.
-        assert!(!unlocked(&p, 21));
-        p.insert(
-            17,
-            Record {
-                stars: STAR_WIN,
-                forge_pending: false,
-            },
-        );
-        assert!(unlocked(&p, 21) && !unlocked(&p, 22));
-    }
-
-    #[test]
-    fn only_a_win_earns_stars() {
-        let l = level(12).unwrap(); // capture a rook, do not lose the queens' trade
-        let tally = Tally {
-            taken: vec![PieceKind::Rook],
-            ..Tally::default()
-        };
-        let mate = Outcome::Checkmate {
-            winner: Color::White,
-        };
-        assert_eq!(judge(&l, Color::White, &mate, &tally, 20), STAR_ALL);
-        let drawn = Outcome::Stalemate;
-        assert_eq!(judge(&l, Color::White, &drawn, &tally, 20), 0);
-        let lost = Outcome::Checkmate {
-            winner: Color::Black,
-        };
-        assert_eq!(judge(&l, Color::White, &lost, &tally, 20), 0);
-        // A win without the rook: the objective star is missing.
-        assert_eq!(
-            judge(&l, Color::White, &mate, &Tally::default(), 20),
-            STAR_WIN | STAR_CHALLENGE
-        );
-    }
-
-    #[test]
-    fn mate_before_a_move_is_strict() {
-        let l = level(11).unwrap(); // mate before move 40, keep the queen
-        let mate = Outcome::Checkmate {
-            winner: Color::White,
-        };
-        let t = Tally::default();
-        assert_eq!(judge(&l, Color::White, &mate, &t, 39), STAR_ALL);
-        assert_eq!(
-            judge(&l, Color::White, &mate, &t, 40),
-            STAR_WIN | STAR_CHALLENGE
-        );
-        // A win by resignation is a win, not a mate.
-        let resigned = Outcome::Resignation {
-            winner: Color::White,
+    fn a_draw_or_stalemate_earns_no_star() {
+        let at = LevelRef {
+            chapter: 0,
+            level: 0,
         };
         assert_eq!(
-            judge(&l, Color::White, &resigned, &t, 10),
-            STAR_WIN | STAR_CHALLENGE
-        );
-    }
-
-    #[test]
-    fn challenges_look_at_what_the_player_lost_and_played() {
-        let mate = Outcome::Checkmate {
-            winner: Color::White,
-        };
-        let mut l = level(11).unwrap();
-        l.challenge = Challenge::KeepQueen;
-        let lost_queen = Tally {
-            lost: vec![PieceKind::Queen],
-            ..Tally::default()
-        };
-        assert_eq!(
-            judge(&l, Color::White, &mate, &lost_queen, 10) & STAR_CHALLENGE,
+            stars_earned(at, &Game::new(&[], &[]), Color::White, None, false),
             0
         );
-        l.challenge = Challenge::NoQueenTrade;
-        // Losing the queen for nothing is not a trade; taking theirs too is.
-        assert_ne!(
-            judge(&l, Color::White, &mate, &lost_queen, 10) & STAR_CHALLENGE,
-            0
-        );
-        let traded = Tally {
-            lost: vec![PieceKind::Queen],
-            taken: vec![PieceKind::Queen],
-            ..Tally::default()
-        };
-        assert_eq!(
-            judge(&l, Color::White, &mate, &traded, 10) & STAR_CHALLENGE,
-            0
-        );
-        l.challenge = Challenge::NoMinorLoss;
-        let lost_knight = Tally {
-            lost: vec![PieceKind::Knight],
-            ..Tally::default()
-        };
-        assert_eq!(
-            judge(&l, Color::White, &mate, &lost_knight, 10) & STAR_CHALLENGE,
-            0
-        );
-        l.challenge = Challenge::NoSkill;
-        let used = Tally {
-            skills_used: 1,
-            ..Tally::default()
-        };
-        assert_eq!(
-            judge(&l, Color::White, &mate, &used, 10) & STAR_CHALLENGE,
-            0
-        );
-        l.challenge = Challenge::UseSkill;
-        assert_ne!(
-            judge(&l, Color::White, &mate, &used, 10) & STAR_CHALLENGE,
-            0
-        );
-    }
-
-    #[test]
-    fn forge_odds_follow_the_drop_weights_above_the_floor() {
-        let pct = |min| {
-            forge_odds(min)
-                .iter()
-                .map(|o| o.percent)
-                .collect::<Vec<_>>()
-        };
-        assert_eq!(pct(Rarity::Legendary), vec![100]);
-        assert_eq!(pct(Rarity::Epic), vec![86, 14]);
-        let rare = pct(Rarity::Rare);
-        assert_eq!(rare.iter().sum::<u32>(), 100);
-        assert!(rare[0] > rare[1] && rare[1] > rare[2]);
-        assert_eq!(pct(Rarity::Common).iter().sum::<u32>(), 100);
-    }
-
-    #[test]
-    fn a_hand_is_checked_against_the_deck() {
-        let l = level(35).unwrap();
-        let deck = [SkillId::Freeze, SkillId::Imune, SkillId::Mind];
-        assert!(valid_hand(&l, &[SkillId::Freeze], &deck));
-        assert!(valid_hand(&l, &[SkillId::Freeze, SkillId::Imune], &deck));
-        assert!(!valid_hand(&l, &[], &deck));
-        assert!(!valid_hand(&l, &[SkillId::Tornado], &deck));
-        assert!(!valid_hand(&l, &[SkillId::Freeze, SkillId::Freeze], &deck));
-        assert!(
-            !valid_hand(&l, &[SkillId::Mind], &deck),
-            "unique skills stay out"
-        );
-        // A level that imposes its hand takes no choice.
-        let imposed = level(21).unwrap();
-        assert!(valid_hand(&imposed, &[], &deck));
-        assert!(!valid_hand(&imposed, &[SkillId::Freeze], &deck));
     }
 }

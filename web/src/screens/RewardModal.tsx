@@ -60,7 +60,7 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
 
       <div className="rw-body">
         <h2 className="rw-h1">{t("reward.title")}</h2>
-        <p className="muted rw-sub">{t("reward.sub")}</p>
+        <p className="muted rw-sub">{offer.steal_options.length > 0 ? t("reward.sub") : "Pour avoir vaincu le boss, faites forger une compétence inédite."}</p>
 
         <div className="rw-sec rw-sec-pick">
           <p className="rw-label" id="rw-take">

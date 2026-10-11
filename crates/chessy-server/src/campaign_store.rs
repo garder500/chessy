@@ -1,133 +1,96 @@
-//! What the database keeps of the campaign (docs/spec-v6.md): the stars of each
-//! level and the forge a boss still owes. Guests have their own rows, so a
-//! guest's progress stays with their browser's token and follows the account
-//! when the guest signs up.
+//! Campaign progress in the database (docs/spec-campagne.md): the best stars
+//! of each level and whether the boss reward was given.
 
-use chessy_engine::{SkillId, SkillKind};
-use rusqlite::params;
+use rusqlite::{params, Connection};
 
-use crate::campaign::{self, Progress, Record, STAR_ALL, STAR_WIN};
-use crate::history_store::{self as history, Change, Source};
-use crate::store::{Store, StoreError, StoreResult};
+use crate::campaign::LevelRef;
+use crate::store::{Store, StoreResult};
 
-/// What recording a game did to a level.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Recorded {
-    /// The stars the level had before (the best of the games so far).
-    pub before: u8,
-    /// And after: stars are never lost.
-    pub after: u8,
-    /// This win beat a boss for the first time: a forge is owed.
-    pub forge_due: bool,
+pub struct CampaignRow {
+    pub at: LevelRef,
+    /// Stars mask, cumulated over every attempt.
+    pub stars: u8,
+    pub rewarded: bool,
+}
+
+/// The rows of a player on a connection the caller already holds.
+pub(crate) fn rows_of(conn: &Connection, player: &str) -> StoreResult<Vec<CampaignRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT chapter, level, stars, rewarded FROM campaign_progress
+         WHERE player_id = ?1 ORDER BY chapter, level",
+    )?;
+    let rows = stmt.query_map(params![player], |r| {
+        Ok(CampaignRow {
+            at: LevelRef {
+                chapter: r.get(0)?,
+                level: r.get(1)?,
+            },
+            stars: r.get(2)?,
+            rewarded: r.get(3)?,
+        })
+    })?;
+    Ok(rows.collect::<Result<_, _>>()?)
 }
 
 impl Store {
-    pub fn campaign_progress(&self, player: &str) -> StoreResult<Progress> {
-        let conn = self.db();
-        let mut stmt = conn.prepare(
-            "SELECT level, stars, forge_pending FROM campaign_levels WHERE player_id = ?1",
-        )?;
-        let rows = stmt.query_map(params![player], |r| {
-            Ok((r.get::<_, u8>(0)?, r.get::<_, u8>(1)?, r.get::<_, bool>(2)?))
-        })?;
-        let mut out = Progress::new();
-        for row in rows {
-            let (level, stars, forge_pending) = row?;
-            if campaign::level(level).is_some() {
-                out.insert(
-                    level,
-                    Record {
-                        stars: stars & STAR_ALL,
-                        forge_pending,
-                    },
-                );
-            }
-        }
-        Ok(out)
+    pub fn campaign_rows(&self, player: &str) -> StoreResult<Vec<CampaignRow>> {
+        rows_of(&self.db(), player)
     }
 
-    /// Adds the `stars` a finished game earned to the best of `level`. A boss
-    /// won for the first time leaves a forge to claim.
-    pub fn record_campaign(&self, player: &str, level: u8, stars: u8) -> StoreResult<Recorded> {
-        let boss = campaign::level(level).is_some_and(|l| l.boss);
-        let mut conn = self.db();
-        let tx = conn.transaction()?;
-        let before: u8 = match tx.query_row(
-            "SELECT stars FROM campaign_levels WHERE player_id = ?1 AND level = ?2",
-            params![player, level],
-            |r| r.get(0),
-        ) {
-            Ok(stars) => stars,
-            Err(rusqlite::Error::QueryReturnedNoRows) => 0,
-            Err(e) => return Err(e.into()),
-        };
-        let after = (before | stars) & STAR_ALL;
-        let forge_due = boss && before & STAR_WIN == 0 && stars & STAR_WIN != 0;
-        tx.execute(
-            "INSERT INTO campaign_levels (player_id, level, stars, forge_pending)
+    /// Adds `stars` to the ones the player already has on a level and resets
+    /// its defeat streak; returns the cumulated mask.
+    pub fn record_campaign(&self, player: &str, at: LevelRef, stars: u8) -> StoreResult<u8> {
+        Ok(self.db().query_row(
+            "INSERT INTO campaign_progress (player_id, chapter, level, stars)
              VALUES (?1, ?2, ?3, ?4)
-             ON CONFLICT(player_id, level) DO UPDATE SET
-                 stars = campaign_levels.stars | excluded.stars,
-                 forge_pending = campaign_levels.forge_pending OR excluded.forge_pending,
-                 updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
-            params![player, level, after, forge_due],
-        )?;
-        tx.commit()?;
-        Ok(Recorded {
-            before,
-            after,
-            forge_due,
-        })
+             ON CONFLICT (player_id, chapter, level)
+             DO UPDATE SET stars = stars | excluded.stars, defeats = 0
+             RETURNING stars",
+            params![player, at.chapter, at.level, stars],
+            |r| r.get(0),
+        )?)
     }
 
-    /// Gives the forged skill a beaten boss owed and settles the forge, in one
-    /// transaction: nothing changes if the player owns the skill already or the
-    /// forge was claimed.
-    pub fn apply_campaign_forge(
-        &self,
-        player: &str,
-        chapter: u8,
-        gain: SkillId,
-        drop: Option<SkillId>,
-    ) -> StoreResult<()> {
-        let mut conn = self.db();
-        let tx = conn.transaction()?;
-        let settled = tx.execute(
-            "UPDATE campaign_levels SET forge_pending = 0
-             WHERE player_id = ?1 AND level = ?2 AND forge_pending = 1",
-            params![player, campaign::boss_id(chapter)],
-        )?;
-        if settled == 0 {
-            return Err(StoreError::Invalid("no forge to claim"));
-        }
-        if let Some(skill) = drop {
-            let name = skill.to_string();
-            let removed = tx.execute(
-                "DELETE FROM player_skills WHERE player_id = ?1 AND skill = ?2",
-                params![player, name],
-            )?;
-            if removed == 0 {
-                return Err(StoreError::Invalid("player does not own that skill"));
-            }
-            tx.execute(
-                "DELETE FROM unique_skill_owner WHERE skill = ?1 AND player_id = ?2",
-                params![name, player],
-            )?;
-            history::log(&tx, player, skill, Change::Lost, Source::Replaced, None)?;
-        }
-        let name = gain.to_string();
-        tx.execute(
-            "INSERT INTO player_skills (player_id, skill) VALUES (?1, ?2)",
-            params![player, name],
-        )?;
-        if gain.kind() == SkillKind::Unique {
-            tx.execute(
-                "INSERT INTO unique_skill_owner (skill, player_id) VALUES (?1, ?2)",
-                params![name, player],
-            )?;
-        }
-        history::log(&tx, player, gain, Change::Gained, Source::Forged, None)?;
-        tx.commit()?;
-        Ok(())
+    /// Counts one more defeat in a row on a level; returns the streak.
+    pub fn record_campaign_defeat(&self, player: &str, chapter: u8, level: u8) -> StoreResult<u32> {
+        Ok(self.db().query_row(
+            "INSERT INTO campaign_progress (player_id, chapter, level, defeats)
+             VALUES (?1, ?2, ?3, 1)
+             ON CONFLICT (player_id, chapter, level)
+             DO UPDATE SET defeats = defeats + 1
+             RETURNING defeats",
+            params![player, chapter, level],
+            |r| r.get(0),
+        )?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const LEVEL: LevelRef = LevelRef {
+        chapter: 1,
+        level: 2,
+    };
+
+    #[test]
+    fn defeats_count_up_and_a_win_resets_them() {
+        let store = Store::open(":memory:").unwrap();
+        let (player, _) = store.create_player().unwrap();
+        assert_eq!(store.record_campaign_defeat(&player, 1, 2).unwrap(), 1);
+        assert_eq!(store.record_campaign_defeat(&player, 1, 2).unwrap(), 2);
+        assert_eq!(store.record_campaign_defeat(&player, 1, 3).unwrap(), 1);
+        store.record_campaign(&player, LEVEL, 1).unwrap();
+        assert_eq!(store.record_campaign_defeat(&player, 1, 2).unwrap(), 1);
+    }
+
+    #[test]
+    fn a_defeat_alone_earns_no_star() {
+        let store = Store::open(":memory:").unwrap();
+        let (player, _) = store.create_player().unwrap();
+        store.record_campaign_defeat(&player, 1, 2).unwrap();
+        assert_eq!(store.campaign_rows(&player).unwrap()[0].stars, 0);
     }
 }

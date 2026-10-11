@@ -115,6 +115,10 @@ Précisions et écarts pour §1 et §2, tels que livrés dans `crates/` (fichier
 - Les colonnes `white_elo_before`/`black_elo_before` sont aussi remplies pour les parties non classées (Elo courant des **comptes**, `NULL` pour un invité) afin que `Seat.elo` soit disponible ; `*_elo_after` et donc `elo_delta` ne le sont que pour une partie classée. L'enregistrement et le règlement Elo restent dans la même transaction.
 - `PublicProfile.recent`, `streak` et le classement ignorent le solo (`kind != 'solo'` dans la requête commune, les compteurs ne sont jamais touchés).
 
+### Cadence (`time_control`)
+- Migration `user_version = 9` : colonne `games.time_control TEXT` nullable (`short` | `medium` | `long`, comme `TimeControl` côté protocole). `NULL` pour l'horloge par défaut du serveur (`HubConfig::clock_initial`), pour les parties solo (sans pendule) et pour les parties enregistrées avant cette migration ; pas de rétro-remplissage.
+- Exposé en `time_control: "short" | "medium" | "long" | null` dans chaque ligne de `GET /api/me/games` et dans `GET /api/games/{id}` (champ toujours présent, `null` si inconnu). Un texte inconnu en base se lit `null`, sans erreur.
+
 ### REST : généralités
 - Authentification optionnelle : un jeton absent **ou inconnu** vaut « anonyme » (jamais d'erreur) ; seul `GET /api/me/games` répond `401 {error:"unauthorized"}`. Une partie `solo` qu'on n'a pas le droit de lire répond `404 {error:"not_found"}`, comme une partie inconnue.
 - Erreurs : `400 bad_request` (JSON ou paramètre invalide, `ply` absent, action inconnue), `400 invalid_depth` (profondeur hors 1..=5, aussi pour `explore`), `400 line_too_long` (`line` > 200), `413 payload_too_large` (corps d'`explore` > 64 Kio), `404 no_replay`, `500 replay_failed` (une action enregistrée est refusée par le moteur : ne devrait jamais arriver).

@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect } from "react";
 import { useLang, t } from "./i18n";
 import { navigate, useRoute } from "./router";
 import { Auth, needsWelcome } from "./screens/Auth";
-import { Campaign } from "./screens/Campaign";
 import { Collection } from "./screens/Collection";
 import { DeckSelect } from "./screens/DeckSelect";
 import { Friends } from "./screens/Friends";
@@ -26,6 +25,7 @@ const Game = lazy(() => import("./screens/Game").then((m) => ({ default: m.Game 
 // Replay et spectateur affichent aussi le plateau : même découpage.
 const Replay = lazy(() => import("./screens/Replay").then((m) => ({ default: m.Replay })));
 const Watch = lazy(() => import("./screens/Watch").then((m) => ({ default: m.Watch })));
+const Campaign = lazy(() => import("./screens/Campaign").then((m) => ({ default: m.Campaign })));
 
 export function App() {
   const state = useAppState();
@@ -97,7 +97,11 @@ export function App() {
         screen = <Games />;
         break;
       case "campaign":
-        screen = <Campaign state={state} level={route.param} />;
+        screen = (
+          <Suspense fallback={<p className="page-center muted">Chargement de la campagne…</p>}>
+            <Campaign />
+          </Suspense>
+        );
         break;
       case "watch":
         screen = (

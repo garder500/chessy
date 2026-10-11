@@ -9,10 +9,14 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::bot;
-use crate::hub::{ForgeJob, Hub, HubConfig, Timer};
+use crate::campaign::LevelRef;
+use crate::hub::{BossForgeJob, ForgeJob, Hub, HubConfig, Timer};
 use crate::limits::{bucket, ConnSlot, ConnectionLimiter, FailureWindow, Refusal};
 use crate::protocol::{ClientMsg, PlayerId, RewardChoice, ServerMsg};
 use crate::store::{Store, StoreError};
+
+/// Forges tried for a reward bound to a rarity range before settling.
+const MAX_RANGE_FORGES: u32 = 6;
 
 /// Failed logins allowed per username within [`LOGIN_WINDOW`] before it is locked out.
 const LOGIN_MAX_FAILURES: u32 = 8;
@@ -53,8 +57,10 @@ pub struct App {
 
 impl App {
     pub fn new(store: Store, config: HubConfig) -> Arc<Self> {
+        let mut hub = Hub::new(store.clone(), config);
+        hub.restore_rewards();
         Arc::new(App {
-            hub: Mutex::new(Hub::new(store.clone(), config)),
+            hub: Mutex::new(hub),
             config,
             max_hold_ns: AtomicU64::new(0),
             store,
@@ -203,16 +209,43 @@ impl App {
 
     /// Runs `f` on the hub, then schedules any timers it asked for.
     fn run<R>(self: &Arc<Self>, f: impl FnOnce(&mut Hub) -> R) -> R {
-        let (result, timers) = {
+        let (result, timers, boss_forges) = {
             let mut hub = self.hub.lock().unwrap_or_else(|e| e.into_inner());
             let held = Instant::now();
             let result = f(&mut hub);
+            self.store_reward_outcomes(&mut hub);
             let timers = hub.take_timers();
+            let boss_forges = hub.take_boss_forge_jobs();
             self.note_hold(held);
-            (result, timers)
+            (result, timers, boss_forges)
         };
         self.schedule(timers);
+        self.fire_boss_forges(boss_forges);
         result
+    }
+
+    /// Forges the skill of each beaten boss off the hub lock, then hands it
+    /// over. (Takes the lock directly, like `fire_forge`.)
+    fn fire_boss_forges(self: &Arc<Self>, jobs: Vec<BossForgeJob>) {
+        for job in jobs {
+            let app = Arc::clone(self);
+            tokio::spawn(async move {
+                let store = app.store.clone();
+                let (job, made) = tokio::task::spawn_blocking(move || {
+                    let made = job.forge(&store);
+                    (job, made)
+                })
+                .await
+                .expect("the boss forge does not panic");
+                let timers = {
+                    let mut hub = app.hub.lock().unwrap_or_else(|e| e.into_inner());
+                    hub.finish_boss_forge(&job.player, job.chapter, made);
+                    app.store_reward_outcomes(&mut hub);
+                    hub.take_timers()
+                };
+                app.schedule(timers);
+            });
+        }
     }
 
     fn schedule(self: &Arc<Self>, timers: Vec<(Duration, Timer)>) {
@@ -231,15 +264,17 @@ impl App {
         if let Timer::BotMove { game_id, ply } = timer {
             return self.fire_bot(game_id, ply);
         }
-        let timers = {
+        let (timers, boss_forges) = {
             let mut hub = self.hub.lock().unwrap_or_else(|e| e.into_inner());
             let held = Instant::now();
             hub.on_timer(timer);
             let timers = hub.take_timers();
+            let boss_forges = hub.take_boss_forge_jobs();
             self.note_hold(held);
-            timers
+            (timers, boss_forges)
         };
         self.schedule(timers);
+        self.fire_boss_forges(boss_forges);
     }
 
     /// The bot's turn: snapshot the game under the lock, search off it (the
@@ -257,12 +292,13 @@ impl App {
                 .await
                 .ok()
                 .flatten();
-            let timers = {
+            let (timers, boss_forges) = {
                 let mut hub = app.hub.lock().unwrap_or_else(|e| e.into_inner());
                 hub.apply_bot_move(&game_id, ply, action);
-                hub.take_timers()
+                (hub.take_timers(), hub.take_boss_forge_jobs())
             };
             app.schedule(timers);
+            app.fire_boss_forges(boss_forges);
         });
     }
 
@@ -271,7 +307,30 @@ impl App {
         token: Option<String>,
         tx: UnboundedSender<ServerMsg>,
     ) -> Result<(PlayerId, u64), StoreError> {
-        self.run(|hub| hub.connect(token, tx))
+        let announcements = tx.clone();
+        let (player, conn_id) = self.run(|hub| hub.connect(token, tx))?;
+        match self.store.take_reward_outcomes(&player) {
+            Ok(rows) => rows.into_iter().for_each(|row| {
+                let _ = announcements.send(ServerMsg::RewardOutcome {
+                    by: row.by,
+                    kind: row.kind,
+                    skill: row.skill,
+                    refilled: row.refilled,
+                });
+            }),
+            Err(e) => tracing::error!("could not read the reward outcomes of {player}: {e}"),
+        }
+        Ok((player, conn_id))
+    }
+
+    /// Stores the announcements the hub could not deliver (loser offline).
+    /// Done under the hub lock, so a loser who connects right after finds them.
+    fn store_reward_outcomes(&self, hub: &mut Hub) {
+        for (player, outcome) in hub.take_reward_outcome_pushes() {
+            if let Err(e) = self.store.push_reward_outcome(&player, &outcome) {
+                tracing::error!("could not store a reward outcome for {player}: {e}");
+            }
+        }
     }
 
     pub fn disconnect(self: &Arc<Self>, player: &str, conn_id: u64) {
@@ -296,6 +355,7 @@ impl App {
                 ClientMsg::SelectDeck { skills } => hub.select_deck(player, skills),
                 ClientMsg::Action { action } => hub.action(player, action),
                 ClientMsg::Resign => hub.resign(player),
+                ClientMsg::DevFinish { result } => hub.dev_finish(player, result),
                 ClientMsg::RewardChoice {
                     choice: RewardChoice::Random { replace },
                 } => return hub.begin_forge(player, replace),
@@ -329,15 +389,17 @@ impl App {
                 ClientMsg::ChallengeCancel => hub.challenge_cancel(player),
                 ClientMsg::SoloStart { elo, color } => hub.solo_start(player, elo, color),
                 ClientMsg::PlacementStart { color } => hub.placement_start(player, color),
-                ClientMsg::CampaignGet => hub.send_campaign(player),
-                ClientMsg::CampaignStart { level, skills } => {
-                    hub.campaign_start(player, level, skills)
-                }
-                ClientMsg::CampaignForge { replace } => {
-                    return hub.begin_campaign_forge(player, replace)
-                }
+                ClientMsg::CampaignStart {
+                    chapter,
+                    level,
+                    deck,
+                } => hub.campaign_start(player, LevelRef { chapter, level }, deck),
                 ClientMsg::Spectate { game_id } => hub.spectate(player, &game_id),
                 ClientMsg::Unspectate => hub.unspectate(player),
+                ClientMsg::BossForgeClaim { chapter } => hub.boss_forge_claim(player, chapter),
+                ClientMsg::BossForgePlace { chapter, replace } => {
+                    hub.boss_forge_place(player, chapter, replace)
+                }
             }
             None
         });
@@ -360,17 +422,11 @@ impl App {
                 seed,
                 known,
                 store,
-                campaign,
+                range,
             } = job;
             let made = tokio::task::spawn_blocking(move || {
                 let mut rng = chessy_engine::ai::Rng::new(seed);
-                let budget = chessy_engine::forge::generate::Budget::live();
-                let forged = match campaign {
-                    Some((_, min)) => chessy_engine::forge::generate::forge_at_least(
-                        &mut rng, target, min, &known, budget,
-                    ),
-                    None => chessy_engine::forge::generate::forge(&mut rng, target, &known, budget),
-                };
+                let forged = forge_in_range(&mut rng, target, &known, &range)?;
                 store
                     .insert_forged(&forged.def, &forged.graded)
                     .ok()
@@ -381,15 +437,26 @@ impl App {
             .flatten();
             let timers = {
                 let mut hub = app.hub.lock().unwrap_or_else(|e| e.into_inner());
-                match campaign {
-                    Some((chapter, _)) => {
-                        hub.finish_campaign_forge(&player, chapter, replace, made)
-                    }
-                    None => hub.finish_forge(&player, replace, made),
-                }
+                hub.finish_forge(&player, replace, made);
+                app.store_reward_outcomes(&mut hub);
                 hub.take_timers()
             };
             app.schedule(timers);
         });
     }
+}
+
+/// Forges aiming at `target`; the forge may settle for a neighbouring tier, so
+/// a reward bound to a rarity range tries again a few times and, failing
+/// that, forges nothing (the reward stays on offer).
+fn forge_in_range(
+    rng: &mut chessy_engine::ai::Rng,
+    target: chessy_engine::forge::Rarity,
+    known: &std::collections::HashSet<String>,
+    range: &std::ops::RangeInclusive<chessy_engine::forge::Rarity>,
+) -> Option<chessy_engine::forge::generate::Forged> {
+    use chessy_engine::forge::generate::{forge, Budget};
+    (0..MAX_RANGE_FORGES)
+        .map(|_| forge(rng, target, known, Budget::live()))
+        .find(|forged| range.contains(&forged.graded.rarity))
 }

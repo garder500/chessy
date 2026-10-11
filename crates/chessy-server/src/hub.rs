@@ -5,17 +5,26 @@
 //! [`Timer`] for the caller to schedule. Friends, challenges, chat and
 //! rematches live in the `social` submodule.
 
+mod boss_forge;
+mod campaign;
+mod campaign_deck;
+#[cfg(test)]
+mod campaign_tests;
 mod moderation;
+mod rewards;
 mod social;
 mod solo;
 mod spectate;
 pub(crate) mod view;
 
+pub use boss_forge::{BossForgeJob, BossForgeMade};
 pub use spectate::{LiveGame, LiveSeat, SpectatorView, UsedSkills, MAX_SPECTATORS};
 
 use std::collections::{HashMap, VecDeque};
+use std::ops::RangeInclusive;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use chessy_engine::forge::Rarity;
 use chessy_engine::{Action, Color, Game, Outcome, SkillId, SkillKind, SkillTarget};
 use rand::seq::{IndexedRandom, SliceRandom};
 use tokio::sync::mpsc::UnboundedSender;
@@ -323,6 +332,8 @@ struct Session {
     /// Every action as each colour saw it (indexed by `Color::index()`), so a
     /// player who reloads the page gets their journal back.
     history: [Vec<HistoryEntry>; 2],
+    /// The ply at which each colour lost its first piece.
+    first_loss_ply: [Option<u32>; 2],
 }
 
 impl Session {
@@ -340,20 +351,22 @@ pub struct ForgeJob {
     /// The skill to drop if the deck is full.
     pub replace: Option<SkillId>,
     /// The rarity the draw asked for.
-    pub target: chessy_engine::forge::Rarity,
+    pub target: Rarity,
+    /// The tiers the reward may land in.
+    pub range: RangeInclusive<Rarity>,
     pub seed: u64,
     /// Signatures already in the world: a skill that repeats one is Common.
     pub known: std::collections::HashSet<String>,
     pub store: Store,
-    /// Set for the forge a campaign boss pays: its chapter, and the least
-    /// rarity it may come out as.
-    pub campaign: Option<(u8, chessy_engine::forge::Rarity)>,
 }
 
 struct PendingReward {
     /// A skill is being forged for the "random" choice: ignore further choices.
     forging: bool,
-    loser: PlayerId,
+    /// `None` for a reward taken from nobody (a campaign boss).
+    loser: Option<PlayerId>,
+    /// The tiers a forged reward may land in.
+    range: RangeInclusive<Rarity>,
     /// What the loser owned when the game ended: the only skills the winner
     /// may take (and only those the loser still owns when they claim).
     loser_deck: Vec<SkillId>,
@@ -388,8 +401,12 @@ pub struct Hub {
     games: HashMap<String, Session>,
     player_game: HashMap<PlayerId, String>,
     rewards: HashMap<PlayerId, PendingReward>,
-    /// Players a campaign forge is being made for right now.
-    campaign_forging: std::collections::HashSet<PlayerId>,
+    /// Announcements for losers with no connection, to store (see `rewards`).
+    reward_outcome_pushes: Vec<(PlayerId, crate::reward_outcome_store::RewardOutcomeRow)>,
+    /// Boss forges to run off the lock, taken by the app (see `boss_forge`).
+    boss_forge_jobs: Vec<BossForgeJob>,
+    /// Boss forges running right now: a second claim must not start another.
+    boss_forges_in_flight: std::collections::HashSet<(PlayerId, u8)>,
     /// Open challenges by challenger.
     challenges: HashMap<PlayerId, social::Challenge>,
     next_challenge: u64,
@@ -433,7 +450,9 @@ impl Hub {
             games: HashMap::new(),
             player_game: HashMap::new(),
             rewards: HashMap::new(),
-            campaign_forging: std::collections::HashSet::new(),
+            reward_outcome_pushes: Vec::new(),
+            boss_forge_jobs: Vec::new(),
+            boss_forges_in_flight: std::collections::HashSet::new(),
             challenges: HashMap::new(),
             next_challenge: 0,
             rematches: HashMap::new(),
@@ -523,7 +542,7 @@ impl Hub {
         }
         let _ = self.store.touch_last_seen(&id);
         let pending_reward = match self.live_reward(&id) {
-            Some(r) => self.offer_for(&id, &r.loser, &r.loser_deck).ok(),
+            Some(r) => self.offer_for(&id, r.loser.as_deref(), &r.loser_deck).ok(),
             None => None,
         };
         let account = self
@@ -540,6 +559,7 @@ impl Hub {
                 account,
             },
         );
+        self.push_boss_forges(&id);
         self.push_friends(&id);
         self.resume(&id);
         self.spectate_resume(&id);
@@ -789,15 +809,13 @@ impl Hub {
         self.rooms.retain(|_, (p, _)| p != player);
     }
 
-    /// Checks the player may start looking for a game; clears any unclaimed
-    /// reward (starting a new game forfeits it), any rematch they were
-    /// weighing and any previous lobby spot.
+    /// Checks the player may start looking for a game; clears any rematch
+    /// they were weighing and any previous lobby spot.
     fn enter_lobby(&mut self, player: &str) -> bool {
         if self.player_game.contains_key(player) {
             self.fail(player, "already_in_game", "finish your current game first");
             return false;
         }
-        self.rewards.remove(player);
         self.drop_rematch(player, true);
         self.leave_lobby_silently(player);
         self.spectate_leave(player);
@@ -1136,16 +1154,16 @@ impl Hub {
                 Color::White => white = id,
                 Color::Black => black = id,
             }
-            picks[seat.bot.index()] = Some(match (&seat.disguise, &seat.campaign) {
+            let level = seat.level();
+            picks[seat.bot.index()] = Some(match (&seat.disguise, level) {
                 // A matchmaking bot plays the deck of its account.
                 (Some(d), _) => self.auto_pick(&d.account),
-                // A campaign level fixes both hands: nothing to choose.
-                (None, Some(run)) => {
-                    picks[seat.bot.opposite().index()] = Some(run.hand.clone());
-                    run.level.enemy.clone()
-                }
+                (None, Some(l)) => l.bot_deck.to_vec(),
                 (None, None) => crate::bot::pick_deck(),
             });
+            if level.is_some() {
+                picks[seat.bot.opposite().index()] = Some(seat.deck.clone());
+            }
             seat_solo = Some(seat);
         }
         let pair = [white.clone(), black.clone()];
@@ -1160,7 +1178,6 @@ impl Hub {
             }
         }
         for player in &humans {
-            self.rewards.remove(*player);
             self.leave_lobby_silently(player);
             self.spectate_leave(player);
             self.drop_challenges(player);
@@ -1204,26 +1221,26 @@ impl Hub {
             },
             solo: seat_solo,
             history: [Vec::new(), Vec::new()],
+            first_loss_ply: [None, None],
         };
         for player in &humans {
             self.player_game.insert((*player).clone(), game_id.clone());
         }
         self.games.insert(game_id.clone(), session);
-        self.timers.push((
-            self.config.deck_select_time,
-            Timer::DeckTimeout {
-                game_id: game_id.clone(),
-            },
-        ));
-        // A campaign level starts at once: its hands are fixed.
-        let campaign = self
-            .games
-            .get(&game_id)
-            .and_then(|s| s.solo.as_ref())
-            .is_some_and(|s| s.campaign.is_some());
-        if campaign {
+        // A campaign level imposes both decks: there is nothing to select.
+        if self.games[&game_id]
+            .solo
+            .as_ref()
+            .is_some_and(|s| s.campaign.is_some())
+        {
             self.start_if_ready(&game_id);
         } else {
+            self.timers.push((
+                self.config.deck_select_time,
+                Timer::DeckTimeout {
+                    game_id: game_id.clone(),
+                },
+            ));
             for player in &humans {
                 self.send_session_to(&game_id, player);
             }
@@ -1312,7 +1329,8 @@ impl Hub {
             }
             return;
         };
-        let game = Game::new(white, black);
+        let start = session.solo.as_ref().and_then(solo::Solo::start_fen);
+        let game = crate::replay::game_at(start, white, black);
         session.phase = Phase::Playing {
             game: Box::new(game),
         };
@@ -1508,9 +1526,6 @@ impl Hub {
         };
         view::mask_best_move(game, color, &mut events);
         session.recording.actions.push(action);
-        if let Some(run) = session.solo.as_mut().and_then(|s| s.campaign.as_mut()) {
-            run.tally.observe(color, color, &events);
-        }
         let outcome = game.outcome();
         if game.side_to_move() == color && !outcome.is_over() {
             // Mind Reading / Mind Control keep the turn: same player, same
@@ -1555,7 +1570,7 @@ impl Hub {
         }
     }
 
-    fn end_by_resignation(&mut self, game_id: &str, color: Color, reason: &str) {
+    pub(super) fn end_by_resignation(&mut self, game_id: &str, color: Color, reason: &str) {
         let Some(Session {
             phase: Phase::Playing { game },
             ..
@@ -1684,6 +1699,10 @@ impl Hub {
             return;
         };
         for color in Color::BOTH {
+            let lost_a_piece = game.pos.graveyard.iter().any(|p| p.color == color);
+            if lost_a_piece && session.first_loss_ply[color.index()].is_none() {
+                session.first_loss_ply[color.index()] = Some(game.pos.ply);
+            }
             let hidden = view::hidden_ids(&game.pos, color);
             let seen = view::events(events.to_vec(), color, game, &hidden);
             let landed = seen
@@ -1807,6 +1826,7 @@ impl Hub {
                     started_unix: session.started_unix,
                     kind: session.recording.kind,
                     loadouts,
+                    start_fen: session.solo.as_ref().and_then(solo::Solo::start_fen),
                     actions: &session.recording.actions,
                     // A placement game keeps its level hidden, replay included.
                     solo_elo: session
@@ -1814,6 +1834,7 @@ impl Hub {
                         .as_ref()
                         .filter(|s| s.is_plain() && s.placement.is_none())
                         .map(|s| s.elo),
+                    time_control: if solo { None } else { session.time },
                 };
                 match self.store.record_game(&record) {
                     Ok(change) => change,
@@ -1826,12 +1847,13 @@ impl Hub {
             None => None,
         };
         let placement = self.settle_placement(&session, game_id, &outcome, loadouts.is_some());
-        let campaign = self.settle_campaign(&session, &outcome, loadouts.is_some());
         let winner = outcome.winner();
+        let campaign = self.finish_campaign(&session, winner);
         for color in Color::BOTH {
             let player = &session.players[color.index()];
+            let own_campaign = campaign.as_ref().filter(|c| &c.player == player);
             // Only a rated game (ranked, between accounts, long enough) pays a skill:
-            // friendly games and Solo would otherwise be farmed.
+            // friendly games and Solo (campaign included) would otherwise be farmed.
             let reward = if !solo
                 && !crate::bot::is_bot_id(player)
                 && change.is_some()
@@ -1839,16 +1861,16 @@ impl Hub {
             {
                 let loser = &ids[color.opposite().index()];
                 let loser_deck = self.deck_of(loser).unwrap_or_default();
-                let offer = self.offer_for(player, loser, &loser_deck).ok();
-                self.rewards.insert(
-                    player.clone(),
-                    PendingReward {
-                        forging: false,
-                        loser: loser.clone(),
-                        loser_deck,
-                        created: Instant::now(),
-                    },
-                );
+                let offer = self.offer_for(player, Some(loser), &loser_deck).ok();
+                let pending = PendingReward {
+                    forging: false,
+                    loser: Some(loser.clone()),
+                    range: Rarity::Common..=Rarity::Legendary,
+                    loser_deck,
+                    created: Instant::now(),
+                };
+                self.save_pending_reward(player, &pending);
+                self.rewards.insert(player.clone(), pending);
                 offer
             } else {
                 None
@@ -1875,11 +1897,8 @@ impl Hub {
                     rated: change.is_some(),
                     elo,
                     reason: reason.to_string(),
+                    campaign: own_campaign.map(|c| c.info.clone()),
                     placement,
-                    campaign: campaign
-                        .as_ref()
-                        .filter(|(human, _)| human == player)
-                        .map(|(_, result)| result.clone()),
                 },
             );
             self.send(
@@ -1889,12 +1908,9 @@ impl Hub {
                 },
             );
         }
-        if let Some((human, _)) = &campaign {
-            self.send_campaign(human);
-        }
         if let Some(solo) = &session.solo {
-            // A placement or campaign game has no rematch: the next one is a new request.
-            if solo.placement.is_none() && solo.campaign.is_none() {
+            // A placement game has no rematch: the next one is a new request.
+            if solo.placement.is_none() {
                 self.offer_solo_rematch(&session);
             }
         } else {
@@ -1957,11 +1973,11 @@ impl Hub {
     fn offer_for(
         &self,
         winner: &str,
-        loser: &str,
+        loser: Option<&str>,
         snapshot: &[SkillId],
     ) -> Result<RewardOffer, StoreError> {
         let deck = self.deck_of(winner)?;
-        let loser_now = self.deck_of(loser)?;
+        let loser_now = loser.map_or(Ok(Vec::new()), |l| self.deck_of(l))?;
         let steal_options = snapshot
             .iter()
             .copied()
@@ -1972,295 +1988,6 @@ impl Hub {
             deck,
             steal_options,
         })
-    }
-
-    pub fn reward_choice(&mut self, player: &str, choice: RewardChoice) {
-        if matches!(choice, RewardChoice::Random { .. }) {
-            // A random skill is forged: see `begin_forge`, which the app calls.
-            return self.fail(
-                player,
-                "invalid_reward",
-                "a random skill is forged, not drawn",
-            );
-        }
-        let Some(pending) = self.rewards.remove(player) else {
-            return self.fail(player, "no_reward", "you have no reward to claim");
-        };
-        if pending.created.elapsed() >= self.config.reward_ttl {
-            return self.fail(player, "no_reward", "that reward has expired");
-        }
-        if pending.forging {
-            self.rewards.insert(player.to_string(), pending);
-            return self.fail(player, "forging", "a skill is already being forged for you");
-        }
-        match self.resolve_reward(player, &pending.loser, &pending.loser_deck, choice, None) {
-            Ok(()) => {}
-            Err(msg) => {
-                // Let the player try again with a corrected choice.
-                self.rewards.insert(player.to_string(), pending);
-                self.fail(player, "invalid_reward", msg);
-            }
-        }
-    }
-
-    /// The winner chose a random skill: checks the reward and returns what
-    /// the forge needs. The forging itself takes a while (it measures the
-    /// candidates on real positions), so the app does it off the lock and then
-    /// calls [`Hub::finish_forge`].
-    pub fn begin_forge(&mut self, player: &str, replace: Option<SkillId>) -> Option<ForgeJob> {
-        let Some(pending) = self.rewards.get_mut(player) else {
-            self.fail(player, "no_reward", "you have no reward to claim");
-            return None;
-        };
-        if pending.created.elapsed() >= self.config.reward_ttl {
-            self.rewards.remove(player);
-            self.fail(player, "no_reward", "that reward has expired");
-            return None;
-        }
-        if pending.forging {
-            self.fail(player, "forging", "a skill is already being forged for you");
-            return None;
-        }
-        let known = match self.store.forged_signatures() {
-            Ok(known) => known,
-            Err(_) => {
-                self.fail(player, "internal", "internal error");
-                return None;
-            }
-        };
-        let seed: u64 = rand::random();
-        let target = chessy_engine::forge::generate::roll_rarity(&mut chessy_engine::ai::Rng::new(
-            seed ^ 0xA5A5,
-        ));
-        if let Some(pending) = self.rewards.get_mut(player) {
-            pending.forging = true;
-        }
-        Some(ForgeJob {
-            player: player.to_string(),
-            replace,
-            target,
-            seed,
-            known,
-            store: self.store.clone(),
-            campaign: None,
-        })
-    }
-
-    /// The player claims the forge a beaten boss owes (docs/spec-v6.md): checks
-    /// it and returns what the forge needs. Like [`Self::begin_forge`], the
-    /// app makes the skill off the lock and calls [`Self::finish_campaign_forge`].
-    pub fn begin_campaign_forge(
-        &mut self,
-        player: &str,
-        replace: Option<SkillId>,
-    ) -> Option<ForgeJob> {
-        let (progress, deck, known) = match (
-            self.store.campaign_progress(player),
-            self.deck_of(player),
-            self.store.forged_signatures(),
-        ) {
-            (Ok(progress), Ok(deck), Ok(known)) => (progress, deck, known),
-            _ => {
-                self.fail(player, "internal", "internal error");
-                return None;
-            }
-        };
-        // The lowest chapter whose boss still owes its forge.
-        let Some(chapter) = (1..=crate::campaign::CHAPTERS).find(|c| {
-            progress
-                .get(&crate::campaign::boss_id(*c))
-                .is_some_and(|r| r.forge_pending)
-        }) else {
-            self.fail(player, "no_forge", "no boss owes you a forge");
-            return None;
-        };
-        if self.campaign_forging.contains(player) {
-            self.fail(player, "forging", "a skill is already being forged for you");
-            return None;
-        }
-        if deck.len() >= MAX_DECK && !replace.is_some_and(|r| deck.contains(&r)) {
-            self.fail(
-                player,
-                "invalid_reward",
-                "your deck is full: choose a skill to replace",
-            );
-            return None;
-        }
-        let min = crate::campaign::level(crate::campaign::boss_id(chapter))
-            .and_then(|l| l.forge_min)
-            .unwrap_or(chessy_engine::forge::Rarity::Common);
-        let seed: u64 = rand::random();
-        let target = chessy_engine::forge::generate::roll_rarity_at_least(
-            &mut chessy_engine::ai::Rng::new(seed ^ 0xA5A5),
-            min,
-        );
-        self.campaign_forging.insert(player.to_string());
-        Some(ForgeJob {
-            player: player.to_string(),
-            replace,
-            target,
-            seed,
-            known,
-            store: self.store.clone(),
-            campaign: Some((chapter, min)),
-        })
-    }
-
-    /// The campaign forge is done: `skill` is what it made, `None` if it failed.
-    pub fn finish_campaign_forge(
-        &mut self,
-        player: &str,
-        chapter: u8,
-        replace: Option<SkillId>,
-        skill: Option<SkillId>,
-    ) {
-        self.campaign_forging.remove(player);
-        let Some(skill) = skill else {
-            return self.fail(
-                player,
-                "invalid_reward",
-                "the forge could not make a skill, try again",
-            );
-        };
-        let deck = self.deck_of(player).unwrap_or_default();
-        let drop = if deck.len() >= MAX_DECK {
-            replace.filter(|r| deck.contains(r) && *r != skill)
-        } else {
-            None
-        };
-        if deck.contains(&skill) || (deck.len() >= MAX_DECK && drop.is_none()) {
-            return self.fail(
-                player,
-                "invalid_reward",
-                "you already have that skill, try again",
-            );
-        }
-        if self
-            .store
-            .apply_campaign_forge(player, chapter, skill, drop)
-            .is_err()
-        {
-            return self.fail(player, "invalid_reward", "could not apply that forge");
-        }
-        if let Ok(deck) = self.deck_of(player) {
-            self.send(
-                player,
-                ServerMsg::DeckUpdate {
-                    deck,
-                    gained: Some(skill),
-                    lost: drop,
-                },
-            );
-        }
-        self.send_campaign(player);
-    }
-
-    /// The forge is done: `skill` is what it made, `None` if it failed.
-    pub fn finish_forge(&mut self, player: &str, replace: Option<SkillId>, skill: Option<SkillId>) {
-        let Some(mut pending) = self.rewards.remove(player) else {
-            return;
-        };
-        pending.forging = false;
-        let result = match skill {
-            None => Err("the forge could not make a skill, try again"),
-            Some(_) => self.resolve_reward(
-                player,
-                &pending.loser,
-                &pending.loser_deck,
-                RewardChoice::Random { replace },
-                skill,
-            ),
-        };
-        if let Err(msg) = result {
-            self.rewards.insert(player.to_string(), pending);
-            self.fail(player, "invalid_reward", msg);
-        }
-    }
-
-    fn resolve_reward(
-        &mut self,
-        winner: &str,
-        loser: &str,
-        snapshot: &[SkillId],
-        choice: RewardChoice,
-        forged: Option<SkillId>,
-    ) -> Result<(), &'static str> {
-        let db = |_: StoreError| "internal error";
-        let winner_deck = self.deck_of(winner).map_err(db)?;
-        // Only what the loser had at the end of the game and still has now
-        // (they may have won skills elsewhere since, or lost some).
-        let loser_deck: Vec<SkillId> = self
-            .deck_of(loser)
-            .map_err(db)?
-            .into_iter()
-            .filter(|s| snapshot.contains(s))
-            .collect();
-
-        let (gain, loser_loses, replace) = match choice {
-            RewardChoice::Skip => {
-                self.send(
-                    winner,
-                    ServerMsg::DeckUpdate {
-                        deck: winner_deck,
-                        gained: None,
-                        lost: None,
-                    },
-                );
-                return Ok(());
-            }
-            RewardChoice::Steal { skill, replace } => {
-                if !loser_deck.contains(&skill) {
-                    return Err("that skill is not available to take any more");
-                }
-                if winner_deck.contains(&skill) {
-                    return Err("you already have that skill");
-                }
-                (Some(skill), Some(skill), replace)
-            }
-            RewardChoice::Random { replace } => {
-                // The forge made the skill; the loser loses one of theirs at random.
-                let skill = forged.ok_or("no skill was forged")?;
-                if winner_deck.contains(&skill) {
-                    return Err("you already have that skill");
-                }
-                let mut rng = rand::rng();
-                (Some(skill), loser_deck.choose(&mut rng).copied(), replace)
-            }
-        };
-
-        let winner_drops = if gain.is_some() && winner_deck.len() >= MAX_DECK {
-            match replace {
-                Some(r) if winner_deck.contains(&r) && Some(r) != gain => Some(r),
-                _ => return Err("your deck is full: choose a skill to replace"),
-            }
-        } else {
-            None
-        };
-
-        self.store
-            .apply_reward(winner, loser, gain, loser_loses, winner_drops)
-            .map_err(|_| "could not apply that reward")?;
-
-        let winner_after = self.deck_of(winner).map_err(db)?;
-        self.send(
-            winner,
-            ServerMsg::DeckUpdate {
-                deck: winner_after,
-                gained: gain,
-                lost: winner_drops,
-            },
-        );
-        if let Ok(loser_after) = self.deck_of(loser) {
-            self.send(
-                loser,
-                ServerMsg::DeckUpdate {
-                    deck: loser_after,
-                    gained: None,
-                    lost: loser_loses,
-                },
-            );
-        }
-        Ok(())
     }
 }
 
@@ -2332,14 +2059,10 @@ fn state_view(
             Some(by) if by == you => DrawOffer::You,
             Some(_) => DrawOffer::Them,
         },
-        campaign: session
-            .solo
-            .as_ref()
-            .and_then(|s| s.campaign.as_ref())
-            .map(solo::CampaignRun::banner),
         ply_count: game.pos.ply,
         spectators,
         history: Vec::new(),
+        campaign: session.solo.as_ref().and_then(solo::Solo::campaign_context),
     }
 }
 

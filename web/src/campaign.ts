@@ -1,184 +1,151 @@
-// Logique pure du mode Campagne (docs/spec-v6.md) : chapitres, étoiles, niveau à reprendre, textes des
-// objectifs et des défis. Le serveur décide de tout (règles, étoiles, niveaux ouverts) ; le client lit.
+import type { Rarity } from "./forged";
+import type { BossForgeInfo, CampaignChapter, CampaignLevel, CampaignStars, SkillId } from "./protocol";
+import { skillInfo } from "./skills";
 
-import { t, type Params } from "./i18n";
-import type { CampaignChallenge, CampaignLevel, CampaignObjective, SkillId } from "./protocol";
-import type { Family } from "./catalog";
-
-/** Étoiles sur les six niveaux ordinaires d'un chapitre qui ouvrent le boss. */
-export const BOSS_GATE = 12;
-export const CHAPTER_COUNT = 5;
-/** Étoiles possibles par chapitre (six niveaux et le boss) et en tout. */
-export const CHAPTER_STARS = 21;
-export const TOTAL_STARS = CHAPTER_STARS * CHAPTER_COUNT;
-
-export const STAR_WIN = 1;
-export const STAR_OBJECTIVE = 2;
-export const STAR_CHALLENGE = 4;
-
-/** Famille de compétences enseignée par chaque chapitre (la couleur du chapitre est celle de la famille). */
-export const CHAPTER_FAMILY: readonly Family[] = ["attack", "defense", "mobility", "control", "create"];
-
-export const familyOfChapter = (chapter: number): Family => CHAPTER_FAMILY[chapter - 1] ?? "attack";
-
-export function starCount(mask: number): number {
-  return (mask & STAR_WIN ? 1 : 0) + (mask & STAR_OBJECTIVE ? 1 : 0) + (mask & STAR_CHALLENGE ? 1 : 0);
+export interface ForgeTableRow {
+  rarity: Rarity;
+  percent: number;
 }
 
-export const chapterOf = (levels: readonly CampaignLevel[], chapter: number) => levels.filter((l) => l.chapter === chapter);
-
-/** Étoiles du chapitre : tous ses niveaux, boss compris. */
-export function chapterTotal(levels: readonly CampaignLevel[], chapter: number): number {
-  return chapterOf(levels, chapter).reduce((n, l) => n + starCount(l.stars), 0);
+/** Niveau tel que `GET /api/campaign` le rend : champs ajoutés au type de base du protocole. */
+export interface CampaignLevelView extends CampaignLevel {
+  lent: SkillId[];
+  move_limit: number | null;
+  /** Présent seulement après plusieurs défaites d'affilée. */
+  hint?: string;
 }
 
-/** Étoiles qui comptent pour la porte du boss : les niveaux ordinaires seulement. */
-export function gateStars(levels: readonly CampaignLevel[], chapter: number): number {
-  return chapterOf(levels, chapter)
-    .filter((l) => !l.boss)
-    .reduce((n, l) => n + starCount(l.stars), 0);
+export interface CampaignChapterView extends Omit<CampaignChapter, "levels"> {
+  forge_table: ForgeTableRow[];
+  boss_forge: BossForgeInfo | null;
+  levels: CampaignLevelView[];
 }
 
-export function totalStars(levels: readonly CampaignLevel[]): number {
-  return levels.reduce((n, l) => n + starCount(l.stars), 0);
+export interface CampaignView {
+  chapters: CampaignChapterView[];
+  total_stars: number;
+  max_stars: number;
 }
 
-export const bossOf = (levels: readonly CampaignLevel[], chapter: number) => levels.find((l) => l.chapter === chapter && l.boss);
+/** Dernier chapitre : sa forge est la seule où la Légendaire est possible. */
+export const LEGENDARY_CHAPTER = 4;
 
-/** Un chapitre est ouvert quand son premier niveau l'est. */
-export function chapterOpen(levels: readonly CampaignLevel[], chapter: number): boolean {
-  return !!levels.find((l) => l.chapter === chapter && l.index === 1)?.unlocked;
+/** Total d'étoiles de la campagne (7 niveaux sur 5 chapitres, 3 étoiles chacun). */
+export const MAX_STARS = 105;
+
+export function totalLabel(total: number, max: number): string {
+  return `${total} / ${max} ★`;
 }
 
-/** Le niveau où reprendre : le dernier niveau ouvert, dans l'ordre de jeu. */
-export function resumeLevel(levels: readonly CampaignLevel[]): CampaignLevel | undefined {
-  return [...levels].filter((l) => l.unlocked).sort((a, b) => b.id - a.id)[0];
+/** Séparateur de milliers fin insécable, comme la typographie française. */
+export function formatElo(elo: number): string {
+  return String(elo).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
-/** Le niveau qui suit `id` dans la campagne, s'il est ouvert. */
-export function nextOpenLevel(levels: readonly CampaignLevel[], id: number): CampaignLevel | undefined {
-  const next = [...levels].sort((a, b) => a.id - b.id).find((l) => l.id > id);
-  return next?.unlocked ? next : undefined;
+export function forgeNote(chapter: CampaignChapterView): string | null {
+  if (chapter.chapter !== LEGENDARY_CHAPTER) return null;
+  return chapter.boss_forge?.legendary_unavailable
+    ? "Plus aucune Légendaire disponible : Épique garantie"
+    : "Épique ou mieux, Légendaire possible";
 }
 
-export const levelById = (levels: readonly CampaignLevel[] | null, id: number) => levels?.find((l) => l.id === id);
+/** Le message `boss_forge` du serveur est plus récent que la liste REST du chapitre. */
+export function withLiveForge(chapters: CampaignChapterView[], live: BossForgeInfo | null): CampaignChapterView[] {
+  if (!live) return chapters;
+  return chapters.map((c) => (c.chapter === live.chapter ? { ...c, boss_forge: live } : c));
+}
 
-/** Pourquoi un niveau est fermé : le texte à afficher à la place du bouton de lancement. */
-export function lockedReason(levels: readonly CampaignLevel[], level: CampaignLevel): string {
-  if (level.unlocked) return "";
-  if ((level.index === 1 || level.boss) && level.chapter > 1 && !chapterOpen(levels, level.chapter)) {
-    return t("campaign.locked_chapter", { n: level.chapter - 1, boss: bossName(level.chapter - 1) });
+/** Les uniques du deck s'ajoutent d'office aux trois choisies ; le reste se choisit avec les prêtées. */
+export function splitDeck(deck: SkillId[], lent: SkillId[]): { pickable: SkillId[]; extras: SkillId[] } {
+  const extras = deck.filter((s) => skillInfo(s).unique);
+  return { pickable: [...deck.filter((s) => !extras.includes(s)), ...lent], extras };
+}
+
+/** Intitulés des trois étoiles d'un niveau, dans l'ordre du fil. */
+export const STAR_LABELS = ["Victoire", "Objectif", "Défi"] as const;
+
+/** Numéro de niveau du boss d'un chapitre. */
+export const BOSS_LEVEL = 6;
+
+export function countStars(stars: CampaignStars): number {
+  return stars.filter(Boolean).length;
+}
+
+/** Seul le serveur décide de l'ouverture d'un niveau : le client n'affiche que son drapeau. */
+export function isLocked(level: Pick<CampaignLevel, "unlocked">): boolean {
+  return !level.unlocked;
+}
+
+export function bossOf(chapter: Pick<CampaignChapterView, "levels">): CampaignLevelView | undefined {
+  return chapter.levels.find((l) => l.boss);
+}
+
+export type ChapterStatus = "sealed" | "current" | "done";
+
+export function chapterStatus(chapter: Pick<CampaignChapterView, "unlocked" | "levels">): ChapterStatus {
+  if (!chapter.unlocked) return "sealed";
+  return bossOf(chapter)?.best[0] ? "done" : "current";
+}
+
+export function wonLevels(chapter: Pick<CampaignChapterView, "levels">): number {
+  return chapter.levels.filter((l) => l.best[0]).length;
+}
+
+/** Pourquoi un niveau est fermé, ou `null` s'il est jouable. */
+export function lockReason(chapters: CampaignChapterView[], chapter: CampaignChapterView, level: CampaignLevelView): string | null {
+  if (!chapter.unlocked) {
+    const previousBoss = chapters[chapter.chapter - 1] && bossOf(chapters[chapter.chapter - 1]);
+    return `Battez ${previousBoss?.name ?? "le boss du chapitre précédent"} pour ouvrir ce chapitre.`;
   }
-  if (level.boss) return t("campaign.locked_gate", { need: BOSS_GATE, have: gateStars(levels, level.chapter) });
-  return t("campaign.locked_prev", { chapter: level.chapter, index: level.index - 1 });
+  if (level.unlocked) return null;
+  if (level.boss && !chapter.boss_unlocked) return `Il manque ${chapter.boss_stars_required - chapter.stars} ★ dans ce chapitre pour ouvrir la porte du boss.`;
+  const previous = chapter.levels.find((l) => l.level === level.level - 1);
+  return `Gagnez d'abord ${previous?.name ?? "le niveau précédent"}.`;
 }
 
-export const levelLabel = (l: Pick<CampaignLevel, "chapter" | "index" | "boss">) =>
-  l.boss ? t("campaign.boss_level", { n: l.chapter }) : t("campaign.level_label", { chapter: l.chapter, index: l.index });
-
-export const levelName = (l: Pick<CampaignLevel, "id" | "chapter" | "boss">) => (l.boss ? bossName(l.chapter) : t(`campaign.level_${l.id}`));
-export const bossName = (chapter: number) => t(`campaign.boss_${chapter}`);
-export const chapterName = (chapter: number) => t(`campaign.chapter_${chapter}`);
-
-const PIECE_KEY: Record<string, string> = {
-  pawn: "pawn",
-  knight: "knight",
-  bishop: "bishop",
-  rook: "rook",
-  queen: "queen",
-  king: "king",
-};
-
-/** Clé et paramètres de la phrase d'un objectif (« Mat avant le coup 30 »). */
-export function objectiveText(o: CampaignObjective): string {
-  const [key, params] = ((): [string, Params] => {
-    switch (o.kind) {
-      case "mate_before":
-        return ["campaign.obj_mate_before", { moves: o.moves }];
-      case "capture":
-        return ["campaign.obj_capture", { piece: t(`campaign.piece_${PIECE_KEY[o.piece] ?? "pawn"}`) }];
-      case "take":
-        return ["campaign.obj_take", { count: o.count }];
-      case "promote":
-        return ["campaign.obj_promote", {}];
-      case "lose_fewer":
-        return ["campaign.obj_lose_fewer", { count: o.count }];
-    }
-  })();
-  return t(key, params);
+/** Premier niveau ouvert et pas encore gagné, sinon le dernier : le « vous êtes ici » du chapitre. */
+export function currentLevel(chapter: Pick<CampaignChapterView, "levels">): number {
+  const open = chapter.levels.find((l) => l.unlocked && !l.best[0]);
+  return (open ?? chapter.levels[chapter.levels.length - 1]).level;
 }
 
-export function challengeText(c: CampaignChallenge): string {
-  return t(`campaign.chal_${c.kind}`);
+/** À l'ouverture : le plus avancé des chapitres ouverts et son niveau courant. */
+export function defaultSelection(chapters: CampaignChapterView[]): { chapter: number; level: number } {
+  const chapter = [...chapters].reverse().find((c) => c.unlocked) ?? chapters[0];
+  return { chapter: chapter.chapter, level: currentLevel(chapter) };
 }
 
-/** Les trois étoiles d'un niveau, dans l'ordre d'affichage, avec leur texte et si elles sont gagnées. */
-export function starLines(level: Pick<CampaignLevel, "objective" | "challenge" | "stars">, mask = level.stars) {
-  return [
-    { bit: STAR_WIN, text: t("campaign.star_win"), kind: "win" as const, got: !!(mask & STAR_WIN) },
-    { bit: STAR_OBJECTIVE, text: objectiveText(level.objective), kind: "objective" as const, got: !!(mask & STAR_OBJECTIVE) },
-    { bit: STAR_CHALLENGE, text: challengeText(level.challenge), kind: "challenge" as const, got: !!(mask & STAR_CHALLENGE) },
-  ];
+/** Dernier titre obtenu, dans l'ordre des chapitres. */
+export function currentTitle(chapters: Pick<CampaignChapter, "title" | "title_earned">[]): string | null {
+  return [...chapters].reverse().find((c) => c.title_earned)?.title ?? null;
 }
 
-// ---- main du joueur (chapitres 3 à 5) ------------------------------------------------
-
-const HAND_KEY = "chessy.campaignHand";
-export const MAX_HAND = 3;
-
-type KeyValueStore = Pick<Storage, "getItem" | "setItem">;
-
-function defaultStorage(): KeyValueStore | null {
-  try {
-    return typeof localStorage === "undefined" ? null : localStorage;
-  } catch {
-    return null;
-  }
+export function bossProgress(chapter: Pick<CampaignChapter, "stars" | "boss_stars_required">): string {
+  return `${chapter.stars}/${chapter.boss_stars_required}`;
 }
 
-/** Les compétences choisies la dernière fois, limitées à celles du deck (et à trois). */
-export function readHand(deck: readonly SkillId[], storage: KeyValueStore | null = defaultStorage()): SkillId[] {
-  try {
-    const raw = storage?.getItem(HAND_KEY);
-    const list = raw ? (JSON.parse(raw) as unknown) : [];
-    if (!Array.isArray(list)) return [];
-    return list.filter((s): s is SkillId => typeof s === "string" && deck.includes(s as SkillId)).slice(0, MAX_HAND);
-  } catch {
-    return [];
-  }
+/** Nombre maximal de compétences emmenées dans un niveau à deck au choix. */
+export const MAX_DECK_PICKS = 3;
+
+export function toggleDeckPick(picked: SkillId[], skill: SkillId): SkillId[] {
+  if (picked.includes(skill)) return picked.filter((s) => s !== skill);
+  return picked.length < MAX_DECK_PICKS ? [...picked, skill] : picked;
 }
 
-export function writeHand(hand: readonly SkillId[], storage: KeyValueStore | null = defaultStorage()) {
-  try {
-    storage?.setItem(HAND_KEY, JSON.stringify(hand));
-  } catch {
-    // Stockage indisponible : la main ne sera pas retenue.
-  }
+/** Un deck plus court que la limite se prend en entier. */
+export function requiredPicks(pickable: SkillId[]): number {
+  return Math.min(MAX_DECK_PICKS, pickable.length);
 }
 
-/** Ajoute ou retire `skill` de la main (trois au plus). */
-export function toggleHand(hand: readonly SkillId[], skill: SkillId): SkillId[] {
-  if (hand.includes(skill)) return hand.filter((s) => s !== skill);
-  return hand.length >= MAX_HAND ? [...hand] : [...hand, skill];
+/** Écarte les choix qui ne sont plus dans le deck (après un `deck_update`). */
+export function validPicks(picked: SkillId[], deck: SkillId[]): SkillId[] {
+  return picked.filter((s) => deck.includes(s));
 }
 
-// ---- pastille « Nouveau » de l'écran Jouer ----------------------------------------------
-
-const SEEN_KEY = "chessy.campaignSeen";
-
-/** Le joueur a déjà ouvert la campagne : la pastille « Nouveau » disparaît. */
-export function campaignSeen(storage: KeyValueStore | null = defaultStorage()): boolean {
-  try {
-    return storage?.getItem(SEEN_KEY) === "1";
-  } catch {
-    return false;
-  }
+export function colorLabel(color: "white" | "black"): string {
+  return color === "white" ? "les blancs" : "les noirs";
 }
 
-export function markCampaignSeen(storage: KeyValueStore | null = defaultStorage()) {
-  try {
-    storage?.setItem(SEEN_KEY, "1");
-  } catch {
-    // Stockage indisponible : la pastille reviendra.
-  }
+export function chapterTitle(chapter: Pick<CampaignChapter, "chapter" | "name">): string {
+  return `Chapitre ${chapter.chapter + 1} · ${chapter.name}`;
 }

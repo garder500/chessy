@@ -16,7 +16,9 @@
   "invalid_target": "Action impossible sur votre propre compte.",
   "blocked": "Vous avez bloqué ce joueur : débloquez-le d'abord.",
   "block_list_full": "Votre liste de joueurs bloqués est pleine.",
-  "level_locked": "Ce niveau n'est pas encore ouvert.",
-  "no_forge": "Aucun boss ne vous doit de forge.",
-  "forging": "Une compétence est déjà en cours de forge."
+  "unknown_level": "Ce niveau de campagne n'existe pas encore.",
+  "chapter_locked": "Ce chapitre est scellé : battez le boss du chapitre précédent.",
+  "level_locked": "Niveau verrouillé : gagnez d'abord le niveau précédent.",
+  "boss_locked": "Le boss est verrouillé : gagnez plus d'étoiles dans ce chapitre.",
+  "bad_deck": "Deck de campagne invalide : choisissez 1 à 3 compétences de votre deck."
 }

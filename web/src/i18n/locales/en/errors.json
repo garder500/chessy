@@ -16,7 +16,9 @@
   "invalid_target": "Action not possible on your own account.",
   "blocked": "You blocked this player: unblock them first.",
   "block_list_full": "Your blocked players list is full.",
-  "level_locked": "That level is not open yet.",
-  "no_forge": "No boss owes you a forge.",
-  "forging": "A skill is already being forged."
+  "unknown_level": "This campaign level doesn't exist yet.",
+  "chapter_locked": "This chapter is sealed: defeat the previous chapter's boss.",
+  "level_locked": "Level locked: win the previous level first.",
+  "boss_locked": "The boss is locked: earn more stars in this chapter.",
+  "bad_deck": "Invalid campaign deck: choose 1 to 3 skills from your deck."
 }

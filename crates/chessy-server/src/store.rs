@@ -87,6 +87,8 @@ pub struct PlayerRow {
     pub losses: u32,
     pub created_at: String,
     pub last_seen: Option<String>,
+    /// Chapter of the campaign title the player chose to display.
+    pub title_active: Option<u8>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -167,6 +169,8 @@ pub struct PublicProfile {
     pub created_at: String,
     pub history: Vec<HistoryPoint>,
     pub recent: Vec<RecentGame>,
+    /// Best campaign title (docs/spec-campagne.md).
+    pub title: Option<&'static str>,
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -193,10 +197,14 @@ pub struct GameRecord<'a> {
     pub kind: GameKind,
     /// The skills each side brought, in the order the game was created with.
     pub loadouts: &'a [Vec<SkillId>; 2],
+    /// FEN the game started from, when not the standard position.
+    pub start_fen: Option<&'a str>,
     /// Every action played, in order (skills that keep the turn included).
     pub actions: &'a [Action],
     /// Solo: the level of the bot, whose seat (`white` or `black`) is not a player.
     pub solo_elo: Option<i32>,
+    /// The length the players asked for; `None` for the default clock and Solo.
+    pub time_control: Option<crate::protocol::TimeControl>,
 }
 
 /// Rating movement of one game, by colour.
@@ -479,9 +487,8 @@ const MIGRATIONS: &[&str] = &[
          SELECT player_id, level, score, game_id, at FROM placement_results ORDER BY rowid;
      DROP TABLE placement_results;
      ALTER TABLE placement_results_v2 RENAME TO placement_results;",
-    // Campaign (docs/spec-v6.md): the best stars of each level a player has
-    // played, as a bit mask (1 win, 2 objective, 4 challenge), and whether the
-    // forge a beaten boss pays is still to claim. A new table only.
+    // Already applied on deployed databases: the index stays so that later
+    // migrations keep their numbers. Nothing reads this table any more.
     "CREATE TABLE IF NOT EXISTS campaign_levels (
          player_id TEXT NOT NULL REFERENCES players(id),
          level INTEGER NOT NULL,
@@ -490,7 +497,73 @@ const MIGRATIONS: &[&str] = &[
          updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
          PRIMARY KEY (player_id, level)
      );",
+    // Game length asked for (`short`/`medium`/`long`); NULL = default clock or old game.
+    "ALTER TABLE games ADD COLUMN time_control TEXT;",
+    // Campaign: `stars` is a bitmask (1 win, 2 objective, 4 challenge) cumulated
+    // over attempts; `rewarded` marks a boss forge already granted.
+    "CREATE TABLE IF NOT EXISTS campaign_progress (
+         player_id TEXT NOT NULL REFERENCES players(id),
+         chapter INTEGER NOT NULL,
+         level INTEGER NOT NULL,
+         stars INTEGER NOT NULL DEFAULT 0,
+         rewarded INTEGER NOT NULL DEFAULT 0,
+         PRIMARY KEY (player_id, chapter, level)
+     );",
+    // Campaign v2: consecutive defeats (hint unlock), the chosen title (chapter,
+    // NULL = none), the boss forge state machine and the rewards waiting for a
+    // winner's choice (kept across restarts). The columns are guarded by `migrate`.
+    "ALTER TABLE campaign_progress ADD COLUMN defeats INTEGER NOT NULL DEFAULT 0;
+     ALTER TABLE players ADD COLUMN title_active INTEGER;
+     CREATE TABLE IF NOT EXISTS campaign_boss_forges (
+         player_id TEXT NOT NULL REFERENCES players(id),
+         chapter INTEGER NOT NULL,
+         skill_id INTEGER,
+         state TEXT NOT NULL CHECK (state IN ('forging', 'pending', 'placed')),
+         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+         PRIMARY KEY (player_id, chapter)
+     );
+     CREATE TABLE IF NOT EXISTS pending_rewards (
+         winner_id TEXT PRIMARY KEY REFERENCES players(id),
+         loser_id TEXT NOT NULL,
+         loser_skills TEXT NOT NULL,
+         expires_at TEXT NOT NULL,
+         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+     );",
+    // Reward announcements for a loser who was offline when the winner chose;
+    // `skill`/`refilled` are JSON skill ids (wire names), delivered then deleted.
+    "CREATE TABLE IF NOT EXISTS reward_outcomes (
+         id INTEGER PRIMARY KEY,
+         player_id TEXT NOT NULL REFERENCES players(id),
+         by_name TEXT NOT NULL,
+         kind TEXT NOT NULL CHECK (kind IN ('stolen', 'forged', 'spared')),
+         skill TEXT,
+         refilled TEXT,
+         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+     );
+     CREATE INDEX IF NOT EXISTS reward_outcomes_player ON reward_outcomes(player_id);",
 ];
+
+/// SQLite has no ADD COLUMN IF NOT EXISTS: drops the `ALTER TABLE .. ADD COLUMN`
+/// statements whose column is already there (a test rewound `user_version`
+/// over a newer schema).
+fn without_existing_columns(conn: &Connection, sql: &str) -> StoreResult<String> {
+    let mut kept = Vec::new();
+    for statement in sql.split(';') {
+        let words: Vec<&str> = statement.split_whitespace().collect();
+        if let ["ALTER", "TABLE", table, "ADD", "COLUMN", column, ..] = words[..] {
+            let exists = conn.query_row(
+                "SELECT COUNT(*) FROM pragma_table_info(?1) WHERE name = ?2",
+                params![table, column],
+                |r| r.get::<_, i64>(0),
+            )? > 0;
+            if exists {
+                continue;
+            }
+        }
+        kept.push(statement);
+    }
+    Ok(kept.join(";"))
+}
 
 fn migrate(conn: &mut Connection) -> StoreResult<()> {
     let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
@@ -503,7 +576,7 @@ fn migrate(conn: &mut Connection) -> StoreResult<()> {
     let result = (|| -> StoreResult<()> {
         for (i, sql) in MIGRATIONS.iter().enumerate().skip(version as usize) {
             let tx = conn.transaction()?;
-            tx.execute_batch(sql)?;
+            tx.execute_batch(&without_existing_columns(&tx, sql)?)?;
             tx.pragma_update(None, "user_version", i as i64 + 1)?;
             tx.commit()?;
         }
@@ -801,6 +874,35 @@ impl Store {
         player_row(&conn, "username_lower", &username.to_ascii_lowercase())
     }
 
+    /// Consecutive defeats of a player on each campaign level they lost.
+    pub fn campaign_defeats(
+        &self,
+        player: &str,
+    ) -> StoreResult<Vec<(crate::campaign::LevelRef, u32)>> {
+        let conn = self.db();
+        let mut stmt = conn.prepare(
+            "SELECT chapter, level, defeats FROM campaign_progress
+             WHERE player_id = ?1 AND defeats > 0",
+        )?;
+        let rows = stmt.query_map(params![player], |r| {
+            let at = crate::campaign::LevelRef {
+                chapter: r.get(0)?,
+                level: r.get(1)?,
+            };
+            Ok((at, r.get(2)?))
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// Chooses the campaign title shown on the profile (`None` shows none).
+    pub fn set_title_active(&self, player: &str, chapter: Option<u8>) -> StoreResult<()> {
+        self.db().execute(
+            "UPDATE players SET title_active = ?2 WHERE id = ?1",
+            params![player, chapter],
+        )?;
+        Ok(())
+    }
+
     pub fn me(&self, player: &str) -> StoreResult<Option<Me>> {
         let conn = self.db();
         let Some(row) = player_row(&conn, "id", player)? else {
@@ -1025,6 +1127,10 @@ impl Store {
             created_at: row.created_at,
             history,
             recent,
+            title: displayed_title(
+                &crate::campaign_store::rows_of(&conn, &row.id)?,
+                row.title_active,
+            ),
         }))
     }
 
@@ -1140,14 +1246,15 @@ impl Store {
         let loadouts = serde_json::json!({
             "white": rec.loadouts[0],
             "black": rec.loadouts[1],
+            "start": rec.start_fen,
         });
         tx.execute(
             "INSERT INTO games (id, white, black, outcome, finished_at, rated, reason, plies,
                  white_elo_before, white_elo_after, black_elo_before, black_elo_after, started_at,
-                 kind, loadouts, actions, solo_elo)
+                 kind, loadouts, actions, solo_elo, time_control)
              VALUES (?1, ?2, ?3, ?4, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), ?5, ?6, ?7,
                  ?8, ?9, ?10, ?11, strftime('%Y-%m-%dT%H:%M:%SZ', ?12, 'unixepoch'),
-                 ?13, ?14, ?15, ?16)",
+                 ?13, ?14, ?15, ?16, ?17)",
             params![
                 rec.id,
                 white,
@@ -1165,6 +1272,7 @@ impl Store {
                 loadouts.to_string(),
                 serde_json::to_string(rec.actions).unwrap(),
                 rec.solo_elo,
+                rec.time_control.map(|t| t.as_str()),
             ],
         )?;
         tx.commit()?;
@@ -1197,6 +1305,19 @@ impl Store {
         loser_loses: Option<SkillId>,
         winner_drops: Option<SkillId>,
     ) -> StoreResult<()> {
+        self.apply_deck_change(winner, Some(loser), gain, loser_loses, winner_drops)
+    }
+
+    /// [`Self::apply_reward`] where the loser may be absent (a campaign boss
+    /// reward takes from nobody).
+    pub fn apply_deck_change(
+        &self,
+        winner: &str,
+        loser: Option<&str>,
+        gain: Option<SkillId>,
+        loser_loses: Option<SkillId>,
+        winner_drops: Option<SkillId>,
+    ) -> StoreResult<()> {
         let mut conn = self.db();
         let tx = conn.transaction()?;
         let remove = |player: &str, skill: SkillId| -> StoreResult<()> {
@@ -1214,7 +1335,7 @@ impl Store {
             )?;
             Ok(())
         };
-        if let Some(skill) = loser_loses {
+        if let (Some(loser), Some(skill)) = (loser, loser_loses) {
             remove(loser, skill)?;
         }
         if let Some(skill) = winner_drops {
@@ -1236,8 +1357,8 @@ impl Store {
         }
         // The journal: who lost what, and how the winner came by the new one.
         let winner_name = history::username_of(&tx, winner);
-        let loser_name = history::username_of(&tx, loser);
-        if let Some(skill) = loser_loses {
+        let loser_name = loser.and_then(|l| history::username_of(&tx, l));
+        if let (Some(loser), Some(skill)) = (loser, loser_loses) {
             history::log(
                 &tx,
                 loser,
@@ -1261,7 +1382,9 @@ impl Store {
             history::log(&tx, winner, skill, Change::Gained, source, other)?;
         }
         // Same transaction: a loser is never left under the minimum.
-        refill_tx(&tx, loser, loser_loses)?;
+        if let Some(loser) = loser {
+            refill_tx(&tx, loser, loser_loses)?;
+        }
         tx.commit()?;
         Ok(())
     }
@@ -1418,7 +1541,7 @@ fn player_row(conn: &Connection, column: &str, value: &str) -> StoreResult<Optio
     // `column` is one of two literals chosen by this module, never user input.
     let sql = format!(
         "SELECT id, username, elo, peak_elo, games, wins, draws, losses,
-                strftime('%Y-%m-%dT%H:%M:%SZ', created_at), last_seen
+                strftime('%Y-%m-%dT%H:%M:%SZ', created_at), last_seen, title_active
          FROM players WHERE {column} = ?1"
     );
     Ok(conn
@@ -1434,9 +1557,22 @@ fn player_row(conn: &Connection, column: &str, value: &str) -> StoreResult<Optio
                 losses: r.get(7)?,
                 created_at: r.get(8)?,
                 last_seen: r.get(9)?,
+                title_active: r.get(10)?,
             })
         })
         .optional()?)
+}
+
+/// The chosen title if it is earned, else the best earned one.
+fn displayed_title(
+    rows: &[crate::campaign_store::CampaignRow],
+    active: Option<u8>,
+) -> Option<&'static str> {
+    let earned = crate::campaign::titles_earned(rows);
+    active
+        .and_then(|chapter| earned.iter().find(|(c, _)| *c == chapter))
+        .or(earned.last())
+        .map(|&(_, title)| title)
 }
 
 fn placement_levels(conn: &Connection, player: &str) -> StoreResult<Vec<i32>> {
@@ -1602,6 +1738,50 @@ fn player_games(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn user_version(conn: &Connection) -> i64 {
+        conn.query_row("PRAGMA user_version", [], |r| r.get(0))
+            .unwrap()
+    }
+
+    #[test]
+    fn the_campaign_step_runs_again_over_a_rewound_version() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        migrate(&mut conn).unwrap();
+        let latest = user_version(&conn);
+        conn.pragma_update(None, "user_version", latest - 1)
+            .unwrap();
+        migrate(&mut conn).unwrap();
+        assert_eq!(user_version(&conn), latest);
+        let columns: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('campaign_progress') WHERE name = 'defeats'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(columns, 1);
+    }
+
+    #[test]
+    fn the_active_title_is_stored_and_cleared() {
+        let store = Store::open(":memory:").unwrap();
+        let (player, _) = store.create_player().unwrap();
+        assert_eq!(
+            store.player_row(&player).unwrap().unwrap().title_active,
+            None
+        );
+        store.set_title_active(&player, Some(3)).unwrap();
+        assert_eq!(
+            store.player_row(&player).unwrap().unwrap().title_active,
+            Some(3)
+        );
+        store.set_title_active(&player, None).unwrap();
+        assert_eq!(
+            store.player_row(&player).unwrap().unwrap().title_active,
+            None
+        );
+    }
 
     /// A panic while another thread holds the connection poisons the mutex. Later
     /// requests must keep working (the guard is taken back), not panic in turn.

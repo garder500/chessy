@@ -129,6 +129,13 @@ la même mesure (`switch` et `evolve` sortent en tête, `mind` à zéro) ; `ches
   - Une rareté cible est tirée (55 / 25 / 13 / 6 / 1 % de Commune à Légendaire), puis des définitions sont tirées
     jusqu'à en trouver une de cette rareté (24 essais au plus ; sinon la plus proche, une fraîche plutôt qu'une redondante).
   - Le perdant perd toujours une compétence au hasard, comme avant.
+- **Forge de campagne** : `forge_at_least(rng, target, floor, family: Option<Family>, known, budget) -> ForgeOutcome { forged: Option<Forged>, legendary_exhausted: bool }`.
+  Règle d'acceptation : la rareté mesurée égale la cible ; sinon, budget épuisé, la meilleure candidate au moins égale au plancher ;
+  sinon `None`, la ligne reste `forging` et `boss_forge_claim` la reprend. Jamais de redondante, jamais sous le plancher, jamais hors de la famille.
+  Comme `begin_forge`/`finish_forge`, elle tourne hors du verrou du hub. `Budget::campaign()` = 96 essais, à confirmer par le banc d'essai.
+  Le tirage de rareté de la campagne est décrit dans `docs/spec-campagne.md`.
+- **Familles** : 5 familles, forgées dans `identity.rs`, classiques dans le moteur via `SkillId::family()`.
+  Écart connu : Morph forgée reste en Contrôle, Morph classique est en Création ; tout changement est lié à `gen_version`.
 - **Brouillard** : `hub/view.rs` masque les pièces ennemies hors de portée (deux cases) comme l'invisibilité, et un échec
   démasque toujours la pièce qui le donne. Les spectateurs ne sont pas dans le brouillard (ils ont déjà 30 s de retard).
   En Solo, le bot cherche sur **la vue de son camp** (`Hub::bot_job`) : il ne voit pas non plus ce que le brouillard ou

@@ -25,6 +25,25 @@ pub enum TimeControl {
 }
 
 impl TimeControl {
+    /// The wire / database name (`short`, `medium`, `long`).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TimeControl::Short => "short",
+            TimeControl::Medium => "medium",
+            TimeControl::Long => "long",
+        }
+    }
+
+    /// Inverse of `as_str`; unknown text gives `None`.
+    pub fn parse(s: &str) -> Option<TimeControl> {
+        match s {
+            "short" => Some(TimeControl::Short),
+            "medium" => Some(TimeControl::Medium),
+            "long" => Some(TimeControl::Long),
+            _ => None,
+        }
+    }
+
     /// Time on each clock at the start of the game.
     pub fn initial(self) -> std::time::Duration {
         std::time::Duration::from_secs(match self {
@@ -33,6 +52,15 @@ impl TimeControl {
             TimeControl::Long => 30 * 60,
         })
     }
+}
+
+/// How `DevFinish` ends a campaign game; `AllStars` is a win that records every star of the level.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DevResult {
+    Win,
+    Loss,
+    AllStars,
 }
 
 #[derive(Debug, Deserialize)]
@@ -68,6 +96,10 @@ pub enum ClientMsg {
         action: Action,
     },
     Resign,
+    /// Debug builds only: ends the current campaign game for the human.
+    DevFinish {
+        result: DevResult,
+    },
     RewardChoice {
         choice: RewardChoice,
     },
@@ -140,26 +172,27 @@ pub enum ClientMsg {
         #[serde(default)]
         color: SoloColor,
     },
-    /// Asks for the campaign: every level with the player's stars (docs/spec-v6.md).
-    CampaignGet,
-    /// Starts a campaign level against Sage. `skills` is the hand the player
-    /// brings on a level that lets them choose (chapters 3 to 5); empty otherwise.
+    /// Starts a campaign level against the bot (`level` 6 is the boss).
     CampaignStart {
+        chapter: u8,
         level: u8,
-        #[serde(default)]
-        skills: Vec<SkillId>,
-    },
-    /// Claims the forge a beaten boss owes. `replace` names the skill to drop
-    /// when the deck is full.
-    CampaignForge {
-        #[serde(default)]
-        replace: Option<SkillId>,
+        /// The skills brought to a `deck_choice` level (ignored elsewhere).
+        deck: Option<Vec<SkillId>>,
     },
     /// Watches a running game (not allowed while playing).
     Spectate {
         game_id: String,
     },
     Unspectate,
+    /// Starts the forge of a chapter boss's skill (or resumes one that did not finish).
+    BossForgeClaim {
+        chapter: u8,
+    },
+    /// Puts the forged boss skill in the deck; `replace` names the skill to drop when it is full.
+    BossForgePlace {
+        chapter: u8,
+        replace: Option<SkillId>,
+    },
 }
 
 /// Why a player is reported: a closed set, so a report holds no free text
@@ -205,7 +238,7 @@ pub enum RewardChoice {
         skill: SkillId,
         replace: Option<SkillId>,
     },
-    /// Roll a random skill from the global pool; the loser loses a random one.
+    /// Forge a new skill (target rarity rolled 55/25/13/6/1); the loser loses one of their end-of-game skills at random.
     Random {
         replace: Option<SkillId>,
     },
@@ -257,74 +290,6 @@ pub struct PlacementView {
     pub total: u32,
     pub elo: Option<i32>,
     pub before: Option<i32>,
-}
-
-/// A campaign level as the client draws it: the rules of the level and where
-/// the player stands on it.
-#[derive(Clone, Debug, Serialize)]
-pub struct CampaignLevelView {
-    pub id: u8,
-    pub chapter: u8,
-    pub index: u8,
-    pub boss: bool,
-    pub elo: i32,
-    /// The skills the level imposes; empty when the player chooses.
-    pub hand: Vec<SkillId>,
-    pub choose: bool,
-    pub enemy: Vec<SkillId>,
-    pub objective: crate::campaign::Objective,
-    pub challenge: crate::campaign::Challenge,
-    /// Best stars so far (bit mask: 1 win, 2 objective, 4 challenge).
-    pub stars: u8,
-    pub unlocked: bool,
-    /// The least rarity of the boss's forge.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub forge_min: Option<chessy_engine::forge::Rarity>,
-    /// What the boss's forge can come out as, in percent (the floor and above).
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub forge_odds: Vec<ForgeOdds>,
-    /// The boss was beaten and its forge is waiting to be claimed.
-    pub forge_pending: bool,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
-pub struct ForgeOdds {
-    pub rarity: chessy_engine::forge::Rarity,
-    pub percent: u32,
-}
-
-/// What a campaign game earned, with the game over.
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub struct CampaignResult {
-    pub level: u8,
-    /// The stars this game earned (bit mask).
-    pub earned: u8,
-    /// The best stars of the level after it.
-    pub best: u8,
-    /// Stars the level gained that it did not have.
-    pub gained: u32,
-    /// Stars over the whole campaign, and of this chapter.
-    pub total: u32,
-    pub chapter_stars: u32,
-    /// This game opened the boss of the chapter.
-    pub boss_opened: bool,
-    /// A boss beaten for the first time: the forge it pays.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub forge: Option<ForgeDue>,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
-pub struct ForgeDue {
-    pub chapter: u8,
-    pub min: chessy_engine::forge::Rarity,
-}
-
-/// The goals of a campaign level, shown above the board.
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
-pub struct CampaignBanner {
-    pub level: u8,
-    pub objective: crate::campaign::Objective,
-    pub challenge: crate::campaign::Challenge,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -402,6 +367,65 @@ pub struct RewardOffer {
     pub deck: Vec<SkillId>,
     pub steal_options: Vec<SkillId>,
     pub deck_full: bool,
+}
+
+/// How a finished campaign game went (stars are `[win, objective, challenge]`).
+#[derive(Clone, Debug, Serialize)]
+pub struct CampaignInfo {
+    pub chapter: u8,
+    pub level: u8,
+    /// Earned in this game.
+    pub stars: [bool; 3],
+    /// Best so far, this game included.
+    pub best: [bool; 3],
+    pub chapter_stars: u8,
+    pub boss_unlocked: bool,
+    pub boss_stars_required: u8,
+    /// This game opened the boss.
+    pub boss_just_unlocked: bool,
+    /// This game was the first win of a boss and a next chapter exists.
+    pub chapter_just_unlocked: bool,
+    /// The chapter title, on a boss win.
+    pub title: Option<String>,
+    pub total_stars: u16,
+    pub hint_available: bool,
+    pub boss_forge: Option<BossForgeInfo>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BossForgeState {
+    Forging,
+    Pending,
+    Placed,
+}
+
+/// Where the skill forged for a chapter boss stands.
+#[derive(Clone, Debug, Serialize)]
+pub struct BossForgeInfo {
+    pub chapter: u8,
+    pub state: BossForgeState,
+    pub skill: Option<SkillId>,
+    pub deck_full: bool,
+    pub legendary_unavailable: bool,
+}
+
+/// The campaign level a game belongs to, with what the player must know while playing it.
+#[derive(Clone, Debug, Serialize)]
+pub struct CampaignContext {
+    pub chapter: u8,
+    pub level: u8,
+    pub move_limit: Option<u32>,
+    pub objective: Option<String>,
+    pub challenge: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RewardOutcomeKind {
+    Stolen,
+    Forged,
+    Spared,
 }
 
 /// A skill and everywhere it can currently be aimed.
@@ -488,9 +512,6 @@ pub struct StateView {
     pub rated: bool,
     pub opponent: OpponentInfo,
     pub draw_offer: DrawOffer,
-    /// Set in a campaign level: what it asks of the player.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub campaign: Option<CampaignBanner>,
     pub ply_count: u32,
     /// People watching the game right now.
     pub spectators: usize,
@@ -498,6 +519,7 @@ pub struct StateView {
     /// (re)joins their game: live states carry just `events`.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub history: Vec<HistoryEntry>,
+    pub campaign: Option<CampaignContext>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -533,23 +555,26 @@ pub enum ServerMsg {
         rated: bool,
         elo: Option<EloView>,
         reason: String,
+        campaign: Option<CampaignInfo>,
         /// Set after a placement game.
         #[serde(skip_serializing_if = "Option::is_none")]
         placement: Option<PlacementView>,
-        /// Set after a campaign level.
-        #[serde(skip_serializing_if = "Option::is_none")]
-        campaign: Option<CampaignResult>,
-    },
-    /// The campaign: every level with the player's progress, after
-    /// `campaign_get` and whenever it changes.
-    Campaign {
-        levels: Vec<CampaignLevelView>,
     },
     /// Your deck changed (reward applied, or you lost a skill).
     DeckUpdate {
         deck: Vec<SkillId>,
         gained: Option<SkillId>,
         lost: Option<SkillId>,
+    },
+    /// What the winner of a ranked game did with the reward, sent to the loser.
+    RewardOutcome {
+        by: String,
+        kind: RewardOutcomeKind,
+        skill: Option<SkillId>,
+        refilled: Option<SkillId>,
+    },
+    BossForge {
+        info: BossForgeInfo,
     },
     GameCancelled {
         reason: String,
@@ -636,7 +661,8 @@ impl ClientMsg {
             | ClientMsg::SoloStart { .. }
             | ClientMsg::PlacementStart { .. }
             | ClientMsg::CampaignStart { .. }
-            | ClientMsg::CampaignForge { .. } => expensive,
+            | ClientMsg::BossForgeClaim { .. }
+            | ClientMsg::BossForgePlace { .. } => expensive,
             _ => 1,
         }
     }

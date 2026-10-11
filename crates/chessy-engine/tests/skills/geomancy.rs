@@ -122,7 +122,7 @@ fn terrain_cuts_an_attack_line_so_it_can_answer_a_check() {
 #[test]
 fn skills_cannot_drop_enemy_pieces_on_the_terrain() {
     let mut g = game(
-        "4k3/8/8/8/8/8/8/4K3 w - - 0 1",
+        "r3k3/8/8/8/8/8/8/4K3 w - - 0 1",
         &[SkillId::Geomancy],
         &[SkillId::Teleportation],
     );

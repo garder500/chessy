@@ -16,7 +16,9 @@
   "invalid_target": "Aktion auf dem eigenen Konto nicht möglich.",
   "blocked": "Du hast diesen Spieler blockiert: Hebe die Blockierung zuerst auf.",
   "block_list_full": "Deine Liste blockierter Spieler ist voll.",
-  "level_locked": "Dieses Level ist noch nicht offen.",
-  "no_forge": "Kein Boss schuldet dir eine Schmiede.",
-  "forging": "Es wird bereits eine Fähigkeit geschmiedet."
+  "unknown_level": "Dieses Kampagnenlevel existiert noch nicht.",
+  "chapter_locked": "Dieses Kapitel ist versiegelt: Besiege den Boss des vorherigen Kapitels.",
+  "level_locked": "Level gesperrt: Gewinne zuerst das vorherige Level.",
+  "boss_locked": "Der Boss ist gesperrt: Sammle mehr Sterne in diesem Kapitel.",
+  "bad_deck": "Ungültiges Kampagnen-Deck: Wähle 1 bis 3 Fähigkeiten aus deinem Deck."
 }

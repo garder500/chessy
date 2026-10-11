@@ -1,5 +1,6 @@
 // Mirrors crates/chessy-server/src/protocol.rs and the engine's serialized types.
 // Squares are indices 0..63 with a1 = 0 and h8 = 63 (rank * 8 + file).
+import type { Family } from "./catalog";
 
 export type Square = number;
 export type Color = "white" | "black";
@@ -205,8 +206,6 @@ export interface StateView {
   rated: boolean;
   opponent: OpponentInfo;
   draw_offer: "none" | "you" | "them";
-  /** Niveau de campagne en cours (absent hors campagne). */
-  campaign?: CampaignBanner;
   ply_count: number;
   you: Color;
   ply: number;
@@ -233,6 +232,85 @@ export interface StateView {
    * joueur rejoint sa partie (rechargement de la page, reconnexion) ; absent des états en direct.
    */
   history?: HistoryEntry[];
+  /** Niveau de campagne de la partie ; `null` ou absent hors campagne. */
+  campaign?: CampaignContext | null;
+}
+
+/** Niveau de campagne d'une partie et ce qu'il faut en savoir pendant qu'on la joue. */
+export interface CampaignContext {
+  chapter: number;
+  level: number;
+  move_limit: number | null;
+  objective: string | null;
+  challenge: string | null;
+}
+
+export type BossForgeState = "forging" | "pending" | "placed";
+
+/** Où en est la compétence forgée pour le boss d'un chapitre. */
+export interface BossForgeInfo {
+  chapter: number;
+  state: BossForgeState;
+  skill: SkillId | null;
+  deck_full: boolean;
+  legendary_unavailable: boolean;
+}
+
+export type RewardOutcomeKind = "stolen" | "forged" | "spared";
+
+/** Étoiles d'un niveau de campagne : [victoire, objectif, défi]. */
+export type CampaignStars = [boolean, boolean, boolean];
+
+export interface CampaignResult {
+  chapter: number;
+  level: number;
+  stars: CampaignStars;
+  best: CampaignStars;
+  chapter_stars: number;
+  boss_unlocked: boolean;
+  boss_stars_required: number;
+  boss_just_unlocked: boolean;
+  chapter_just_unlocked: boolean;
+  /** Titre gagné par cette partie (victoire contre le boss). */
+  title: string | null;
+  total_stars: number;
+  hint_available: boolean;
+  boss_forge: BossForgeInfo | null;
+}
+
+/** Un niveau de `GET /api/campaign` (le boss a `level` 6 et `boss: true`). */
+export interface CampaignLevel {
+  level: number;
+  name: string;
+  elo: number;
+  boss: boolean;
+  /** Vide quand `deck_choice` : le joueur compose son deck parmi le sien. */
+  player_deck: SkillId[];
+  bot_deck: SkillId[];
+  deck_choice: boolean;
+  start_fen: string | null;
+  human_color: "white" | "black" | null;
+  objective: string | null;
+  challenge: string | null;
+  best: CampaignStars;
+  rewarded: boolean;
+  /** Décidé par le serveur : niveau précédent gagné, chapitre ouvert (et étoiles pour le boss). */
+  unlocked: boolean;
+}
+
+export interface CampaignChapter {
+  chapter: number;
+  family: Family;
+  name: string;
+  title: string;
+  title_earned: boolean;
+  available: boolean;
+  stars: number;
+  boss_stars_required: number;
+  boss_unlocked: boolean;
+  /** Chapitre ouvert : le boss du précédent est battu. */
+  unlocked: boolean;
+  levels: CampaignLevel[];
 }
 
 export interface RewardOffer {
@@ -284,58 +362,6 @@ export interface PlacementProgress {
   total: number;
 }
 
-/** Ce qu'un niveau de campagne demande en plus de gagner (voir `campaign.ts`). */
-export type CampaignObjective =
-  | { kind: "mate_before"; moves: number }
-  | { kind: "capture"; piece: PieceKind }
-  | { kind: "take"; count: number }
-  | { kind: "promote" }
-  | { kind: "lose_fewer"; count: number };
-
-export type CampaignChallenge = { kind: "keep_queen" | "no_minor_loss" | "no_queen_trade" | "use_skill" | "no_skill" };
-
-/** Un niveau de la campagne : ses règles et l'avancement du joueur. `stars` est un masque (1 victoire, 2 objectif, 4 défi). */
-export interface CampaignLevel {
-  id: number;
-  chapter: number;
-  index: number;
-  boss: boolean;
-  elo: number;
-  /** Compétences imposées ; vide quand le joueur choisit (`choose`). */
-  hand: SkillId[];
-  choose: boolean;
-  enemy: SkillId[];
-  objective: CampaignObjective;
-  challenge: CampaignChallenge;
-  stars: number;
-  unlocked: boolean;
-  /** Rareté minimale de la forge du boss. */
-  forge_min?: "common" | "uncommon" | "rare" | "epic" | "legendary";
-  /** Répartition de la forge du boss, en pourcentage. */
-  forge_odds?: { rarity: "common" | "uncommon" | "rare" | "epic" | "legendary"; percent: number }[];
-  /** Le boss est vaincu et sa forge attend d'être réclamée. */
-  forge_pending: boolean;
-}
-
-/** Ce que gagne une partie de campagne, avec la fin de partie. */
-export interface CampaignResult {
-  level: number;
-  earned: number;
-  best: number;
-  gained: number;
-  total: number;
-  chapter_stars: number;
-  boss_opened: boolean;
-  forge?: { chapter: number; min: "common" | "uncommon" | "rare" | "epic" | "legendary" };
-}
-
-/** Objectif et défi du niveau en cours, affichés au-dessus du plateau. */
-export interface CampaignBanner {
-  level: number;
-  objective: CampaignObjective;
-  challenge: CampaignChallenge;
-}
-
 /** Fin d'une partie d'évaluation ; `elo` (et `before`) une fois les `total` parties jouées. */
 export interface PlacementView {
   done: number;
@@ -372,6 +398,7 @@ export interface RecentGame {
 
 export interface PublicProfile {
   username: string;
+  title: string | null;
   elo: number;
   /** Faux tant que l'Elo est celui de départ (parties d'évaluation non jouées) ; absent = serveur ancien. */
   placed?: boolean;
@@ -454,9 +481,10 @@ export type ServerMsg =
   | ({ type: "deck_select" } & DeckSelectInfo)
   | ({ type: "state" } & StateView)
   | { type: "opponent_status"; connected: boolean }
-  | { type: "game_over"; outcome: Outcome; reward: RewardOffer | null; rated: boolean; elo: EloChange | null; reason: string; placement?: PlacementView; campaign?: CampaignResult }
-  | { type: "campaign"; levels: CampaignLevel[] }
+  | { type: "game_over"; outcome: Outcome; reward: RewardOffer | null; rated: boolean; elo: EloChange | null; reason: string; campaign?: CampaignResult | null; placement?: PlacementView }
   | { type: "deck_update"; deck: SkillId[]; gained: SkillId | null; lost: SkillId | null }
+  | { type: "reward_outcome"; by: string; kind: RewardOutcomeKind; skill: SkillId | null; refilled: SkillId | null }
+  | { type: "boss_forge"; info: BossForgeInfo }
   | { type: "game_cancelled"; reason: string }
   | { type: "spectate_state"; view: SpectatorView }
   | { type: "spectate_over"; view: SpectatorView }
@@ -475,10 +503,10 @@ export type ClientMsg =
   | { type: "hello"; token?: string }
   | { type: "queue_join"; ranked?: boolean; time?: TimeControl }
   | { type: "solo_start"; elo: number; color: SoloColor }
+  | { type: "campaign_start"; chapter: number; level: number; deck?: SkillId[] }
+  | { type: "boss_forge_claim"; chapter: number }
+  | { type: "boss_forge_place"; chapter: number; replace?: SkillId | null }
   | { type: "placement_start"; color?: SoloColor }
-  | { type: "campaign_get" }
-  | { type: "campaign_start"; level: number; skills?: SkillId[] }
-  | { type: "campaign_forge"; replace?: SkillId }
   | { type: "create_room"; time?: TimeControl }
   | { type: "join_room"; code: string }
   | { type: "leave_lobby" }
@@ -486,6 +514,7 @@ export type ClientMsg =
   | { type: "select_deck"; skills: SkillId[] }
   | { type: "action"; action: Action }
   | { type: "resign" }
+  | { type: "dev_finish"; result: "win" | "loss" | "all_stars" }
   | { type: "reward_choice"; choice: RewardChoice }
   | { type: "friend_request"; username: string }
   | { type: "friend_respond"; username: string; accept: boolean }
@@ -533,6 +562,8 @@ export interface GameSummary {
   result: GameResult;
   reason: string;
   plies: number;
+  /** Durée de la partie ; `null` pour les anciennes parties. */
+  time_control: TimeControl | null;
   elo_delta: number | null;
   at: string;
 }
@@ -612,8 +643,9 @@ export interface GameRecord {
   black: Seat;
   result: { outcome: Outcome; reason: string };
   plies: number;
+  time_control: TimeControl | null;
   at: string;
-  loadouts: { white: SkillId[]; black: SkillId[] };
+  loadouts: { white: SkillId[]; black: SkillId[]; start?: string | null };
   moves: MoveInfo[];
   /** `frames.length == plies + 1`. */
   frames: Frame[];

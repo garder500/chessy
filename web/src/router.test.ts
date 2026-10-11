@@ -40,15 +40,3 @@ describe("routes v4", () => {
     expect(hrefFor({ name: "home" })).toBe("#/");
   });
 });
-
-describe("route campagne", () => {
-  it("lit la carte et un niveau", () => {
-    expect(parseHash("#/campaign")).toEqual({ name: "campaign" });
-    expect(parseHash("#/campaign/23")).toEqual({ name: "campaign", param: "23" });
-  });
-
-  it("construit les liens", () => {
-    expect(hrefFor({ name: "campaign" })).toBe("#/campaign");
-    expect(hrefFor({ name: "campaign", param: "23" })).toBe("#/campaign/23");
-  });
-});

@@ -1,7 +1,6 @@
-import { lazy, Suspense, useEffect, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useState, type CSSProperties } from "react";
 import { useT, t } from "../i18n";
 import { hrefFor } from "../router";
-import { campaignSeen, totalStars, TOTAL_STARS } from "../campaign";
 import { skillInfo } from "../skills";
 import { store, type AppState } from "../store";
 import { Beam } from "../ui/Beam";
@@ -13,10 +12,9 @@ import { SkillArt } from "../ui/SkillArt";
 import { sortFriends } from "../ui/social";
 import { tileRarity } from "../ui/tileRarity";
 import { setTime, timeText, TIMES, useTime } from "../time";
-import { Star } from "../ui/Stars";
+import { CampaignCard } from "./lobby/CampaignCard";
 import { Search } from "./Search";
 import { SoloPanel } from "./SoloPanel";
-import "./campaign.css";
 import "./lobby.css";
 
 // three.js ne se charge qu'avec l'écran Jouer ; la pièce dessinée en SVG sert d'attente.
@@ -55,10 +53,6 @@ export function Lobby({ state }: { state: AppState }) {
   const time = useTime();
   const connected = state.connection === "open";
   const waiting = lobby.type !== "idle";
-  // La carte Campagne montre les étoiles déjà gagnées : on les demande une fois la connexion ouverte.
-  useEffect(() => {
-    if (connected && !waiting) store.loadCampaign();
-  }, [connected, waiting]);
 
   const choose = (m: PlayMode) => {
     setPicked(m);
@@ -189,20 +183,7 @@ export function Lobby({ state }: { state: AppState }) {
           <p className="jp-note">{mode === "ranked" ? t("lobby.note_ranked", { elo }) : t("lobby.note_friendly")}</p>
         </div>
 
-        <a className="cp-entry" href={hrefFor({ name: "campaign" })}>
-          <span className="cp-entry-hex" aria-hidden="true">
-            <Star on size={22} />
-          </span>
-          <span className="cp-entry-txt">
-            <strong>
-              {t("campaign.title")}
-              {!campaignSeen() && <span className="cp-new">{t("campaign.new")}</span>}
-            </strong>
-            <span className="muted">
-              {state.campaign ? t("campaign.entry_progress", { n: totalStars(state.campaign), max: TOTAL_STARS }) : t("campaign.mode_sub")}
-            </span>
-          </span>
-        </a>
+        <CampaignCard accountId={account?.player_id ?? null} isAccount={isAccount} />
 
         <a className="jp-deck" href={hrefFor({ name: "collection" })} aria-label={t("lobby.deck_aria")}>
           <span className="jp-deck-hex" aria-hidden="true">

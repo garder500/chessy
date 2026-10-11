@@ -6,6 +6,7 @@ use chessy_engine::{Action, Color, Outcome, SkillId};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
+use crate::protocol::TimeControl;
 use crate::store::{reason_of, GameResult, Store, StoreResult};
 
 /// How a game came about.
@@ -56,6 +57,9 @@ pub struct Seat {
 pub struct Loadouts {
     pub white: Vec<SkillId>,
     pub black: Vec<SkillId>,
+    /// FEN of a custom starting position (campaign bosses); standard when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start: Option<String>,
 }
 
 impl Loadouts {
@@ -79,6 +83,8 @@ pub struct GameSummary {
     pub plies: u32,
     pub elo_delta: Option<i32>,
     pub at: String,
+    /// Game length asked for; `None` for the default clock, Solo and old games.
+    pub time_control: Option<TimeControl>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -104,6 +110,8 @@ pub struct StoredGame {
     /// `None` for games recorded before replays existed.
     pub loadouts: Option<Loadouts>,
     pub actions: Option<Vec<Action>>,
+    /// `None` for the default clock, Solo and games recorded before it was kept.
+    pub time_control: Option<TimeControl>,
 }
 
 impl StoredGame {
@@ -126,7 +134,7 @@ impl StoredGame {
 const SELECT: &str = "SELECT g.id, g.kind, g.rated, g.white, g.black, w.username, b.username,
         g.white_elo_before, g.black_elo_before, g.white_elo_after, g.black_elo_after,
         g.solo_elo, g.outcome, g.reason, g.plies,
-        strftime('%Y-%m-%dT%H:%M:%SZ', g.finished_at)";
+        strftime('%Y-%m-%dT%H:%M:%SZ', g.finished_at), g.time_control";
 const FROM: &str = "FROM games g
         LEFT JOIN players w ON w.id = g.white
         LEFT JOIN players b ON b.id = g.black";
@@ -162,8 +170,8 @@ fn read_row(r: &rusqlite::Row, full: bool) -> rusqlite::Result<RawRow> {
         }
     };
     let (loadouts, actions) = if full {
-        let loadouts: Option<String> = r.get(16)?;
-        let actions: Option<String> = r.get(17)?;
+        let loadouts: Option<String> = r.get(17)?;
+        let actions: Option<String> = r.get(18)?;
         (
             loadouts.and_then(|t| serde_json::from_str(&t).ok()),
             actions.and_then(|t| serde_json::from_str(&t).ok()),
@@ -191,6 +199,9 @@ fn read_row(r: &rusqlite::Row, full: bool) -> rusqlite::Result<RawRow> {
             at: r.get(15)?,
             loadouts,
             actions,
+            time_control: r
+                .get::<_, Option<String>>(16)?
+                .and_then(|t| TimeControl::parse(&t)),
         },
     })
 }
@@ -227,6 +238,7 @@ fn summary(raw: RawRow, player: &str) -> GameSummary {
             None
         },
         at: g.at,
+        time_control: g.time_control,
     }
 }
 

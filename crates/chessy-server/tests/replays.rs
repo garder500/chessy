@@ -297,8 +297,10 @@ async fn my_games_pages_newest_first_and_needs_a_token() {
                 started_unix: 0,
                 kind: GameKind::Room,
                 loadouts: &[vec![], vec![]],
+                start_fen: None,
                 actions: &none,
                 solo_elo: None,
+                time_control: None,
             })
             .unwrap();
     }
@@ -744,7 +746,13 @@ async fn a_game_with_skills_replays_exactly_what_the_players_saw() {
             &played.black[n]
         };
         // (the frame has all of them, even those hidden from the actor)
-        for event in actor_view["events"].as_array().unwrap() {
+        // Except best_move: the actor's hint is recomputed on the masked view, so it may differ from the raw one.
+        for event in actor_view["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["type"] != "best_move")
+        {
             assert!(
                 frame["events"].as_array().unwrap().contains(event),
                 "event {event} of action {n}"

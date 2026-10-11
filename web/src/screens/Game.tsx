@@ -38,13 +38,13 @@ import { sfx } from "../sound";
 import { store, useAppState } from "../store";
 import { useTheme } from "../theme";
 import { Wordmark } from "../ui/NavBar";
-import { CampaignBar } from "./game/CampaignBar";
 import { Sheet } from "../ui/Sheet";
 import { useCompact } from "../ui/useCompact";
 import { LaunchCard, PromotionPicker, SpawnPicker } from "./game/Overlays";
 import { Result } from "./game/Result";
 import { EvalBar, Plate } from "./game/Plate";
-import { Actions, BenchPanel, Chat, DrawBanner, GameNav, Journal, Options, SkillList, TrainingNote } from "./game/SidePanels";
+import { ObjectiveBanner } from "./game/ObjectiveBanner";
+import { Actions,BenchPanel, Chat, DrawBanner, GameNav, Journal, Options, SkillList, TrainingNote } from "./game/SidePanels";
 import { useGameSounds } from "./game/useGameSounds";
 import "./game.css";
 
@@ -395,7 +395,7 @@ export function Game({ view }: { view: StateView }) {
       <header className="gm-top">
         <Wordmark />
         <div className="gm-top-mid">
-          <span className="tag">{view.campaign ? t("campaign.title") : isBot ? t("game.mode_training") : view.rated ? t("game.mode_rated") : t("game.mode_friendly")}</span>
+          <span className="tag">{view.campaign ? "Campagne" : isBot ? t("game.mode_training") : view.rated ? t("game.mode_rated") : t("game.mode_friendly")}</span>
           <span className="mono muted">{t("game.ply", { ply: view.ply })}</span>
           {ambientEffects(view).map((a) => (
             <span key={a.kind} className={`tag amb amb-${a.kind}`} title={a.label} role="status">
@@ -413,7 +413,6 @@ export function Game({ view }: { view: StateView }) {
         </span>
       </header>
 
-      {view.campaign && <CampaignBar banner={view.campaign} />}
 
       <main className="gm-grid">
         <aside className="gm-left">
@@ -443,6 +442,8 @@ export function Game({ view }: { view: StateView }) {
             disconnected={!view.opponent_connected && !over_}
             clockLabel={t("game.clock_opp")}
           />
+
+          {view.campaign && <ObjectiveBanner campaign={view.campaign} ply={view.ply} />}
 
           <div className={`gm-hint ${tone}`} role="status" aria-live="polite">
             <span>{hint}</span>

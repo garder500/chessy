@@ -173,7 +173,7 @@ fn spectator_view(
 }
 
 /// `2026-10-07T12:00:00Z` for a Unix time in seconds.
-fn iso(unix: i64) -> String {
+pub(super) fn iso(unix: i64) -> String {
     let days = unix.div_euclid(86_400);
     let secs = unix.rem_euclid(86_400);
     // Civil date from days since 1970-01-01 (Howard Hinnant's algorithm).

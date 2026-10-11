@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { t, useT } from "../i18n";
 import { hrefFor, navigate } from "../router";
-import { store, useAppState } from "../store";
+import { api, apiErrorText, type EarnedTitle } from "../api";
+import { readToken, store, useAppState } from "../store";
 import { ChallengeSheet } from "../ui/ChallengeSheet";
 import { ModerationActions } from "../ui/Moderation";
 import { EloChart } from "../ui/EloChart";
@@ -85,6 +86,7 @@ export function Profile({ username }: Props) {
         <span className="avatar solid pf-avatar">{initialOf(p.username)}</span>
         <div className="pf-id">
           <h1 className="pf-name">{p.username}</h1>
+          {p.title && <p className="pf-title">{p.title}</p>}
           <p className="pf-meta">
             {p.placed === false ? <span className="tag">{t("profile.unplaced")}</span> : <span className="tag">{tierOf(p.elo).name}</span>}
             {p.rank && <span className="mono">{t("profile.rank", { rank: p.rank })}</span>}
@@ -94,6 +96,8 @@ export function Profile({ username }: Props) {
         <Relation username={p.username} />
         {!mine && <ModerationActions username={p.username} />}
       </header>
+
+      {mine && <TitlePicker username={p.username} activeTitle={p.title} onChanged={reload} />}
 
       <section className="pf-stats" aria-label={t("profile.stats_aria")}>
         <StatTile label="Elo" value={p.elo} hint={tierOf(p.elo).name} />
@@ -123,6 +127,63 @@ export function Profile({ username }: Props) {
 
       {mine && <ProfileSettings />}
     </main>
+  );
+}
+
+const NO_TITLE = "none";
+
+/** Choix du titre actif parmi les titres gagnés ; la liste n'est servie qu'au propriétaire. */
+function TitlePicker({ username, activeTitle, onChanged }: { username: string; activeTitle: string | null; onChanged: () => void }) {
+  const [titles, setTitles] = useState<EarnedTitle[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const token = readToken();
+
+  useEffect(() => {
+    const ctl = new AbortController();
+    api
+      .profile(username, ctl.signal, token)
+      .then((p) => setTitles(p.titles ?? []))
+      .catch(() => undefined);
+    return () => ctl.abort();
+  }, [username, token]);
+
+  if (!token || titles.length === 0) return null;
+  const current = titles.find((t) => t.name === activeTitle);
+
+  const choose = async (value: string) => {
+    setError(null);
+    try {
+      await api.setTitle(token, value === NO_TITLE ? null : Number(value));
+      onChanged();
+    } catch (e) {
+      setError(apiErrorText(e));
+    }
+  };
+
+  return (
+    <section className="card pf-card pf-titles" aria-labelledby="pf-titles-h">
+      <h2 id="pf-titles-h" className="pf-h">
+        Titre affiché
+      </h2>
+      <select
+        className="pf-title-select"
+        aria-labelledby="pf-titles-h"
+        value={current ? String(current.chapter) : NO_TITLE}
+        onChange={(e) => void choose(e.target.value)}
+      >
+        <option value={NO_TITLE}>Aucun</option>
+        {titles.map((t) => (
+          <option key={t.chapter} value={t.chapter}>
+            {t.name}
+          </option>
+        ))}
+      </select>
+      {error && (
+        <p className="pf-title-error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
   );
 }
 

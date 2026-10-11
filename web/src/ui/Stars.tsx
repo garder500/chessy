@@ -1,20 +1,26 @@
+import { STAR_LABELS } from "../campaign";
 import "./stars.css";
 
-/** Étoile pleine (gagnée) ou creuse. */
-export function Star({ on, size = 16 }: { on: boolean; size?: number }) {
-  return (
-    <svg className={`cp-star${on ? " on" : ""}`} viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false">
-      <path d="M12 2.8l2.7 5.7 6.2.8-4.6 4.3 1.2 6.2L12 16.7l-5.5 3.1 1.2-6.2L3.1 9.3l6.2-.8z" />
-    </svg>
-  );
+interface Props {
+  /** Étoiles gagnées (affichées pleines). */
+  stars: readonly boolean[];
+  /** Étoiles déjà acquises avant (affichées atténuées quand `stars` ne les a pas). */
+  kept?: readonly boolean[];
+  size?: number;
 }
 
-export function Stars({ mask, size }: { mask: number; size?: number }) {
+const STAR_PATH = "M12 2.8l2.8 5.9 6.4.9-4.6 4.5 1.1 6.4L12 17.5l-5.7 3 1.1-6.4L2.8 9.6l6.4-.9z";
+
+/** Les étoiles d'un niveau de campagne : victoire, objectif, défi. */
+export function Stars({ stars, kept = [], size = 18 }: Props) {
+  const won = stars.filter(Boolean).length;
   return (
-    <span className="cp-stars" aria-hidden="true">
-      <Star on={!!(mask & 1)} size={size} />
-      <Star on={!!(mask & 2)} size={size} />
-      <Star on={!!(mask & 4)} size={size} />
+    <span className="stars" role="img" aria-label={`${won} étoile${won > 1 ? "s" : ""} sur ${STAR_LABELS.length}`}>
+      {STAR_LABELS.map((label, i) => (
+        <svg key={label} className={`star${stars[i] ? " on" : kept[i] ? " kept" : ""}`} viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+          <path d={STAR_PATH} />
+        </svg>
+      ))}
     </span>
   );
 }

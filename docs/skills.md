@@ -1,6 +1,6 @@
 # Chessy — compétences
 
-Source de vérité des règles de compétences. Le MVP implémente un sous-ensemble (voir README).
+Source de vérité des règles de compétences.
 
 ## C'est quoi ?
 
@@ -30,7 +30,7 @@ Une compétence unique ne peut être disponible que dans un seul deck (global). 
 
 ## Compétences classiques
 
-- **Teleportation** — Déplace une pièce vers n'importe quelle case de l'échiquier, sans tenir compte des obstacles.
+- **Teleportation** — Déplace une pièce (pas le roi) vers n'importe quelle case de l'échiquier, sans tenir compte des obstacles.
 - **Imune** — Rend une pièce invulnérable aux attaques ennemies pour un tour.
 - **Rollback** — Rollback le mouvement réel d'une pièce. Pas sur le roi.
 - **Clone** — Crée une copie d'une pièce sur une case vide adjacente. Possible uniquement si la cible dispose d'une case adjacente vide.
@@ -43,7 +43,7 @@ Une compétence unique ne peut être disponible que dans un seul deck (global). 
 - **Destiny Swapper** — Échange les positions de deux pièces alliées.
 - **Trap Card** — Place un piège sur une case vide, qui immobilise la première pièce ennemie qui marche dessus pendant deux tours. Chaque mouvement est une suite de mouvements case par case : un piège sur le chemin immobilise la pièce sur la case du piège. Seuls vos propres pièges excluent une case : un piège adverse (secret) ne change pas le choix, et deux pièges de camps opposés peuvent partager une case.
 - **The Bench** — Pendant un tour, la pièce est mise sur le banc (plus sur l'échiquier). Au retour, elle est placée sur la case libre la plus proche de son ancienne case.
-- **Force Field** — Appliqué sur une pièce : quand elle est mangée, l'attaquant est repoussé de deux cases maximum. La pièce mangée va au cimetière (pas invincible).
+- **Force Field** — Appliqué sur une pièce : la pièce peut être prise, mais celui qui la prend est repoussé de deux cases au plus ; la protection dure jusqu'à cette prise. La pièce mangée va au cimetière (pas invincible).
 - **Transposition** — Échange la position de deux pièces sur l'échiquier, sans engendrer d'échec.
 - **Queen Sacrifice** — En cas de mat, transpose la reine avec le roi. La reine MEURT sur la position du roi.
 - **Temporal Distortion** — Permet à une pièce alliée de revenir dans le temps et de refaire son dernier mouvement. Pas sur le roi.

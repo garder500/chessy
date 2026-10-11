@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type {
-  CampaignLevel,
+  BossForgeInfo,
   CampaignResult,
   ClientMsg,
   DeckSelectInfo,
@@ -13,6 +13,7 @@ import type {
   PlacementView,
   ReportReason,
   RewardOffer,
+  RewardOutcomeKind,
   ServerMsg,
   SkillId,
   SoloColor,
@@ -21,6 +22,7 @@ import type {
 } from "./protocol";
 import { t } from "./i18n";
 import { forgedVersion, isForgedId, loadForged, noticeForged, onForgedChange } from "./forged";
+import { skillRevealed } from "./screens/campaign/bossForge";
 import { skillName } from "./skills";
 import { sfx } from "./sound";
 import { isLive, reduceSpectator, SPECTATE_ERRORS, startSpectating, type SpectatingState } from "./replay/spectator";
@@ -44,7 +46,7 @@ export interface GameOver {
   reason: string;
   /** Partie d'évaluation : avancement, et Elo estimé après la dernière. */
   placement: PlacementView | null;
-  /** Niveau de campagne : étoiles gagnées, avancement, forge due. */
+  /** Résultat d'une partie de campagne ; `null` ailleurs. */
   campaign: CampaignResult | null;
 }
 
@@ -81,10 +83,16 @@ export interface AppState {
   solo: SoloSetting;
   /** `solo_start` envoyé, partie pas encore créée (le bot répond presque instantanément). */
   soloPending: boolean;
+  /** Partie en cours lancée depuis la campagne (sert aux raccourcis de dev). */
+  campaignGame: boolean;
+  /** Dernier état connu de la forge d'un boss de campagne. */
+  bossForge: BossForgeInfo | null;
+  /** Nombre d'erreurs serveur reçues : permet à un écran de savoir que sa requête a été refusée. */
+  errorCount: number;
+  /** Ce que le gagnant d'une classée a fait de sa récompense, appris par le perdant. */
+  rewardOutcome: { by: string; kind: RewardOutcomeKind; skill: SkillId | null; refilled: SkillId | null } | null;
   /** Partie regardée en tant que spectateur (v4), `null` si on ne regarde rien. */
   spectating: SpectatingState | null;
-  /** Les niveaux de la campagne et l'avancement du joueur, `null` tant que le serveur n'a pas répondu. */
-  campaign: CampaignLevel[] | null;
 }
 
 /** Le compte après une fin de partie : nouvel Elo (classée ou estimation) et avancement de l'évaluation. */
@@ -160,15 +168,19 @@ const initial: AppState = {
   rematch: "none",
   solo: SOLO_DEFAULT,
   soloPending: false,
+  campaignGame: false,
+  bossForge: null,
+  errorCount: 0,
+  rewardOutcome: null,
   spectating: null,
-  campaign: null,
 };
 
 /** Erreurs serveur ayant un texte traduit (`errors.<code>`) ; les autres affichent le message brut du serveur. */
 const KNOWN_ERRORS = new Set([
   "not_your_turn", "illegal_action", "no_such_room", "own_room", "already_in_game", "invalid_deck", "replaced",
   "session_revoked", "flooded", "queue_full", "rooms_full", "account_required", "spectate_full", "no_such_game",
-  "invalid_target", "blocked", "block_list_full", "level_locked", "no_forge", "forging",
+  "invalid_target", "blocked", "block_list_full",
+  "unknown_level", "chapter_locked", "level_locked", "boss_locked", "bad_deck",
 ]);
 const errorText = (code: string, fallback: string) => (KNOWN_ERRORS.has(code) ? t(`errors.${code}`) : fallback);
 
@@ -295,7 +307,7 @@ export class Store {
       chat: [],
       rematch: "none",
       soloPending: false,
-      campaign: null,
+      rewardOutcome: null,
     });
     this.connect();
   }
@@ -369,33 +381,13 @@ export class Store {
 
   /** Leaves a finished game and returns to the lobby. */
   leaveGame() {
-    this.set({ game: null, over: null, deckSelect: null, rematch: "none" });
+    this.set({ game: null, over: null, deckSelect: null, rematch: "none", campaignGame: false, rewardOutcome: null });
   }
 
   /** Lance la prochaine partie d'évaluation (adversaire dont l'Elo reste caché). */
   startPlacement(color: SoloColor = "random") {
     this.send({ type: "placement_start", color });
-    this.set({ soloPending: true });
-    if (this.soloTimer) clearTimeout(this.soloTimer);
-    this.soloTimer = setTimeout(() => this.clearSoloPending(), SOLO_PENDING_MS);
-  }
-
-  /** Demande la campagne (niveaux et étoiles) ; le serveur répond par `campaign`. */
-  loadCampaign() {
-    this.send({ type: "campaign_get" });
-  }
-
-  /** Lance un niveau de campagne ; `skills` n'a de sens que là où le joueur choisit sa main. */
-  startCampaign(level: number, skills: SkillId[] = []) {
-    this.send({ type: "campaign_start", level, skills });
-    this.set({ soloPending: true, over: null, chat: [], rematch: "none" });
-    if (this.soloTimer) clearTimeout(this.soloTimer);
-    this.soloTimer = setTimeout(() => this.clearSoloPending(), SOLO_PENDING_MS);
-  }
-
-  /** Réclame la forge d'un boss vaincu ; `replace` désigne la compétence à rendre quand le deck est plein. */
-  claimCampaignForge(replace?: SkillId) {
-    this.send({ type: "campaign_forge", ...(replace ? { replace } : {}) });
+    this.awaitSoloGame();
   }
 
   /** Lance une partie contre l'IA et mémorise le réglage. */
@@ -403,7 +395,19 @@ export class Store {
     const solo: SoloSetting = { elo: clampElo(elo), color };
     writeSolo(solo);
     this.send({ type: "solo_start", elo: solo.elo, color: solo.color });
-    this.set({ solo, soloPending: true });
+    this.set({ solo, campaignGame: false, rewardOutcome: null });
+    this.awaitSoloGame();
+  }
+
+  /** Lance un niveau de la campagne (decks imposés par le niveau, ou `deck` choisi si le niveau le demande). */
+  startCampaign(chapter: number, level: number, deck?: SkillId[]) {
+    this.send({ type: "campaign_start", chapter, level, deck });
+    this.set({ campaignGame: true, rewardOutcome: null });
+    this.awaitSoloGame();
+  }
+
+  private awaitSoloGame() {
+    this.set({ soloPending: true });
     if (this.soloTimer) clearTimeout(this.soloTimer);
     this.soloTimer = setTimeout(() => this.clearSoloPending(), SOLO_PENDING_MS);
   }
@@ -538,9 +542,6 @@ export class Store {
       case "lobby":
         this.set({ lobby: msg.status });
         break;
-      case "campaign":
-        this.set({ campaign: msg.levels });
-        break;
       case "deck_select": {
         const { type: _type, ...info } = msg;
         if (!announcedMatches.has(info.game_id)) {
@@ -597,7 +598,8 @@ export class Store {
         });
         break;
       case "deck_update":
-        if (msg.gained) {
+        // BossForge a déjà révélé la forgée d'un boss : pas de seconde révélation.
+        if (msg.gained && !skillRevealed(msg.gained)) {
           // Le nom d'une compétence forgée n'est connu qu'une fois sa définition reçue.
           const gained = msg.gained;
           void loadForged([gained]).then(() => {
@@ -612,9 +614,17 @@ export class Store {
           over: this.state.over ? { ...this.state.over, reward: null } : null,
         });
         break;
+      case "reward_outcome":
+        this.set({ rewardOutcome: { by: msg.by, kind: msg.kind, skill: msg.skill, refilled: msg.refilled } });
+        // Sans résultat affiché (reconnexion du perdant), l'annonce n'aurait sinon aucune trace à l'écran.
+        if (!this.state.over) this.notify(`Récompense classée : ${msg.by} a une issue pour vous.`);
+        break;
+      case "boss_forge":
+        this.set({ bossForge: msg.info });
+        break;
       case "game_cancelled":
         this.clearSoloPending();
-        this.set({ game: null, deckSelect: null, over: null, rematch: "none" });
+        this.set({ game: null, deckSelect: null, over: null, rematch: "none", campaignGame: false });
         sfx.play("notice");
         if (msg.reason === "opponent_left_requeued") {
           this.notify(t("store.opponentLeft"));
@@ -629,6 +639,7 @@ export class Store {
           break;
         }
         this.clearSoloPending();
+        this.set({ errorCount: this.state.errorCount + 1 });
         if (msg.code === "session_revoked") {
           // Session terminée ailleurs (déconnexion depuis un autre onglet ou appareil) :
           // on oublie le jeton et on repart en invité, une seule fois (un invité n'a rien à révoquer).

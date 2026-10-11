@@ -16,7 +16,7 @@ use chessy_engine::{
 use serde::{Deserialize, Serialize};
 
 use crate::games_store::{GameKind, Loadouts, Seat, StoredGame};
-use crate::protocol::{SkillOptions, TerrainView};
+use crate::protocol::{SkillOptions, TerrainView, TimeControl};
 
 /// Skills each side has used so far (Mind Reading counts from its first use).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
@@ -150,7 +150,15 @@ impl Replay {
 }
 
 pub fn new_game(loadouts: &Loadouts) -> Game {
-    Game::new(&loadouts.white, &loadouts.black)
+    game_at(loadouts.start.as_deref(), &loadouts.white, &loadouts.black)
+}
+
+/// A game from the standard position, or from `start` (a FEN) when given.
+pub fn game_at(start: Option<&str>, white: &[SkillId], black: &[SkillId]) -> Game {
+    match start.map(Position::from_fen) {
+        Some(Ok(pos)) => Game::from_position(pos, white, black),
+        _ => Game::new(white, black),
+    }
 }
 
 /// Plays `action` and describes it (notation, events, resulting position).
@@ -216,6 +224,8 @@ pub struct ReplayView {
     pub result: ResultView,
     pub plies: u32,
     pub at: String,
+    /// Game length asked for; null for the default clock, Solo and old games.
+    pub time_control: Option<TimeControl>,
     pub loadouts: Loadouts,
     pub moves: Vec<MoveInfo>,
     pub frames: Vec<Frame>,
@@ -270,6 +280,7 @@ pub fn view(game: &StoredGame) -> Option<Result<ReplayView, usize>> {
         },
         plies: last as u32,
         at: game.at.clone(),
+        time_control: game.time_control,
         loadouts: loadouts.clone(),
         moves,
         frames,

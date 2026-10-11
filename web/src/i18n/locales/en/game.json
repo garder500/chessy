@@ -196,6 +196,5 @@
   "amb_domain_opp_name": "Enemy domain",
   "amb_silenced_own": "Silence: you can no longer use skills",
   "amb_silenced_opp": "Silence: the opponent can no longer use skills",
-  "amb_silenced_name": "Silence",
-  "cad_campaign": "Campaign"
+  "amb_silenced_name": "Silence"
 }

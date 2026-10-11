@@ -1,15 +1,16 @@
-import { lazy, Suspense, useEffect, useRef } from "react";
-import { levelById } from "../../campaign";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { CampaignResult, Color, EloChange, Outcome, PlacementView } from "../../protocol";
 import { useT } from "../../i18n";
+import { BossForge } from "../campaign/BossForge";
+import { CampaignRecap } from "./CampaignRecap";
+import { LostSkill } from "./LostSkill";
 import { formatDelta, resultFor, resultHeadline } from "../../outcome";
 import { navigate } from "../../router";
-import { store, useAppState } from "../../store";
+import { store } from "../../store";
 import { Beam } from "../../ui/Beam";
 import { Confetti } from "../../ui/Confetti";
 import { CountUp } from "../../ui/CountUp";
 import { HeroPiece } from "../../ui/HeroPiece";
-import { CampaignActions, CampaignSummary } from "./CampaignOver";
 import "./result.css";
 
 const HeroPiece3D = lazy(() => import("../../ui/HeroPiece3D"));
@@ -23,7 +24,7 @@ interface Props {
   elo: EloChange | null;
   /** Partie d'évaluation : pas de revanche, la suivante se lance d'ici. */
   placement?: PlacementView | null;
-  /** Niveau de campagne : étoiles gagnées ; pas de revanche, la suite se lance d'ici. */
+  /** Partie de campagne : étoiles et progression à la place de l'Elo. */
   campaign?: CampaignResult | null;
   rematch: "none" | "offered" | "received";
   /** Une récompense attend d'être choisie (victoire classée). */
@@ -36,19 +37,27 @@ interface Props {
 /** Fin de partie plein écran : la pièce sous le faisceau, le titre, l'Elo, puis l'étape suivante (récompense, revanche, analyse). */
 export function Result({ outcome, you, rated, solo = false, elo, placement = null, campaign = null, rematch, reward, gameId, onReward, onHide }: Props) {
   const t = useT();
-  const { title, reason } = resultHeadline(outcome, you);
+  const headline = resultHeadline(outcome, you);
   const result = resultFor(outcome, you);
+  const failed = !!campaign && result !== "win";
+  const title = failed ? "Échoué" : headline.title;
+  const reason = failed && result === "draw" ? headline.title : headline.reason;
   const delta = elo ? elo.you_after - elo.you_before : null;
   const first = useRef<HTMLElement>(null);
+  const bossForge = failed ? null : campaign?.boss_forge ?? null;
+  const [forgeOpen, setForgeOpen] = useState(bossForge !== null && bossForge.state !== "placed");
+  const closeForge = useCallback(() => setForgeOpen(false), []);
   useEffect(() => {
     first.current?.focus();
   }, []);
 
-  const levels = useAppState().campaign;
-  const campaignLevel = campaign ? levelById(levels, campaign.level) : undefined;
   const placementLeft = placement ? placement.total - placement.done : 0;
-  const cadence = campaign ? t("game.cad_campaign") : placement ? t("game.cad_placement", { done: placement.done, total: placement.total }) : solo ? t("game.mode_training") : t(rated ? "game.cad_rated" : "game.cad_friendly");
+  const cadence = campaign ? "Campagne" : placement ? t("game.cad_placement", { done: placement.done, total: placement.total }) : solo ? t("game.mode_training") : t(rated ? "game.cad_rated" : "game.cad_friendly");
   const leave = () => store.leaveGame();
+  const backToCampaign = () => {
+    store.leaveGame();
+    navigate({ name: "campaign" });
+  };
   const analyse = (sub?: "analyse") => {
     store.leaveGame();
     navigate({ name: "replay", param: gameId, ...(sub ? { sub } : {}) });
@@ -81,7 +90,7 @@ export function Result({ outcome, you, rated, solo = false, elo, placement = nul
 
         <div className="rs-chips">
           {campaign ? (
-            <CampaignSummary result={campaign} level={campaignLevel} />
+            <CampaignRecap campaign={campaign} outcome={outcome} won={!failed} onBriefing={backToCampaign} />
           ) : placement ? (
             placement.elo != null ? (
               <span className="card rs-elo">
@@ -111,6 +120,7 @@ export function Result({ outcome, you, rated, solo = false, elo, placement = nul
           )}
         </div>
         {result === "loss" && rated && !solo && <p className="muted rs-lost">{t("game.lost_hint")}</p>}
+        {result === "loss" && rated && !solo && <LostSkill />}
 
         <div className="rs-act">
           {reward && (
@@ -118,9 +128,7 @@ export function Result({ outcome, you, rated, solo = false, elo, placement = nul
               {t("game.choose_reward")}
             </button>
           )}
-          {campaign ? (
-            <CampaignActions result={campaign} />
-          ) : placement ? (
+          {placement ? (
             <div className="rs-pair">
               {placementLeft > 0 && (
                 <button type="button" className="btn pri" onClick={() => store.startPlacement()}>
@@ -146,11 +154,17 @@ export function Result({ outcome, you, rated, solo = false, elo, placement = nul
           ) : (
             <div className="rs-pair">
               <button type="button" className={`btn${reward ? "" : " pri"}`} disabled={rematch === "offered"} onClick={() => store.requestRematch()}>
-                {rematch === "offered" ? (solo ? t("game.rematch_new") : t("game.rematch_offered")) : t("game.rematch")}
+                {rematch === "offered" ? (solo ? t("game.rematch_new") : t("game.rematch_offered")) : failed ? "Réessayer" : campaign ? "Rejouer" : t("game.rematch")}
               </button>
-              <button type="button" className="btn" onClick={() => analyse("analyse")}>
-                {t("game.analyse")}
-              </button>
+              {failed ? (
+                <button type="button" className="btn" onClick={backToCampaign}>
+                  Carte
+                </button>
+              ) : (
+                <button type="button" className="btn" onClick={() => analyse("analyse")}>
+                  {t("game.analyse")}
+                </button>
+              )}
             </div>
           )}
           <div className="rs-links">
@@ -164,12 +178,19 @@ export function Result({ outcome, you, rated, solo = false, elo, placement = nul
             <span aria-hidden="true" className="rs-home-sep">
               ·
             </span>
-            <button type="button" className="link rs-home" onClick={leave}>
-              {t("game.go_home")}
-            </button>
+            {campaign ? (
+              <button type="button" className="link rs-home" onClick={backToCampaign}>
+                Retour à la campagne
+              </button>
+            ) : (
+              <button type="button" className="link rs-home" onClick={leave}>
+                {t("game.go_home")}
+              </button>
+            )}
           </div>
         </div>
       </main>
+      {forgeOpen && bossForge && <BossForge chapter={bossForge.chapter} initial={bossForge} onClose={closeForge} />}
     </div>
   );
 }

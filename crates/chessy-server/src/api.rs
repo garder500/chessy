@@ -40,13 +40,15 @@ pub fn routes() -> Router<Arc<App>> {
         .route("/players/{username}", get(profile))
         .route("/live", get(crate::api_live::live))
         .route("/skills/forged", get(crate::api_skills::forged))
+        .route("/campaign", get(crate::api_campaign::campaign))
+        .route("/profile/title", post(crate::api_title::set_title))
         .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
 }
 
-struct ApiError(StatusCode, &'static str);
+pub(crate) struct ApiError(StatusCode, &'static str);
 
 impl ApiError {
-    fn bad_request(code: &'static str) -> Self {
+    pub(crate) fn bad_request(code: &'static str) -> Self {
         ApiError(StatusCode::BAD_REQUEST, code)
     }
     fn unauthorized() -> Self {
@@ -67,10 +69,10 @@ impl IntoResponse for ApiError {
     }
 }
 
-type ApiResult<T> = Result<T, ApiError>;
+pub(crate) type ApiResult<T> = Result<T, ApiError>;
 
 /// Parses a JSON body ourselves so that every failure is a JSON error.
-fn parse_body<T: DeserializeOwned>(body: Result<Bytes, BytesRejection>) -> ApiResult<T> {
+pub(crate) fn parse_body<T: DeserializeOwned>(body: Result<Bytes, BytesRejection>) -> ApiResult<T> {
     let body = body.map_err(|_| ApiError(StatusCode::PAYLOAD_TOO_LARGE, "payload_too_large"))?;
     serde_json::from_slice(&body).map_err(|_| ApiError::bad_request("bad_request"))
 }
@@ -85,12 +87,21 @@ fn bearer(headers: &HeaderMap) -> Option<&str> {
         .filter(|t| !t.is_empty())
 }
 
-fn authenticate(app: &App, headers: &HeaderMap) -> ApiResult<String> {
+pub(crate) fn authenticate(app: &App, headers: &HeaderMap) -> ApiResult<String> {
     let token = bearer(headers).ok_or_else(ApiError::unauthorized)?;
     let config = app.config();
     app.store()
         .session_player(token, config.session_ttl, config.session_touch_interval)?
         .ok_or_else(ApiError::unauthorized)
+}
+
+/// Like [`authenticate`], but a guest is refused as well.
+pub(crate) fn authenticate_account(app: &App, headers: &HeaderMap) -> ApiResult<String> {
+    let player = authenticate(app, headers)?;
+    match app.store().player_row(&player)? {
+        Some(row) if row.username.is_some() => Ok(player),
+        _ => Err(ApiError::unauthorized()),
+    }
 }
 
 /// `{entries: [HistoryEntry], deck: [skill_id]}`: what the player got, forged and
@@ -439,7 +450,12 @@ async fn leaderboard(
     Ok(Json(board).into_response())
 }
 
-async fn profile(State(app): State<Arc<App>>, Path(username): Path<String>) -> ApiResult<Response> {
+/// The public profile; the player looking at their own also gets the titles they may pick.
+async fn profile(
+    State(app): State<Arc<App>>,
+    headers: HeaderMap,
+    Path(username): Path<String>,
+) -> ApiResult<Response> {
     let not_found = || ApiError(StatusCode::NOT_FOUND, "not_found");
     if !valid_username(&username) {
         return Err(not_found());
@@ -448,5 +464,17 @@ async fn profile(State(app): State<Arc<App>>, Path(username): Path<String>) -> A
         .store()
         .public_profile(&username)?
         .ok_or_else(not_found)?;
-    Ok(Json(profile).into_response())
+    let mut body = json!(profile);
+    let viewer = match authenticate(&app, &headers) {
+        Ok(player) => app.store().player_row(&player)?,
+        Err(_) => None,
+    };
+    if let Some(row) = viewer.filter(|r| {
+        r.username
+            .as_deref()
+            .is_some_and(|name| name.eq_ignore_ascii_case(&username))
+    }) {
+        body["titles"] = crate::api_title::earned_titles(&app, &row.id)?;
+    }
+    Ok(Json(body).into_response())
 }

@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 /**
  * Routes par hash : #/, #/auth, #/ranking, #/friends, #/profile/<pseudo>, #/collection,
- * #/live, #/watch/<partie>, #/games, #/replay/<partie>[/analyse], #/campaign[/<niveau>]
+ * #/live, #/watch/<partie>, #/games, #/campaign, #/replay/<partie>[/analyse]
  */
 export interface Route {
   name: "home" | "auth" | "ranking" | "friends" | "profile" | "collection" | "settings" | "live" | "watch" | "games" | "replay" | "campaign";
@@ -36,7 +36,7 @@ export function parseHash(hash: string): Route {
     case "games":
       return { name: "games" };
     case "campaign":
-      return parts[1] ? { name: "campaign", param: id(1) } : { name: "campaign" };
+      return { name: "campaign" };
     case "watch":
       return parts[1] ? { name: "watch", param: id(1) } : { name: "live" };
     case "replay":
@@ -58,8 +58,6 @@ export function hrefFor(route: Route): string {
       return `#/${route.name}/${encodeURIComponent(route.param ?? "")}`;
     case "replay":
       return `#/replay/${encodeURIComponent(route.param ?? "")}${route.sub === "analyse" ? "/analyse" : ""}`;
-    case "campaign":
-      return route.param ? `#/campaign/${encodeURIComponent(route.param)}` : "#/campaign";
     default:
       return `#/${route.name}`;
   }

@@ -4,7 +4,8 @@
 //
 // Identifiants spéciaux : `g-missing` (404), `g-noreplay` (replay indisponible), `g-slow` (réponse lente).
 
-import type { Action, ClientMsg, ExploreRequest, ExploreResponse, Frame, GameRecord, Move, Piece, ServerMsg, SkillOptions, Square } from "../protocol";
+import type { CampaignChapterView, CampaignLevelView, ForgeTableRow } from "../campaign";
+import type { Action, ClientMsg, ExploreRequest, ExploreResponse, Frame, GameRecord, Move, Piece, ServerMsg, SkillId, SkillOptions, Square } from "../protocol";
 import {
   fixtureAnalysis,
   fixtureGames,
@@ -185,6 +186,79 @@ function mockExplore(id: string, body: ExploreRequest): ExploreResponse {
 
 // ---- REST ----
 
+const CAMPAIGN_FAMILIES = [
+  ["attack", "Attaque", "Fer de Lance", "Le Stratège"],
+  ["defense", "Défense", "Briseur de Muraille", "Le Gardien"],
+  ["mobility", "Mobilité", "Marcheur du Vide", "Le Passeur"],
+  ["control", "Contrôle", "Maître du Tempo", "Le Métronome"],
+  ["create", "Création", "Grand Architecte", "L'Architecte"],
+] as const;
+
+const DECK_CHOICE_FROM_CHAPTER = 2;
+const ELO_BASE = 400;
+const ELO_PER_CHAPTER = 400;
+const ELO_PER_LEVEL = 50;
+const ELO_BOSS_BONUS = 100;
+const LAST_NORMAL_LEVEL = 5;
+
+const BOSS_HAND: SkillId[] = ["terminator", "trap", "freeze"];
+const LENT_SKILLS: SkillId[] = ["freeze", "clone", "trap"];
+
+const FORGE_TABLES: ForgeTableRow[][] = [
+  [{ rarity: "uncommon", percent: 57 }, { rarity: "rare", percent: 29 }, { rarity: "epic", percent: 14 }],
+  [{ rarity: "rare", percent: 68 }, { rarity: "epic", percent: 32 }],
+  [{ rarity: "rare", percent: 68 }, { rarity: "epic", percent: 32 }],
+  [{ rarity: "epic", percent: 100 }],
+  [{ rarity: "epic", percent: 86 }, { rarity: "legendary", percent: 14 }],
+];
+
+/** Progression en cours : quatre niveaux du premier chapitre gagnés (3, 2, 3 puis 1 étoile), les autres chapitres scellés ; aucune forge, aucun boss n'est encore battu. */
+const WON_STARS = [3, 2, 3, 1];
+const CURRENT_LEVEL = WON_STARS.length;
+const CAMPAIGN_STARS = WON_STARS.reduce((a, b) => a + b, 0);
+
+/** Cinq chapitres complets, les suivants laissent choisir le deck, le boss démarre d'une position imposée. */
+function fixtureCampaign(): CampaignChapterView[] {
+  return CAMPAIGN_FAMILIES.map(([family, name, title, bossName], chapter) => {
+    const choice = chapter >= DECK_CHOICE_FROM_CHAPTER;
+    const levels: CampaignLevelView[] = Array.from({ length: 7 }, (_, i) => ({
+      level: i,
+      name: i === 6 ? bossName : `Niveau ${i + 1}`,
+      elo:
+        ELO_BASE + ELO_PER_CHAPTER * chapter + ELO_PER_LEVEL * Math.min(i, LAST_NORMAL_LEVEL) + (i === 6 ? ELO_BOSS_BONUS : 0),
+      boss: i === 6,
+      player_deck: choice ? [] : ["trap", "terminator"],
+      bot_deck: i === 6 ? BOSS_HAND : i === 0 ? [] : ["trap"],
+      deck_choice: choice,
+      lent: choice ? LENT_SKILLS : [],
+      move_limit: i === 6 ? null : 40,
+      ...(chapter === 0 && i === 1 ? { hint: "Avancez vos pions avant d'utiliser Terminator." } : {}),
+      start_fen: i === 6 && chapter > 0 ? "4k3/8/8/8/8/8/4P3/4K2R w K - 0 1" : null,
+      human_color: i === 6 && chapter > 0 ? (chapter === CAMPAIGN_FAMILIES.length - 1 ? "black" : "white") : null,
+      objective: i === 6 ? null : choice ? "Utiliser une compétence" : "Utiliser Terminator",
+      challenge: i === 6 ? null : "Gagner en 40 coups",
+      best: chapter === 0 && i < CURRENT_LEVEL ? [true, WON_STARS[i] > 1, WON_STARS[i] > 2] : [false, false, false],
+      rewarded: false,
+      unlocked: chapter === 0 && i <= CURRENT_LEVEL,
+    }));
+    return {
+      chapter,
+      family,
+      name,
+      title,
+      title_earned: false,
+      available: true,
+      stars: chapter === 0 ? CAMPAIGN_STARS : 0,
+      boss_stars_required: 12,
+      boss_unlocked: false,
+      unlocked: chapter === 0,
+      forge_table: FORGE_TABLES[chapter],
+      boss_forge: null,
+      levels,
+    };
+  });
+}
+
 function installFetch() {
   const real = window.fetch.bind(window);
   window.fetch = async (input, init) => {
@@ -192,6 +266,10 @@ function installFetch() {
     const path = url.pathname;
     if (!path.startsWith("/api/")) return real(input, init);
 
+    if (path === "/api/campaign") {
+      await wait(250);
+      return json({ chapters: fixtureCampaign(), total_stars: CAMPAIGN_STARS, max_stars: 105 });
+    }
     if (path === "/api/live") {
       await wait(250);
       return json({ games: fixtureLive() });
