@@ -221,9 +221,11 @@ export function Actions({ view, over }: { view: StateView; over: boolean }) {
           <button type="button" className="btn sm danger" onClick={() => setConfirm(true)}>
             Résigner
           </button>
-          <button type="button" className="btn sm" disabled={view.draw_offer !== "none"} onClick={() => store.offerDraw()}>
-            {view.draw_offer === "you" ? "Nulle proposée" : "Proposer nulle"}
-          </button>
+          {!view.campaign && (
+            <button type="button" className="btn sm" disabled={view.draw_offer !== "none"} onClick={() => store.offerDraw()}>
+              {view.draw_offer === "you" ? "Nulle proposée" : "Proposer nulle"}
+            </button>
+          )}
         </div>
       )}
       <DevFinish />
@@ -360,17 +362,19 @@ export function Options({ view, onClose }: { view: StateView; onClose: () => voi
   }
   return (
     <div className="gm-opts">
-      <button
-        type="button"
-        className="btn block"
-        disabled={view.draw_offer !== "none"}
-        onClick={() => {
-          store.offerDraw();
-          onClose();
-        }}
-      >
-        {view.draw_offer === "you" ? "Nulle proposée" : "Proposer la nulle"}
-      </button>
+      {!view.campaign && (
+        <button
+          type="button"
+          className="btn block"
+          disabled={view.draw_offer !== "none"}
+          onClick={() => {
+            store.offerDraw();
+            onClose();
+          }}
+        >
+          {view.draw_offer === "you" ? "Nulle proposée" : "Proposer la nulle"}
+        </button>
+      )}
       <button type="button" className="btn block danger" onClick={() => setConfirm(true)}>
         Abandonner
       </button>
