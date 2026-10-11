@@ -6,6 +6,7 @@
 //! rematches live in the `social` submodule.
 
 mod campaign;
+mod campaign_deck;
 #[cfg(test)]
 mod campaign_tests;
 mod moderation;
@@ -1873,7 +1874,7 @@ fn state_view(
         ply_count: game.pos.ply,
         spectators,
         history: Vec::new(),
-        campaign: None,
+        campaign: session.solo.as_ref().and_then(solo::Solo::campaign_context),
     }
 }
 
