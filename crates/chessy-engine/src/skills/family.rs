@@ -14,10 +14,9 @@ impl SkillId {
             | SkillId::Bench
             | SkillId::Transposition
             | SkillId::Temporal => Mobility,
-            SkillId::Imune
-            | SkillId::Invisibility
-            | SkillId::Forcefield
-            | SkillId::Celestial => Defense,
+            SkillId::Imune | SkillId::Invisibility | SkillId::Forcefield | SkillId::Celestial => {
+                Defense
+            }
             SkillId::Clone
             | SkillId::Morph
             | SkillId::Godhelp
