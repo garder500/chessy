@@ -20,7 +20,7 @@ import type {
   UserResult,
 } from "./protocol";
 import { forgedVersion, isForgedId, loadForged, noticeForged, onForgedChange } from "./forged";
-import { wasRevealed } from "./screens/campaign/bossForge";
+import { skillRevealed } from "./screens/campaign/bossForge";
 import { skillName } from "./skills";
 import { sfx } from "./sound";
 import { isLive, reduceSpectator, SPECTATE_ERRORS, startSpectating, type SpectatingState } from "./replay/spectator";
@@ -593,7 +593,7 @@ export class Store {
         break;
       case "deck_update":
         // BossForge a déjà révélé la forgée d'un boss : pas de seconde révélation.
-        if (msg.gained && !(this.state.bossForge?.skill === msg.gained && wasRevealed(this.state.bossForge))) {
+        if (msg.gained && !skillRevealed(msg.gained)) {
           // Le nom d'une compétence forgée n'est connu qu'une fois sa définition reçue.
           const gained = msg.gained;
           void loadForged([gained]).then(() => {
