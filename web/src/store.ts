@@ -311,6 +311,7 @@ export class Store {
       chat: [],
       rematch: "none",
       soloPending: false,
+      rewardOutcome: null,
     });
     this.connect();
   }
@@ -384,7 +385,7 @@ export class Store {
 
   /** Leaves a finished game and returns to the lobby. */
   leaveGame() {
-    this.set({ game: null, over: null, deckSelect: null, rematch: "none", campaignGame: false });
+    this.set({ game: null, over: null, deckSelect: null, rematch: "none", campaignGame: false, rewardOutcome: null });
   }
 
   /** Lance une partie contre l'IA et mémorise le réglage. */
