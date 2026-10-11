@@ -18,7 +18,7 @@
 use std::time::Duration;
 
 use chessy_engine::ai::Strength;
-use chessy_engine::{Action, Color, SkillId};
+use chessy_engine::{Action, Color, SkillId, SkillKind};
 
 use super::social::Rematch;
 use super::{Hub, Phase, Session, Timer};
@@ -53,6 +53,19 @@ impl Solo {
     /// The FEN a campaign level starts from, when it is not the standard position.
     pub(super) fn start_fen(&self) -> Option<&'static str> {
         Some(self.level()?.start.as_ref()?.fen)
+    }
+
+    /// What the player must know while playing a campaign level.
+    pub(super) fn campaign_context(&self) -> Option<CampaignContext> {
+        let at = self.campaign?;
+        let level = self.level()?;
+        Some(CampaignContext {
+            chapter: at.chapter,
+            level: at.level,
+            move_limit: level.move_limit(),
+            objective: level.objective.map(campaign::Objective::text),
+            challenge: level.challenge.map(campaign::Objective::text),
+        })
     }
 }
 
@@ -296,13 +309,17 @@ impl Hub {
         }
         match setup.campaign {
             Some(at) => {
-                let mut deck = setup.deck;
-                if campaign::level(at).is_some_and(|level| level.deck_choice) {
-                    let Some(checked) = self.checked_deck(player, deck) else {
-                        return;
-                    };
-                    deck = checked;
-                }
+                let Some(level) = campaign::level(at) else {
+                    return self.fail(player, "no_rematch", "a rematch is not possible");
+                };
+                let chosen = setup
+                    .deck
+                    .into_iter()
+                    .filter(|skill| skill.kind() == SkillKind::Classic)
+                    .collect();
+                let Some(deck) = self.campaign_hand(player, level, chosen) else {
+                    return;
+                };
                 self.start_solo(player, at.elo(), setup.human_color, Some(at), deck)
             }
             None => self.start_solo(

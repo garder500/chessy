@@ -14,7 +14,7 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 
 const ATTACK: u8 = 0;
 const DEFENSE: u8 = 1;
-const MOBILITY: u8 = 2;
+const CONTROL: u8 = 3;
 const CREATE: u8 = 4;
 const ALL_STARS: u8 = STAR_WIN | STAR_OBJECTIVE | STAR_CHALLENGE;
 const OWNED: [SkillId; 4] = [
@@ -198,7 +198,8 @@ fn a_loss_earns_nothing_and_a_campaign_game_is_not_rated() {
     let over = p.lose(at(0));
     assert_eq!(over.campaign.unwrap().stars, [false; 3]);
     assert!(over.reward.is_none());
-    assert!(p.store.campaign_rows(&p.id).unwrap().is_empty());
+    let rows = p.store.campaign_rows(&p.id).unwrap();
+    assert!(rows.iter().all(|r| r.stars == 0));
 }
 
 #[test]
@@ -261,7 +262,7 @@ async fn a_guest_cannot_read_the_campaign_over_rest() {
 }
 
 const CHOICE: LevelRef = LevelRef {
-    chapter: MOBILITY,
+    chapter: CONTROL,
     level: 0,
 };
 
@@ -278,9 +279,13 @@ fn skills_of(state: &StateView) -> Vec<SkillId> {
 #[test]
 fn a_chosen_deck_is_played_and_ignored_on_imposed_levels() {
     let mut p = player_with_deck();
-    let chosen = vec![SkillId::Wall, SkillId::Mirage];
+    let chosen = vec![SkillId::Morph, SkillId::Freeze];
     let state = p.start_with(CHOICE, Some(chosen.clone()));
-    assert_eq!(skills_of(&state), chosen);
+    assert_eq!(
+        skills_of(&state),
+        [chosen.as_slice(), &[SkillId::Mirage, SkillId::Wall]].concat(),
+        "the deck's uniques join the chosen classics"
+    );
     p.hub.resign(&p.id.clone());
     p.messages();
 
@@ -293,15 +298,15 @@ fn a_chosen_deck_is_played_and_ignored_on_imposed_levels() {
 fn a_bad_deck_is_refused() {
     let mut p = player_with_deck();
     let not_owned = vec![SkillId::Godhelp];
-    let too_many = OWNED.to_vec();
-    let twice = vec![SkillId::Wall, SkillId::Wall];
-    for deck in [
-        Some(vec![]),
-        Some(too_many),
-        Some(twice),
-        Some(not_owned),
-        None,
-    ] {
+    let too_many = vec![
+        SkillId::Freeze,
+        SkillId::Morph,
+        SkillId::Imune,
+        SkillId::Teleportation,
+    ];
+    let twice = vec![SkillId::Freeze, SkillId::Freeze];
+    let unique = vec![SkillId::Wall];
+    for deck in [too_many, twice, not_owned, unique].map(Some) {
         p.hub.campaign_start(&p.id.clone(), CHOICE, deck);
         let sent = p.messages();
         assert!(sent
@@ -314,7 +319,7 @@ fn a_bad_deck_is_refused() {
 #[test]
 fn a_rematch_is_refused_when_the_chosen_deck_is_no_longer_owned() {
     let mut p = player_with_deck();
-    p.start_with(CHOICE, Some(vec![SkillId::Freeze]));
+    p.start_with(CHOICE, Some(vec![SkillId::Morph]));
     p.hub.resign(&p.id.clone());
     p.messages();
     p.store
@@ -344,7 +349,10 @@ fn a_rematch_keeps_the_chosen_deck() {
             _ => None,
         })
         .expect("the rematch starts");
-    assert_eq!(skills_of(&state), chosen);
+    assert_eq!(
+        skills_of(&state),
+        [chosen.as_slice(), &[SkillId::Mirage, SkillId::Wall]].concat()
+    );
 }
 
 #[test]
@@ -356,7 +364,7 @@ fn a_custom_start_boss_begins_on_its_position_and_the_bot_moves_first() {
         level: BOSS_LEVEL,
     };
     p.hub.take_timers();
-    let state = p.start_with(boss, Some(vec![SkillId::Wall]));
+    let state = p.start_with(boss, None);
     assert_eq!(state.you, Color::Black);
     assert_eq!(state.to_move, Color::White);
     assert!(state.board[18].is_some() && state.board[21].is_some());
