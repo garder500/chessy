@@ -326,7 +326,7 @@ fn description(def: &SkillDef) -> String {
     out
 }
 
-fn family(effect: &Effect) -> Family {
+pub fn family(effect: &Effect) -> Family {
     match effect {
         Effect::Remove { .. } | Effect::Convert => Family::Attack,
         Effect::Shield { .. } | Effect::Cloak { .. } => Family::Defense,

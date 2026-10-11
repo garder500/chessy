@@ -5,6 +5,7 @@
 //! registered by the server under a database id and then behave like any other
 //! skill, through [`crate::skills::SkillId::Forged`].
 
+pub mod at_least;
 pub mod composite;
 pub mod def;
 pub mod generate;
