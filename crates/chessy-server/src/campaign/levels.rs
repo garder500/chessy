@@ -3,7 +3,9 @@
 use chessy_engine::{Color, PieceKind, SkillId};
 
 use super::{Chapter, Level, Objective, Start};
-use Objective::{KeepPiece, NoSkillUsed, UseAnySkill, UseSkill, WinWithin};
+use Objective::{
+    KeepPiece, NoPieceLostBefore, NoSkillUsed, UseAllSkills, UseAnySkill, UseSkill, WinWithin,
+};
 use SkillId::*;
 
 const fn imposed(
@@ -21,6 +23,8 @@ const fn imposed(
         start: None,
         objective: Some(objective),
         challenge: Some(challenge),
+        hint: "",
+        lent: &[],
     }
 }
 
@@ -38,6 +42,8 @@ const fn chosen(
         start: None,
         objective: Some(objective),
         challenge: Some(challenge),
+        hint: "",
+        lent: &[],
     }
 }
 
@@ -46,6 +52,8 @@ const fn boss(
     player_deck: &'static [SkillId],
     bot_deck: &'static [SkillId],
     start: Option<Start>,
+    objective: Objective,
+    challenge: Objective,
 ) -> Level {
     Level {
         name,
@@ -53,8 +61,10 @@ const fn boss(
         bot_deck,
         deck_choice: player_deck.is_empty(),
         start,
-        objective: None,
-        challenge: None,
+        objective: Some(objective),
+        challenge: Some(challenge),
+        hint: "",
+        lent: &[],
     }
 }
 
@@ -78,7 +88,7 @@ const ATTACK: &[Level] = &[
         &[Trap, Terminator],
         &[Trap],
         UseSkill(Terminator),
-        WinWithin(40),
+        WinWithin(41),
     ),
     imposed(
         "Sacrifice",
@@ -92,7 +102,7 @@ const ATTACK: &[Level] = &[
         &[Remover, Trap],
         &[Trap, Queensac],
         UseSkill(Remover),
-        WinWithin(35),
+        WinWithin(36),
     ),
     imposed(
         "Renversement",
@@ -106,13 +116,15 @@ const ATTACK: &[Level] = &[
         &[Remover, Switch, Terminator],
         &[Terminator, Trap, Queensac],
         UseSkill(Terminator),
-        WinWithin(30),
+        WinWithin(31),
     ),
     boss(
         "Le Stratège",
         &[Remover, Switch, Trap],
         &[Terminator, Trap, Queensac],
         None,
+        UseAllSkills,
+        NoPieceLostBefore(20),
     ),
 ];
 
@@ -129,7 +141,7 @@ const DEFENSE: &[Level] = &[
         &[Invisibility, Imune],
         &[Terminator],
         UseSkill(Invisibility),
-        WinWithin(45),
+        WinWithin(46),
     ),
     imposed(
         "Bouclier d'énergie",
@@ -143,7 +155,7 @@ const DEFENSE: &[Level] = &[
         &[Celestial, Forcefield],
         &[Queensac, Trap],
         UseSkill(Celestial),
-        WinWithin(40),
+        WinWithin(41),
     ),
     imposed(
         "Mur de brume",
@@ -157,13 +169,15 @@ const DEFENSE: &[Level] = &[
         &[Celestial, Imune, Invisibility],
         &[Terminator, Trap, Queensac],
         UseSkill(Celestial),
-        WinWithin(30),
+        WinWithin(31),
     ),
     boss(
         "Le Gardien",
         &[Celestial, Forcefield, Invisibility],
         &[Terminator, Remover, Switch],
         white_start("rnbqkbnr/pppppppp/2p2p2/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+        KeepPiece(PieceKind::Queen),
+        WinWithin(41),
     ),
 ];
 
@@ -178,19 +192,19 @@ const MOBILITY: &[Level] = &[
         "Détour",
         &[Rollback],
         KeepPiece(PieceKind::Rook),
-        WinWithin(45),
+        WinWithin(46),
     ),
     chosen(
         "Faille",
         &[Transposition, Bench],
         UseAnySkill,
-        WinWithin(42),
+        WinWithin(43),
     ),
     chosen(
         "Écho",
         &[DestinySwapper, Rollback],
         KeepPiece(PieceKind::Rook),
-        WinWithin(40),
+        WinWithin(41),
     ),
     chosen(
         "Sables du temps",
@@ -202,13 +216,15 @@ const MOBILITY: &[Level] = &[
         "Au-delà du voile",
         &[Teleportation, Rollback, Temporal],
         NoSkillUsed,
-        WinWithin(30),
+        WinWithin(31),
     ),
     boss(
         "Le Passeur",
         &[],
         &[Teleportation, DestinySwapper, Transposition],
         white_start("rnbqkbnr/pppppppp/4b3/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+        UseAnySkill,
+        WinWithin(36),
     ),
 ];
 
@@ -223,14 +239,14 @@ const CONTROL: &[Level] = &[
         "Vent contraire",
         &[Tornado],
         KeepPiece(PieceKind::Rook),
-        WinWithin(45),
+        WinWithin(46),
     ),
-    chosen("Givre", &[Freeze, Canceller], UseAnySkill, WinWithin(42)),
+    chosen("Givre", &[Freeze, Canceller], UseAnySkill, WinWithin(43)),
     chosen(
         "Fracture",
         &[Tornado, Geomancy],
         KeepPiece(PieceKind::Rook),
-        WinWithin(40),
+        WinWithin(41),
     ),
     chosen(
         "Œil du cyclone",
@@ -242,13 +258,15 @@ const CONTROL: &[Level] = &[
         "Maîtrise du terrain",
         &[Geomancy, Freeze, Tornado],
         NoSkillUsed,
-        WinWithin(30),
+        WinWithin(31),
     ),
     boss(
         "Le Métronome",
         &[],
         &[Canceller, Tornado, Freeze],
         white_start("rnbqkbnr/pppppppp/5n2/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+        KeepPiece(PieceKind::Rook),
+        WinWithin(36),
     ),
 ];
 
@@ -263,14 +281,14 @@ const CREATE: &[Level] = &[
         "Double",
         &[Clone],
         KeepPiece(PieceKind::Rook),
-        WinWithin(45),
+        WinWithin(46),
     ),
-    chosen("Mirage", &[Mirage, Wall], UseAnySkill, WinWithin(42)),
+    chosen("Mirage", &[Mirage, Wall], UseAnySkill, WinWithin(43)),
     chosen(
         "Métamorphose",
         &[Morph, Evolve],
         KeepPiece(PieceKind::Rook),
-        WinWithin(40),
+        WinWithin(41),
     ),
     chosen(
         "Main divine",
@@ -282,7 +300,7 @@ const CREATE: &[Level] = &[
         "Chef-d'œuvre",
         &[Evolve, Mirage, Morph],
         NoSkillUsed,
-        WinWithin(30),
+        WinWithin(31),
     ),
     boss(
         "L'Architecte",
@@ -292,6 +310,8 @@ const CREATE: &[Level] = &[
             fen: "rnbqkbnr/pppppppp/8/8/8/2P2P2/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
             human: Color::Black,
         }),
+        UseAnySkill,
+        KeepPiece(PieceKind::Rook),
     ),
 ];
 
@@ -299,7 +319,7 @@ pub const CHAPTERS: [Chapter; 5] = [
     Chapter {
         family: "attack",
         name: "Attaque",
-        title: "Fer de Lance",
+        title: "Tombeur du Bélier",
         levels: ATTACK,
     },
     Chapter {
@@ -311,19 +331,19 @@ pub const CHAPTERS: [Chapter; 5] = [
     Chapter {
         family: "mobility",
         name: "Mobilité",
-        title: "Marcheur du Vide",
+        title: "Maître des Routes",
         levels: MOBILITY,
     },
     Chapter {
         family: "control",
         name: "Contrôle",
-        title: "Maître du Tempo",
+        title: "Démasqueur",
         levels: CONTROL,
     },
     Chapter {
         family: "create",
         name: "Création",
-        title: "Grand Architecte",
+        title: "Maître de forge",
         levels: CREATE,
     },
 ];

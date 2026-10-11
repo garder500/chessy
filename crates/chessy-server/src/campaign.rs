@@ -12,19 +12,25 @@ use serde::Deserialize;
 
 use crate::campaign_store::CampaignRow;
 
+mod forge_table;
 mod levels;
+mod titles;
+pub use forge_table::{forge_table, ForgeTable};
 pub use levels::CHAPTERS;
+pub use titles::{best_title, title_earned, titles_earned};
 
 pub const LEVELS_PER_CHAPTER: u8 = 6;
 /// Wire level of the boss of a chapter.
 pub const BOSS_LEVEL: u8 = LEVELS_PER_CHAPTER;
 /// Stars (out of `3 * LEVELS_PER_CHAPTER`) that open the boss.
 pub const BOSS_STARS: u8 = 12;
+/// Stars of the whole campaign: three per level, the bosses included.
+pub const MAX_STARS: u16 = 105;
+/// Consecutive defeats on a level after which its written hint is shown.
+pub const HINT_AFTER_DEFEATS: u32 = 3;
 
-const BASE_ELO: i32 = 400;
 const ELO_PER_CHAPTER: i32 = 400;
 const ELO_PER_LEVEL: i32 = 50;
-const BOSS_ELO_BONUS: i32 = 100;
 
 /// Bits of the stars mask stored per level.
 pub const STAR_WIN: u8 = 1;
@@ -43,43 +49,55 @@ impl LevelRef {
     }
 
     pub fn elo(self) -> i32 {
-        let level = i32::from(self.level.min(LEVELS_PER_CHAPTER - 1));
-        let boss = if self.is_boss() { BOSS_ELO_BONUS } else { 0 };
-        BASE_ELO + ELO_PER_CHAPTER * i32::from(self.chapter) + ELO_PER_LEVEL * level + boss
+        let chapter = i32::from(self.chapter) + 1;
+        if self.is_boss() {
+            return ELO_PER_CHAPTER * (chapter + 1);
+        }
+        ELO_PER_CHAPTER * chapter + ELO_PER_LEVEL * i32::from(self.level)
     }
 }
 
 /// A condition checked on the finished game, once it is won.
 #[derive(Clone, Copy, Debug)]
 pub enum Objective {
-    /// Won within this many of the player's own turns (a skill that ends the
-    /// turn counts as one).
+    /// Mate before this move number of the player's own notation (a skill that
+    /// ends the turn counts as one).
     WinWithin(u32),
     KeepPiece(PieceKind),
     UseSkill(SkillId),
     UseAnySkill,
     NoSkillUsed,
+    UseAllSkills,
+    /// No piece lost before this move number; the game keeps no dated loss, so
+    /// a single lost piece fails it.
+    NoPieceLostBefore(u16),
 }
 
 impl Objective {
     pub fn met(self, game: &Game, human: Color) -> bool {
         let slots = &game.loadout(human).slots;
         match self {
-            Objective::WinWithin(max) => own_turns(game, human) <= max,
+            Objective::WinWithin(max) => own_turns(game, human) < max,
             Objective::KeepPiece(kind) => game.pos.pieces(human).any(|(_, p)| p.kind == kind),
             Objective::UseSkill(skill) => slots.iter().any(|s| s.skill == skill && s.uses > 0),
             Objective::UseAnySkill => slots.iter().any(|s| s.uses > 0),
             Objective::NoSkillUsed => slots.iter().all(|s| s.uses == 0),
+            Objective::UseAllSkills => slots.iter().all(|s| s.uses > 0),
+            Objective::NoPieceLostBefore(_) => game.pos.graveyard.iter().all(|p| p.color != human),
         }
     }
 
     pub fn text(self) -> String {
         match self {
-            Objective::WinWithin(turns) => format!("Gagner en {turns} coups ou moins"),
+            Objective::WinWithin(turns) => format!("Mater avant le coup {turns}"),
             Objective::KeepPiece(kind) => format!("Terminer avec {}", piece_label(kind)),
             Objective::UseSkill(skill) => format!("Utiliser {}", skill_label(skill)),
             Objective::UseAnySkill => "Utiliser une compétence".to_string(),
             Objective::NoSkillUsed => "Gagner sans utiliser de compétence".to_string(),
+            Objective::UseAllSkills => "Utiliser toutes ses compétences".to_string(),
+            Objective::NoPieceLostBefore(turns) => {
+                format!("Ne perdre aucune pièce avant le coup {turns}")
+            }
         }
     }
 }
@@ -152,6 +170,23 @@ pub struct Level {
     pub start: Option<Start>,
     pub objective: Option<Objective>,
     pub challenge: Option<Objective>,
+    /// Written advice shown after `HINT_AFTER_DEFEATS` defeats.
+    pub hint: &'static str,
+    /// Skills lent to the player for this level.
+    pub lent: &'static [SkillId],
+}
+
+impl Level {
+    /// The move number before which the mate must come, if a goal sets one.
+    pub fn move_limit(&self) -> Option<u32> {
+        [self.objective, self.challenge]
+            .into_iter()
+            .flatten()
+            .find_map(|goal| match goal {
+                Objective::WinWithin(turns) => Some(turns),
+                _ => None,
+            })
+    }
 }
 
 pub struct Chapter {
@@ -185,7 +220,7 @@ pub fn stars_earned(at: LevelRef, game: &Game, human: Color, won: bool) -> u8 {
     level_stars(level, |goal| goal.met(game, human))
 }
 
-/// Every star the level offers (a boss has no objective nor challenge).
+/// Every star the level offers.
 pub fn all_stars(at: LevelRef) -> u8 {
     level(at).map_or(0, |level| level_stars(level, |_| true))
 }
@@ -209,7 +244,8 @@ pub fn star_flags(mask: u8) -> [bool; 3] {
     [STAR_WIN, STAR_OBJECTIVE, STAR_CHALLENGE].map(|bit| mask & bit != 0)
 }
 
-/// Stars gathered on the six levels of a chapter (the boss does not count).
+/// Stars gathered on the six levels of a chapter (the boss does not count
+/// towards opening itself).
 pub fn chapter_stars(rows: &[CampaignRow], chapter: u8) -> u8 {
     rows.iter()
         .filter(|r| r.at.chapter == chapter && r.at.level < BOSS_LEVEL)
@@ -221,20 +257,9 @@ pub fn boss_unlocked(rows: &[CampaignRow], chapter: u8) -> bool {
     chapter_stars(rows, chapter) >= BOSS_STARS
 }
 
-/// Whether the boss of a chapter has been beaten.
-pub fn title_earned(rows: &[CampaignRow], chapter: u8) -> bool {
-    rows.iter()
-        .any(|r| r.at.chapter == chapter && r.at.is_boss() && r.stars & STAR_WIN != 0)
-}
-
-/// Title of the highest chapter whose boss has been beaten.
-pub fn best_title(rows: &[CampaignRow]) -> Option<&'static str> {
-    CHAPTERS
-        .iter()
-        .enumerate()
-        .rev()
-        .find(|&(chapter, _)| title_earned(rows, chapter as u8))
-        .map(|(_, c)| c.title)
+/// Stars gathered on the whole campaign, the bosses included.
+pub fn total_stars(rows: &[CampaignRow]) -> u16 {
+    rows.iter().map(|r| r.stars.count_ones() as u16).sum()
 }
 
 #[cfg(test)]
@@ -263,12 +288,22 @@ mod tests {
 
     #[test]
     fn win_within_counts_the_players_own_turns() {
-        let within = Objective::WinWithin(3);
+        let within = Objective::WinWithin(4);
         // White has played turns 1-3 after five plies, Black two.
         assert!(within.met(&game_at(5), Color::White));
         assert!(!within.met(&game_at(7), Color::White));
         assert!(within.met(&game_at(7), Color::Black));
         assert!(!within.met(&game_at(8), Color::Black));
+    }
+
+    #[test]
+    fn win_within_n_means_mate_before_move_n() {
+        let within = Objective::WinWithin(3);
+        // White's mating move is its turn n - 1 (ply 3) or its turn n (ply 5).
+        assert!(within.met(&game_at(3), Color::White));
+        assert!(!within.met(&game_at(5), Color::White));
+        assert!(within.met(&game_at(4), Color::Black));
+        assert!(!within.met(&game_at(6), Color::Black));
     }
 
     #[test]
@@ -279,9 +314,9 @@ mod tests {
             let mut game = Game::from_position(pos, &[], &[]);
             assert_eq!(game.pos.ply, 0);
             game.pos.ply = 5;
-            assert!(Objective::WinWithin(3).met(&game, Color::White));
-            assert!(!Objective::WinWithin(2).met(&game, Color::White));
-            assert!(Objective::WinWithin(2).met(&game, Color::Black));
+            assert!(Objective::WinWithin(4).met(&game, Color::White));
+            assert!(!Objective::WinWithin(3).met(&game, Color::White));
+            assert!(Objective::WinWithin(3).met(&game, Color::Black));
         }
     }
 
@@ -295,7 +330,10 @@ mod tests {
     #[test]
     fn no_level_pairs_a_skill_use_with_no_skill_used() {
         let uses_skill = |goal: Option<Objective>| {
-            matches!(goal, Some(Objective::UseSkill(_) | Objective::UseAnySkill))
+            matches!(
+                goal,
+                Some(Objective::UseSkill(_) | Objective::UseAnySkill | Objective::UseAllSkills)
+            )
         };
         let no_skill = |goal: Option<Objective>| matches!(goal, Some(Objective::NoSkillUsed));
         for level in all_levels() {
@@ -334,11 +372,90 @@ mod tests {
     }
 
     #[test]
-    fn titles_follow_the_beaten_bosses() {
-        assert_eq!(best_title(&[]), None);
-        let rows = [row(0, BOSS_LEVEL, STAR_WIN), row(2, BOSS_LEVEL, STAR_WIN)];
-        assert!(title_earned(&rows, 0) && !title_earned(&rows, 1));
-        assert_eq!(best_title(&rows), Some("Marcheur du Vide"));
-        assert_eq!(best_title(&[row(1, 2, STAR_WIN)]), None);
+    fn use_all_skills_needs_every_slot_used() {
+        let mut game = Game::new(&[SkillId::Trap, SkillId::Wall], &[]);
+        assert!(!Objective::UseAllSkills.met(&game, Color::White));
+        game.loadouts[0].slots[0].uses = 1;
+        assert!(!Objective::UseAllSkills.met(&game, Color::White));
+        game.loadouts[0].slots[1].uses = 1;
+        assert!(Objective::UseAllSkills.met(&game, Color::White));
+        assert_eq!(
+            Objective::UseAllSkills.text(),
+            "Utiliser toutes ses compétences"
+        );
+    }
+
+    #[test]
+    fn no_piece_lost_fails_on_any_lost_piece_of_the_player() {
+        let mut game = Game::new(&[], &[]);
+        let goal = Objective::NoPieceLostBefore(20);
+        assert!(goal.met(&game, Color::White));
+        let mut lost = game.pos.pieces(Color::Black).next().unwrap().1;
+        game.pos.graveyard.push(lost);
+        assert!(goal.met(&game, Color::White));
+        assert!(!goal.met(&game, Color::Black));
+        lost.color = Color::White;
+        game.pos.graveyard.push(lost);
+        assert!(!goal.met(&game, Color::White));
+        assert_eq!(goal.text(), "Ne perdre aucune pièce avant le coup 20");
+    }
+
+    #[test]
+    fn win_within_text_and_move_limit() {
+        assert_eq!(Objective::WinWithin(31).text(), "Mater avant le coup 31");
+        let limit = |level: &Level| level.move_limit();
+        let levels: Vec<_> = all_levels().collect();
+        assert!(levels.iter().any(|l| limit(l).is_some()));
+        assert!(levels.iter().any(|l| limit(l).is_none()));
+    }
+
+    #[test]
+    fn elo_climbs_by_chapter_and_level_and_the_boss_tops_the_chapter() {
+        let at = |chapter, level| LevelRef { chapter, level }.elo();
+        assert_eq!((at(0, 0), at(0, 1), at(0, 5)), (400, 450, 650));
+        assert_eq!(
+            (at(0, BOSS_LEVEL), at(4, 0), at(4, BOSS_LEVEL)),
+            (800, 2000, 2400)
+        );
+    }
+
+    #[test]
+    fn every_boss_offers_three_stars() {
+        for chapter in 0..CHAPTERS.len() as u8 {
+            let boss = LevelRef {
+                chapter,
+                level: BOSS_LEVEL,
+            };
+            assert_eq!(all_stars(boss), STAR_WIN | STAR_OBJECTIVE | STAR_CHALLENGE);
+        }
+        let all: Vec<_> = (0..CHAPTERS.len() as u8)
+            .flat_map(|chapter| (0..=BOSS_LEVEL).map(move |level| row(chapter, level, 7)))
+            .collect();
+        assert_eq!(total_stars(&all), MAX_STARS);
+    }
+
+    #[test]
+    fn boss_goals_respect_the_hands() {
+        for (chapter, c) in CHAPTERS.iter().enumerate() {
+            let boss = &c.levels[usize::from(BOSS_LEVEL)];
+            let goals = [boss.objective, boss.challenge];
+            let queen_sac = boss.player_deck.contains(&SkillId::Queensac);
+            for goal in goals.into_iter().flatten() {
+                assert!(!(queen_sac && matches!(goal, Objective::KeepPiece(PieceKind::Queen))));
+                assert!(chapter > 2 || !matches!(goal, Objective::NoSkillUsed));
+            }
+        }
+    }
+
+    #[test]
+    fn a_draw_or_stalemate_earns_no_star() {
+        let at = LevelRef {
+            chapter: 0,
+            level: 0,
+        };
+        assert_eq!(
+            stars_earned(at, &Game::new(&[], &[]), Color::White, false),
+            0
+        );
     }
 }

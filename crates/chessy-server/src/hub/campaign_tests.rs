@@ -100,13 +100,13 @@ fn dev_finish_all_stars_records_every_star_of_the_level() {
 }
 
 #[test]
-fn dev_finish_all_stars_on_a_boss_records_only_the_victory_star() {
+fn dev_finish_all_stars_on_a_boss_records_its_three_stars() {
     let mut p = player(true);
     p.hub.campaign_start(&p.id.clone(), BOSS, None);
     p.hub.dev_finish(&p.id.clone(), DevResult::AllStars);
     let rows = p.store.campaign_rows(&p.id).unwrap();
     let boss = rows.iter().find(|r| r.at == BOSS).unwrap();
-    assert_eq!(boss.stars, STAR_WIN);
+    assert_eq!(boss.stars, STAR_WIN | STAR_OBJECTIVE | STAR_CHALLENGE);
     assert!(
         p.hub.rewards.contains_key(&p.id),
         "the boss reward is offered"
@@ -130,13 +130,17 @@ fn dev_finish_is_refused_outside_a_campaign_game() {
 }
 
 #[test]
-fn a_boss_win_gives_the_chapter_title_and_shows_on_the_profile() {
+fn a_boss_won_with_three_stars_gives_the_chapter_title_and_shows_on_the_profile() {
     let mut p = player(true);
     assert_eq!(p.store.public_profile("ana").unwrap().unwrap().title, None);
-    let (info, _) = p.beat_boss_over();
-    assert_eq!(info.unwrap().title.as_deref(), Some("Fer de Lance"));
+    p.beat_boss_over();
     let profile = p.store.public_profile("ana").unwrap().unwrap();
-    assert_eq!(profile.title, Some("Fer de Lance"));
+    assert_eq!(profile.title, None, "a bare victory earns no title");
+
+    p.hub.campaign_start(&p.id.clone(), BOSS, None);
+    p.hub.dev_finish(&p.id.clone(), DevResult::AllStars);
+    let profile = p.store.public_profile("ana").unwrap().unwrap();
+    assert_eq!(profile.title, Some("Tombeur du Bélier"));
 }
 
 #[test]
