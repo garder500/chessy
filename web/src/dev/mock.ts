@@ -5,7 +5,7 @@
 // Identifiants spéciaux : `g-missing` (404), `g-noreplay` (replay indisponible), `g-slow` (réponse lente).
 
 import type { CampaignChapterView, CampaignLevelView, ForgeTableRow } from "../campaign";
-import type { Action, BossForgeInfo, ClientMsg, ExploreRequest, ExploreResponse, Frame, GameRecord, Move, Piece, ServerMsg, SkillId, SkillOptions, Square } from "../protocol";
+import type { Action, ClientMsg, ExploreRequest, ExploreResponse, Frame, GameRecord, Move, Piece, ServerMsg, SkillId, SkillOptions, Square } from "../protocol";
 import {
   fixtureAnalysis,
   fixtureGames,
@@ -212,16 +212,12 @@ const FORGE_TABLES: ForgeTableRow[][] = [
   [{ rarity: "epic", percent: 86 }, { rarity: "legendary", percent: 14 }],
 ];
 
-/** Un chapitre en cours de forge, un à révéler, le dernier sans Légendaire restante. */
-const BOSS_FORGES: (BossForgeInfo | null)[] = [
-  { chapter: 0, state: "forging", skill: null, deck_full: false, legendary_unavailable: false },
-  { chapter: 1, state: "pending", skill: "freeze", deck_full: false, legendary_unavailable: false },
-  null,
-  null,
-  { chapter: 4, state: "forging", skill: null, deck_full: true, legendary_unavailable: true },
-];
+/** Progression en cours : quatre niveaux du premier chapitre gagnés (3, 2, 3 puis 1 étoile), les autres chapitres scellés ; aucune forge, aucun boss n'est encore battu. */
+const WON_STARS = [3, 2, 3, 1];
+const CURRENT_LEVEL = WON_STARS.length;
+const CAMPAIGN_STARS = WON_STARS.reduce((a, b) => a + b, 0);
 
-/** Cinq chapitres complets ; le premier a un titre gagné, les suivants laissent choisir le deck, le boss démarre d'une position imposée. */
+/** Cinq chapitres complets, les suivants laissent choisir le deck, le boss démarre d'une position imposée. */
 function fixtureCampaign(): CampaignChapterView[] {
   return CAMPAIGN_FAMILIES.map(([family, name, title, bossName], chapter) => {
     const choice = chapter >= DECK_CHOICE_FROM_CHAPTER;
@@ -241,21 +237,23 @@ function fixtureCampaign(): CampaignChapterView[] {
       human_color: i === 6 && chapter > 0 ? (chapter === CAMPAIGN_FAMILIES.length - 1 ? "black" : "white") : null,
       objective: i === 6 ? null : choice ? "Utiliser une compétence" : "Utiliser Terminator",
       challenge: i === 6 ? null : "Gagner en 40 coups",
-      best: chapter === 0 && i < 3 ? [true, i < 2, i < 1] : [false, false, false],
+      best: chapter === 0 && i < CURRENT_LEVEL ? [true, WON_STARS[i] > 1, WON_STARS[i] > 2] : [false, false, false],
       rewarded: false,
+      unlocked: chapter === 0 && i <= CURRENT_LEVEL,
     }));
     return {
       chapter,
       family,
       name,
       title,
-      title_earned: chapter === 0,
+      title_earned: false,
       available: true,
-      stars: chapter === 0 ? 6 : 0,
+      stars: chapter === 0 ? CAMPAIGN_STARS : 0,
       boss_stars_required: 12,
       boss_unlocked: false,
+      unlocked: chapter === 0,
       forge_table: FORGE_TABLES[chapter],
-      boss_forge: BOSS_FORGES[chapter],
+      boss_forge: null,
       levels,
     };
   });
@@ -270,7 +268,7 @@ function installFetch() {
 
     if (path === "/api/campaign") {
       await wait(250);
-      return json({ chapters: fixtureCampaign(), total_stars: 6, max_stars: 105 });
+      return json({ chapters: fixtureCampaign(), total_stars: CAMPAIGN_STARS, max_stars: 105 });
     }
     if (path === "/api/live") {
       await wait(250);

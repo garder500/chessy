@@ -2,12 +2,17 @@ import { describe, expect, it } from "vitest";
 import {
   bossProgress,
   type CampaignChapterView,
+  type CampaignLevelView,
   chapterTitle,
   countStars,
+  currentLevel,
+  currentTitle,
+  defaultSelection,
   forgeNote,
   formatElo,
   isLocked,
   LEGENDARY_CHAPTER,
+  lockReason,
   requiredPicks,
   splitDeck,
   toggleDeckPick,
@@ -15,6 +20,7 @@ import {
   validPicks,
   withLiveForge,
 } from "./campaign";
+import { MAP_LAYOUTS, percent } from "./campaignMap";
 import type { BossForgeInfo, CampaignChapter, CampaignLevel, SkillId } from "./protocol";
 
 const level = (boss: boolean): CampaignLevel => ({
@@ -31,6 +37,7 @@ const level = (boss: boolean): CampaignLevel => ({
   challenge: null,
   best: [false, false, false],
   rewarded: false,
+  unlocked: true,
 });
 
 const chapter = (boss_unlocked: boolean): CampaignChapter => ({
@@ -43,6 +50,7 @@ const chapter = (boss_unlocked: boolean): CampaignChapter => ({
   stars: 7,
   boss_stars_required: 12,
   boss_unlocked,
+  unlocked: true,
   levels: [],
 });
 
@@ -59,10 +67,47 @@ describe("campagne", () => {
     expect(countStars([false, false, false])).toBe(0);
   });
 
-  it("ne verrouille que le boss d'un chapitre fermé", () => {
-    expect(isLocked(chapter(false), level(true))).toBe(true);
-    expect(isLocked(chapter(true), level(true))).toBe(false);
-    expect(isLocked(chapter(false), level(false))).toBe(false);
+  it("ne lit que le drapeau du serveur pour verrouiller un niveau", () => {
+    expect(isLocked({ unlocked: false })).toBe(true);
+    expect(isLocked({ unlocked: true })).toBe(false);
+  });
+
+  describe("progression", () => {
+    const lv = (n: number, over: Partial<CampaignLevelView> = {}) => ({ ...level(n === 6), level: n, name: `N${n}`, ...over }) as CampaignLevelView;
+    const ch = (n: number, wonCount: number, unlocked = true): CampaignChapterView => ({
+      ...chapter(false),
+      chapter: n,
+      unlocked,
+      levels: Array.from({ length: 7 }, (_, i) => lv(i, { unlocked: unlocked && i <= wonCount, best: [i < wonCount, false, false] })),
+    }) as CampaignChapterView;
+
+    it("sélectionne le chapitre ouvert le plus avancé et son premier niveau non gagné", () => {
+      expect(defaultSelection([ch(0, 7), ch(1, 3), ch(2, 0, false)])).toEqual({ chapter: 1, level: 3 });
+      expect(defaultSelection([ch(0, 0), ch(1, 0, false)])).toEqual({ chapter: 0, level: 0 });
+    });
+
+    it("retombe sur le dernier niveau d'un chapitre entièrement gagné", () => {
+      expect(currentLevel(ch(0, 7))).toBe(6);
+    });
+
+    it("explique pourquoi un niveau est fermé", () => {
+      const chapters = [ch(0, 4), ch(1, 0, false)];
+      expect(lockReason(chapters, chapters[0], chapters[0].levels[4])).toBeNull();
+      expect(lockReason(chapters, chapters[0], chapters[0].levels[6])).toBe("Il manque 5 ★ dans ce chapitre pour ouvrir la porte du boss.");
+      expect(lockReason(chapters, chapters[0], { ...chapters[0].levels[5], unlocked: false })).toBe("Gagnez d'abord N4.");
+      expect(lockReason(chapters, chapters[1], chapters[1].levels[0])).toBe("Battez N6 pour ouvrir ce chapitre.");
+    });
+
+    it("garde le dernier titre obtenu", () => {
+      expect(currentTitle([{ title: "A", title_earned: true }, { title: "B", title_earned: true }, { title: "C", title_earned: false }])).toBe("B");
+      expect(currentTitle([{ title: "A", title_earned: false }])).toBeNull();
+    });
+
+    it("place un point par niveau sur chaque carte", () => {
+      expect(MAP_LAYOUTS.desktop.nodes).toHaveLength(7);
+      expect(MAP_LAYOUTS.phone.nodes).toHaveLength(7);
+      expect(percent(80, 800)).toBe("10%");
+    });
   });
 
   it("formate la progression vers le boss et le titre", () => {

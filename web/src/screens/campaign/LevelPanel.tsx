@@ -1,5 +1,5 @@
 import { type CSSProperties, useState } from "react";
-import { colorLabel, forgeNote, formatElo, isLocked, requiredPicks, splitDeck, STAR_LABELS, toggleDeckPick, validPicks } from "../../campaign";
+import { colorLabel, forgeNote, formatElo, requiredPicks, splitDeck, STAR_LABELS, toggleDeckPick, validPicks } from "../../campaign";
 import type { CampaignChapterView, CampaignLevelView } from "../../campaign";
 import { familyVar } from "../../catalog";
 import { RARITY_LABEL } from "../../forged";
@@ -7,17 +7,25 @@ import type { SkillId } from "../../protocol";
 import { skillInfo } from "../../skills";
 import { store } from "../../store";
 import { SkillArt } from "../../ui/SkillArt";
-import { Sheet } from "../../ui/Sheet";
 import { Stars } from "../../ui/Stars";
 import { DeckPicker } from "./DeckPicker";
+import { LockIcon } from "./LockIcon";
 
 interface Props {
   chapter: CampaignChapterView;
-  level: CampaignLevelView | null;
+  level: CampaignLevelView;
+  /** Pourquoi le niveau est fermé ; `null` s'il se joue. */
+  lockReason: string | null;
   ownDeck: SkillId[];
   connected: boolean;
   pending: boolean;
-  onClose: () => void;
+}
+
+const PANEL_ID = "cp-panel";
+
+/** En colonne, le panneau est sous la carte : on le ramène à l'écran quand on choisit un niveau. */
+export function showPanel() {
+  requestAnimationFrame(() => document.getElementById(PANEL_ID)?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
 }
 
 function Deck({ label, note, skills }: { label: string; note?: string; skills: SkillId[] }) {
@@ -64,24 +72,26 @@ function ForgeTable({ chapter }: { chapter: CampaignChapterView }) {
   );
 }
 
-/** Détail d'un niveau : adversaire, objectif et défi, mains, lancement. */
-export function LevelSheet({ chapter, level, ownDeck, connected, pending, onClose }: Props) {
+/** Détail du niveau choisi sur la carte : adversaire, objectif et défi, mains, lancement ou raison du verrou. */
+export function LevelPanel({ chapter, level, lockReason, ownDeck, connected, pending }: Props) {
   const [chosen, setChosen] = useState<SkillId[]>([]);
-  if (!level) return null;
   const pickable = splitDeck(ownDeck, level.lent).pickable;
   const picked = validPicks(chosen, pickable);
-  const locked = isLocked(chapter, level);
   const needsPick = level.deck_choice && picked.length < requiredPicks(pickable);
-  const play = () => {
-    store.startCampaign(chapter.chapter, level.level, level.deck_choice ? picked : undefined);
-    onClose();
-  };
+  const play = () => store.startCampaign(chapter.chapter, level.level, level.deck_choice ? picked : undefined);
 
   return (
-    <Sheet open title={level.name} onClose={onClose}>
-      <p className="sheet-sub">
-        {level.boss ? "Boss · " : ""}Sage · {formatElo(level.elo)}
+    <aside id={PANEL_ID} className="cp-panel" aria-label="Niveau sélectionné" style={{ "--fam": familyVar(chapter.family) } as CSSProperties}>
+      <p className="eyebrow">
+        {chapter.name} · {level.boss ? "boss" : `niveau ${level.level + 1} sur ${chapter.levels.length}`}
       </p>
+      <h3 className="cp-panel-title">{level.name}</h3>
+      <p className="muted">Sage · {formatElo(level.elo)}</p>
+      {lockReason && (
+        <p className="cp-lock-reason" role="status">
+          <LockIcon size={16} /> {lockReason}
+        </p>
+      )}
       <Stars stars={level.best} size={22} />
       <dl className="cp-goals">
         <dt>{STAR_LABELS[0]}</dt>
@@ -120,9 +130,11 @@ export function LevelSheet({ chapter, level, ownDeck, connected, pending, onClos
         skills={level.bot_deck}
       />
       {level.boss && <ForgeTable chapter={chapter} />}
-      <button type="button" className="btn pri block" disabled={locked || needsPick || !connected || pending} onClick={play}>
-        {locked ? "Boss verrouillé" : "Jouer"}
-      </button>
-    </Sheet>
+      {!lockReason && (
+        <button type="button" className="btn pri block cp-play" disabled={needsPick || !connected || pending} onClick={play}>
+          Jouer
+        </button>
+      )}
+    </aside>
   );
 }

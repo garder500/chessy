@@ -17,6 +17,8 @@
   "blocked": "Has bloqueado a este jugador: desbloquéalo primero.",
   "block_list_full": "Tu lista de jugadores bloqueados está llena.",
   "unknown_level": "Este nivel de campaña todavía no existe.",
+  "chapter_locked": "Este capítulo está sellado: derrota al jefe del capítulo anterior.",
+  "level_locked": "Nivel bloqueado: gana primero el nivel anterior.",
   "boss_locked": "El jefe está bloqueado: gana más estrellas en este capítulo.",
   "bad_deck": "Mazo de campaña no válido: elige de 1 a 3 habilidades de tu mazo."
 }

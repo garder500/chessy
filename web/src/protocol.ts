@@ -270,6 +270,7 @@ export interface CampaignResult {
   boss_unlocked: boolean;
   boss_stars_required: number;
   boss_just_unlocked: boolean;
+  chapter_just_unlocked: boolean;
   /** Titre gagné par cette partie (victoire contre le boss). */
   title: string | null;
   total_stars: number;
@@ -293,6 +294,8 @@ export interface CampaignLevel {
   challenge: string | null;
   best: CampaignStars;
   rewarded: boolean;
+  /** Décidé par le serveur : niveau précédent gagné, chapitre ouvert (et étoiles pour le boss). */
+  unlocked: boolean;
 }
 
 export interface CampaignChapter {
@@ -305,6 +308,8 @@ export interface CampaignChapter {
   stars: number;
   boss_stars_required: number;
   boss_unlocked: boolean;
+  /** Chapitre ouvert : le boss du précédent est battu. */
+  unlocked: boolean;
   levels: CampaignLevel[];
 }
 
