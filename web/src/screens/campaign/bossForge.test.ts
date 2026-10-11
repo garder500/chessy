@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BossForgeInfo } from "../../protocol";
-import { bossForgeStep, claimMsg, legendaryNote, markRevealed, placeMsg, wasRevealed } from "./bossForge";
+import { bossForgeStep, claimMsg, legendaryNote, markRevealed, placeMsg, skillRevealed, wasRevealed } from "./bossForge";
 
 const info = (patch: Partial<BossForgeInfo>): BossForgeInfo => ({
   chapter: 2,
@@ -54,5 +54,11 @@ describe("notes et révélation vue", () => {
     expect(wasRevealed(info({ chapter: 4, skill: "godhelp" }))).toBe(true);
     expect(wasRevealed(info({ chapter: 4, skill: "freeze" }))).toBe(false);
     expect(wasRevealed(null)).toBe(false);
+  });
+
+  it("reconnaît une compétence déjà révélée pour un chapitre quelconque", () => {
+    markRevealed(info({ chapter: 5, skill: "forged_7" }));
+    expect(skillRevealed("forged_7")).toBe(true);
+    expect(skillRevealed("forged_8")).toBe(false);
   });
 });

@@ -31,3 +31,5 @@ const keyOf = (info: BossForgeInfo) => `${info.chapter}:${info.skill}`;
 
 export const markRevealed = (info: BossForgeInfo) => void seen.add(keyOf(info));
 export const wasRevealed = (info: BossForgeInfo | null) => !!info && seen.has(keyOf(info));
+/** Vrai si cette compétence a déjà été révélée pour un chapitre quelconque. */
+export const skillRevealed = (skill: string) => [...seen].some((k) => k.endsWith(`:${skill}`));
