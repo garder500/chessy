@@ -141,7 +141,7 @@ fn a_stopped_move_still_has_to_be_legal() {
 
 #[test]
 fn nobody_can_be_dropped_on_a_trapped_square() {
-    let mut pos = Position::from_fen("4k3/8/8/8/8/8/8/4K3 b - - 0 1").unwrap();
+    let mut pos = Position::from_fen("r3k3/8/8/8/8/8/8/4K3 b - - 0 1").unwrap();
     pos.traps.push(Trap {
         square: s("e4"),
         owner: Color::White,
