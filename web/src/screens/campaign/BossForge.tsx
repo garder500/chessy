@@ -97,11 +97,12 @@ function Waiting({ chapter, onClose }: { chapter: number; onClose: () => void })
 
 /** Forge de la compétence offerte par un boss : attente, révélation, puis placement dans le deck (ou « Plus tard »). */
 export function BossForge({ chapter, initial = null, onClose }: Props) {
-  const { bossForge, deck } = useAppState();
+  const { bossForge, deck, errorCount } = useAppState();
   const info = bossForge?.chapter === chapter ? bossForge : initial;
   const [seenNow, setSeenNow] = useState(false);
   const [loadedSkill, setLoadedSkill] = useState<SkillId | null>(null);
-  const placing = useRef(false);
+  /** `errorCount` au moment de l'envoi du placement, `null` tant qu'il n'est pas parti. */
+  const placing = useRef<number | null>(null);
   const step = bossForgeStep(info, seenNow || wasRevealed(info));
   const skill = info?.skill ?? null;
 
@@ -111,11 +112,14 @@ export function BossForge({ chapter, initial = null, onClose }: Props) {
   useEffect(() => {
     if (step === "none") onClose();
   }, [step, onClose]);
-  useEffect(() => {
-    if (step !== "place" || placing.current) return;
-    placing.current = true;
+  const place = () => {
+    placing.current = errorCount;
     store.send(placeMsg(chapter, null));
-  }, [step, chapter]);
+  };
+  useEffect(() => {
+    if (step === "place" && placing.current === null) place();
+  });
+  const refused = placing.current !== null && errorCount !== placing.current;
 
   if (!info || step === "none") return null;
   if (step === "wait") return <Waiting chapter={chapter} onClose={onClose} />;
@@ -134,9 +138,18 @@ export function BossForge({ chapter, initial = null, onClose }: Props) {
   }
   if (step === "choose") return <ReplaceChoice info={info} deck={deck} onClose={onClose} />;
   return (
-    <Shell onClose={onClose} foot={null}>
+    <Shell
+      onClose={onClose}
+      foot={
+        refused && (
+          <button type="button" className="btn pri block" onClick={place}>
+            Réessayer
+          </button>
+        )
+      }
+    >
       <p className="rw-sub" role="status">
-        Placement de la compétence…
+        {refused ? "Le placement a été refusé." : "Placement de la compétence…"}
       </p>
     </Shell>
   );

@@ -20,6 +20,7 @@ import type {
   UserResult,
 } from "./protocol";
 import { forgedVersion, isForgedId, loadForged, noticeForged, onForgedChange } from "./forged";
+import { wasRevealed } from "./screens/campaign/bossForge";
 import { skillName } from "./skills";
 import { sfx } from "./sound";
 import { isLive, reduceSpectator, SPECTATE_ERRORS, startSpectating, type SpectatingState } from "./replay/spectator";
@@ -82,6 +83,8 @@ export interface AppState {
   campaignGame: boolean;
   /** Dernier état connu de la forge d'un boss de campagne. */
   bossForge: BossForgeInfo | null;
+  /** Nombre d'erreurs serveur reçues : permet à un écran de savoir que sa requête a été refusée. */
+  errorCount: number;
   /** Ce que le gagnant d'une classée a fait de sa récompense, appris par le perdant. */
   rewardOutcome: { by: string; kind: RewardOutcomeKind; skill: SkillId | null; refilled: SkillId | null } | null;
   /** Partie regardée en tant que spectateur (v4), `null` si on ne regarde rien. */
@@ -151,6 +154,7 @@ const initial: AppState = {
   soloPending: false,
   campaignGame: false,
   bossForge: null,
+  errorCount: 0,
   rewardOutcome: null,
   spectating: null,
 };
@@ -588,7 +592,8 @@ export class Store {
         });
         break;
       case "deck_update":
-        if (msg.gained) {
+        // BossForge a déjà révélé la forgée d'un boss : pas de seconde révélation.
+        if (msg.gained && !(this.state.bossForge?.skill === msg.gained && wasRevealed(this.state.bossForge))) {
           // Le nom d'une compétence forgée n'est connu qu'une fois sa définition reçue.
           const gained = msg.gained;
           void loadForged([gained]).then(() => {
@@ -628,6 +633,7 @@ export class Store {
           break;
         }
         this.clearSoloPending();
+        this.set({ errorCount: this.state.errorCount + 1 });
         if (msg.code === "session_revoked") {
           // Session terminée ailleurs (déconnexion depuis un autre onglet ou appareil) :
           // on oublie le jeton et on repart en invité, une seule fois (un invité n'a rien à révoquer).

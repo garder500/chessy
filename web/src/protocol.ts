@@ -481,7 +481,7 @@ export type ClientMsg =
   | { type: "solo_start"; elo: number; color: SoloColor }
   | { type: "campaign_start"; chapter: number; level: number; deck?: SkillId[] }
   | { type: "boss_forge_claim"; chapter: number }
-  | { type: "boss_forge_place"; chapter: number; replace?: SkillId }
+  | { type: "boss_forge_place"; chapter: number; replace?: SkillId | null }
   | { type: "create_room"; time?: TimeControl }
   | { type: "join_room"; code: string }
   | { type: "leave_lobby" }
