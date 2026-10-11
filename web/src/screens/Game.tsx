@@ -389,7 +389,7 @@ export function Game({ view }: { view: StateView }) {
   }
 
   return (
-    <div className={`gm${compact ? " gm-compact" : ""}${view.campaign ? " gm-campaign" : ""}`}>
+    <div className={`gm${compact ? " gm-compact" : ""}`}>
       <header className="gm-top">
         <Wordmark />
         <div className="gm-top-mid">

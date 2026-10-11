@@ -67,12 +67,12 @@
 @media (prefers-reduced-motion: reduce) {
   .fr-stage, .fr-stage * { animation-duration: .001s !important; animation-delay: 0s !important; }
   .fr-shk { animation: none !important; }
-  .fr-ham, .fr-spark, .fr-flash, .fr-ringo { display: none; }
+  .fr-ham, .fr-spark, .fr-flash, .fr-ringo, .fr-beam { display: none; }
   .fr .fr-stage .fr-cardwrap { animation: a-fade 1s linear forwards !important; }
 }
 :root[data-motion="reduce"] .fr-stage, :root[data-motion="reduce"] .fr-stage * { animation-duration: .001s !important; animation-delay: 0s !important; }
 :root[data-motion="reduce"] .fr-shk { animation: none !important; }
-:root[data-motion="reduce"] :is(.fr-ham, .fr-spark, .fr-flash, .fr-ringo) { display: none; }
+:root[data-motion="reduce"] :is(.fr-ham, .fr-spark, .fr-flash, .fr-ringo, .fr-beam) { display: none; }
 :root[data-motion="reduce"] .fr .fr-stage .fr-cardwrap { animation: a-fade 1s linear forwards !important; }
 
 @keyframes a-shk-s { 0% { transform: translate(0, 0); } 20% { transform: translate(-2px, 2px); } 45% { transform: translate(2px, -2px); } 70% { transform: translate(-1px, 1px); } 100% { transform: none; } }

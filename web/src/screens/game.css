@@ -61,8 +61,6 @@
 .gm-objective { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: 6px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); font-size: 14px; color: var(--text-2); }
 .gm-objective-count { color: var(--text); }
 .gm-objective-count.over { color: var(--danger); }
-/* La nulle n'existe pas en campagne : le serveur la refuse, on ne propose pas le bouton (Actions et Options). */
-.gm-campaign .gm-actions .gm-row > .btn:not(.danger), .gm-campaign .gm-opts > .btn.block:not(.danger) { display: none; }
 .gm-hint.warn { border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); color: var(--warn); }
 .gm-hint.check { border-color: color-mix(in srgb, var(--danger) 55%, var(--line)); color: var(--danger); }
 
