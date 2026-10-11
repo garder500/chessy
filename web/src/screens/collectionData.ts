@@ -1,7 +1,7 @@
 // Règles complètes des compétences (source : docs/skills.md) et fonctions de l'historique de la collection.
 import { CATALOG, type CatalogId } from "../catalog";
 import { intlLocale, t } from "../i18n";
-import type { SkillHistoryEntry } from "../protocol";
+import type { SkillHistoryEntry, SkillId } from "../protocol";
 import { parseServerDate } from "../ui/social";
 
 /** Règles complètes de chaque compétence, traduites à chaque lecture (clés `skills.rules_<id>`). */
@@ -16,13 +16,49 @@ export const classicNote = () => t("collection.note_classic");
 
 export type HistoryFilter = "all" | "forged" | "obtained" | "lost";
 
-/** `label` est une clé de traduction (résolue au rendu). */
-export const HISTORY_FILTERS: { id: HistoryFilter; label: string }[] = [
+/** Filtre du journal : les valeurs reprennent `SkillHistoryEntry.change`. `label` est une clé de traduction. */
+export type JournalFilter = "all" | SkillHistoryEntry["change"];
+export const JOURNAL_FILTERS: { id: JournalFilter; label: string }[] = [
   { id: "all", label: "collection.filter_all" },
-  { id: "forged", label: "collection.filter_forged" },
-  { id: "obtained", label: "collection.filter_obtained" },
-  { id: "lost", label: "collection.filter_lost" },
+  { id: "gained", label: "collection.journal_gained" },
+  { id: "lost", label: "collection.journal_lost" },
 ];
+
+export type OriginFilter = "all" | "forged" | "stolen" | "other";
+export const ORIGIN_FILTERS: { id: OriginFilter; label: string }[] = [
+  { id: "all", label: "collection.origin_all" },
+  { id: "forged", label: "collection.origin_forged" },
+  { id: "stolen", label: "collection.origin_stolen" },
+  { id: "other", label: "collection.origin_other" },
+];
+
+/** Une compétence du deck et la dernière ligne qui l'a fait entrer (absente si l'historique n'en garde pas). */
+export interface OwnedSkill {
+  skill: SkillId;
+  origin?: SkillHistoryEntry;
+}
+
+/** Le deck dans son ordre, chaque compétence avec son entrée la plus récente (`entries` : le plus récent d'abord). */
+export function ownedSkills(deck: readonly SkillId[], entries: readonly SkillHistoryEntry[]): OwnedSkill[] {
+  return deck.map((skill) => ({ skill, origin: entries.find((e) => e.skill === skill && e.change === "gained") }));
+}
+
+function originOf(owned: OwnedSkill): Exclude<OriginFilter, "all"> {
+  const source = owned.origin?.source;
+  return source === "forged" || source === "stolen" ? source : "other";
+}
+
+export function filterOwned(owned: readonly OwnedSkill[], filter: OriginFilter): OwnedSkill[] {
+  return filter === "all" ? [...owned] : owned.filter((o) => originOf(o) === filter);
+}
+
+export function originCounts(owned: readonly OwnedSkill[]): Record<OriginFilter, number> {
+  return Object.fromEntries(ORIGIN_FILTERS.map((f) => [f.id, filterOwned(owned, f.id).length])) as Record<OriginFilter, number>;
+}
+
+export function filterJournal(entries: readonly SkillHistoryEntry[], filter: JournalFilter): SkillHistoryEntry[] {
+  return filter === "all" ? [...entries] : entries.filter((e) => e.change === filter);
+}
 
 /** Ce que raconte une ligne : « Forgée », « Volée à bob », « Prise par alice »… */
 export function describeEntry(e: SkillHistoryEntry): string {
