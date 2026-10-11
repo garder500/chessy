@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { bossProgress, chapterTitle, countStars, isLocked, toggleDeckPick, validPicks } from "./campaign";
-import type { CampaignChapter, CampaignLevel, SkillId } from "./protocol";
+import {
+  bossProgress,
+  type CampaignChapterView,
+  chapterTitle,
+  countStars,
+  forgeNote,
+  formatElo,
+  isLocked,
+  LEGENDARY_CHAPTER,
+  splitDeck,
+  toggleDeckPick,
+  totalLabel,
+  validPicks,
+  withLiveForge,
+} from "./campaign";
+import type { BossForgeInfo, CampaignChapter, CampaignLevel, SkillId } from "./protocol";
 
 const level = (boss: boolean): CampaignLevel => ({
   level: boss ? 6 : 0,
@@ -55,6 +69,34 @@ describe("campagne", () => {
 
   it("écarte les choix sortis du deck", () => {
     expect(validPicks(["freeze", "clone"], ["clone", "trap"])).toEqual(["clone"]);
+  });
+
+  it("affiche la porte du boss sur 18 étoiles et le total sur 105", () => {
+    expect(bossProgress({ stars: 12, boss_stars_required: 18 })).toBe("12/18");
+    expect(totalLabel(42, 105)).toBe("42 / 105 ★");
+  });
+
+  it("formate l'Elo avec séparateur de milliers", () => {
+    expect(formatElo(1000)).toBe("1 000");
+    expect(formatElo(800)).toBe("800");
+  });
+
+  it("note la Légendaire possible ou épuisée au chapitre 5 seulement", () => {
+    const forgeOf = (legendary_unavailable: boolean) => ({ chapter: LEGENDARY_CHAPTER, boss_forge: { chapter: LEGENDARY_CHAPTER, state: "forging", skill: null, deck_full: false, legendary_unavailable } }) as CampaignChapterView;
+    expect(forgeNote(forgeOf(false))).toBe("Épique ou mieux, Légendaire possible");
+    expect(forgeNote(forgeOf(true))).toBe("Plus aucune Légendaire disponible : Épique garantie");
+    expect(forgeNote({ chapter: 1, boss_forge: null } as CampaignChapterView)).toBeNull();
+  });
+
+  it("remplace la forge d'un chapitre par le message en direct", () => {
+    const chapters = [{ chapter: 0, boss_forge: null }, { chapter: 1, boss_forge: null }] as CampaignChapterView[];
+    const live: BossForgeInfo = { chapter: 1, state: "pending", skill: "freeze", deck_full: false, legendary_unavailable: false };
+    expect(withLiveForge(chapters, live)[1].boss_forge).toBe(live);
+    expect(withLiveForge(chapters, live)[0].boss_forge).toBeNull();
+  });
+
+  it("sépare les uniques du deck des classiques choisissables avec les prêtées", () => {
+    expect(splitDeck(["freeze", "remover"], ["clone"])).toEqual({ pickable: ["freeze", "clone"], extras: ["remover"] });
   });
 
   it("plafonne le deck choisi à trois compétences", () => {
