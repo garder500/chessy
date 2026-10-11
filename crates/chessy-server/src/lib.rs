@@ -4,6 +4,7 @@ pub mod api_campaign;
 pub mod api_games;
 pub mod api_live;
 pub mod api_skills;
+pub mod api_title;
 pub mod app;
 pub mod boss_forge_store;
 pub mod bot;

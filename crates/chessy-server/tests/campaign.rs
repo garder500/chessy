@@ -250,17 +250,14 @@ async fn the_rest_api_lists_the_levels_and_the_progress() {
 }
 
 #[tokio::test]
-async fn a_guest_reads_its_progress_with_its_session_token() {
-    let (app, store) = new_app(HubConfig::default());
+async fn a_guest_cannot_read_the_campaign_over_rest() {
+    let (app, _) = new_app(HubConfig::default());
     let guest = guest(&app);
-    let id = store.player_by_token(&guest.token).unwrap().unwrap();
-    store.record_campaign(&id, at(0), STAR_WIN).unwrap();
 
-    let (status, v) = Api::new(&app)
+    let (status, _) = Api::new(&app)
         .get("/api/campaign", Some(&guest.token))
         .await;
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(v["chapters"][0]["stars"], 1);
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
 }
 
 const CHOICE: LevelRef = LevelRef {
