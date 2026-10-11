@@ -42,7 +42,8 @@ import { useCompact } from "../ui/useCompact";
 import { LaunchCard, PromotionPicker, SpawnPicker } from "./game/Overlays";
 import { Result } from "./game/Result";
 import { EvalBar, Plate } from "./game/Plate";
-import { Actions, BenchPanel, Chat, DrawBanner, GameNav, Journal, Options, SkillList, TrainingNote } from "./game/SidePanels";
+import { ObjectiveBanner } from "./game/ObjectiveBanner";
+import { Actions,BenchPanel, Chat, DrawBanner, GameNav, Journal, Options, SkillList, TrainingNote } from "./game/SidePanels";
 import { useGameSounds } from "./game/useGameSounds";
 import "./game.css";
 
@@ -388,7 +389,7 @@ export function Game({ view }: { view: StateView }) {
   }
 
   return (
-    <div className={`gm${compact ? " gm-compact" : ""}`}>
+    <div className={`gm${compact ? " gm-compact" : ""}${view.campaign ? " gm-campaign" : ""}`}>
       <header className="gm-top">
         <Wordmark />
         <div className="gm-top-mid">
@@ -439,6 +440,8 @@ export function Game({ view }: { view: StateView }) {
             disconnected={!view.opponent_connected && !over_}
             clockLabel="Horloge de l'adversaire"
           />
+
+          {view.campaign && <ObjectiveBanner campaign={view.campaign} ply={view.ply} />}
 
           <div className={`gm-hint ${tone}`} role="status" aria-live="polite">
             <span>{hint}</span>
