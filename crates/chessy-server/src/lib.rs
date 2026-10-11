@@ -21,6 +21,7 @@ pub mod pending_rewards_store;
 pub mod protocol;
 pub mod replay;
 pub mod reward_outcome_store;
+pub mod seo;
 pub mod social;
 pub mod store;
 pub mod ws;

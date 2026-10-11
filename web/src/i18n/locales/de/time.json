@@ -1,0 +1,10 @@
+{
+  "short_label": "Kurz",
+  "short_short": "kurz",
+  "medium_label": "Mittel",
+  "medium_short": "mittel",
+  "long_label": "Lang",
+  "long_short": "lang",
+  "blitz": "Blitz · 5 Min.",
+  "minutes": "{minutes} Min."
+}

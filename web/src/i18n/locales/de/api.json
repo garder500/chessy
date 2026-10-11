@@ -1,0 +1,21 @@
+{
+  "username_taken": "Dieser Benutzername ist bereits vergeben.",
+  "bad_credentials": "Benutzername oder Passwort ist falsch.",
+  "weak_password": "Passwort zu schwach: 8 bis 128 Zeichen.",
+  "invalid_username": "Ungültiger Benutzername: 3 bis 16 Zeichen, Buchstaben, Ziffern oder _.",
+  "unauthorized": "Deine Sitzung ist abgelaufen. Melde dich erneut an.",
+  "not_found": "Nicht gefunden.",
+  "network": "Der Server ist nicht erreichbar. Prüfe deine Verbindung.",
+  "rate_limited": "Zu viele Versuche. Versuche es gleich noch einmal.",
+  "too_many_attempts": "Zu viele fehlgeschlagene Anmeldeversuche. Versuche es in ein paar Minuten erneut.",
+  "bad_recovery": "Benutzername oder Wiederherstellungscode ist falsch.",
+  "server_error": "Auf dem Server ist ein Problem aufgetreten. Versuche es später erneut.",
+  "generic": "Es ist ein Fehler aufgetreten. Versuche es erneut.",
+  "no_replay": "Für diese Partie ist kein Replay verfügbar.",
+  "game_not_found": "Partie nicht gefunden.",
+  "game_forbidden": "Auf diese Partie kann mit deinem Konto nicht zugegriffen werden.",
+  "illegal_action": "Aktion in dieser Stellung nicht möglich.",
+  "bad_ply": "Stellung in dieser Partie nicht gefunden.",
+  "analysis_failed": "Die Analyse ist fehlgeschlagen. Versuche es mit einer geringeren Tiefe erneut.",
+  "bad_request": "Ungültige Anfrage."
+}

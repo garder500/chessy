@@ -12,10 +12,14 @@
 //! comes back with [`Hub::apply_bot_move`]; a result for a game that has moved
 //! on (different `ply`, gone, over) is discarded.
 //!
+//! A second kind of bot, the matchmaking bot (see [`Disguise`]), fills a queue
+//! nobody joined: it passes for a person, has an account in the ranking and
+//! plays a real game with a clock and Elo, with the same machinery.
+//!
 //! Solo games are recorded for replay (`kind: solo`, the bot's seat is NULL)
 //! but stay out of the public history and the ranking; no Elo, no reward.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use chessy_engine::ai::Strength;
 use chessy_engine::{Action, Color, SkillId, SkillKind};
@@ -27,6 +31,7 @@ use crate::campaign::{self, Level, LevelRef};
 use crate::games_store::GameKind;
 use crate::protocol::*;
 use crate::store::reason_of;
+use crate::store::BotAccount;
 
 /// Skill of the bot in a campaign boss fight: it always plays its skills.
 const BOSS_SKILL_PERMILLE: u32 = 1000;
@@ -35,8 +40,13 @@ const BOSS_SKILL_PERMILLE: u32 = 1000;
 #[derive(Clone, Debug)]
 pub(super) struct Solo {
     pub bot: Color,
-    /// The level the player chose (400..=2800).
+    /// The level the player chose (400..=2800), or the bot account's rating.
     pub elo: i32,
+    /// Set for a matchmaking bot, which passes for a person: see [`Disguise`].
+    pub disguise: Option<Disguise>,
+    /// Set for a placement game: the level is the hidden one being measured
+    /// (see [`Hub::placement_start`]). The bot is plain otherwise.
+    pub placement: Option<i32>,
     /// Set when the game is a campaign level: its decks are imposed.
     pub campaign: Option<LevelRef>,
     /// The human's skills in a campaign level (imposed, or chosen).
@@ -67,6 +77,25 @@ impl Solo {
             challenge: level.challenge.map(campaign::Objective::text),
         })
     }
+
+    /// A friendly game against the visible bot (Sage), as opposed to a
+    /// matchmaking bot.
+    pub fn is_plain(&self) -> bool {
+        self.disguise.is_none()
+    }
+}
+
+/// A matchmaking bot is a real account (its name, rating and deck are stored)
+/// that plays a real game: clock, Elo, ranking, reward and public history, as
+/// if it were a person. It is only the move that comes from the AI, with a
+/// human latency.
+#[derive(Clone, Debug)]
+pub(super) struct Disguise {
+    pub account: PlayerId,
+    pub name: String,
+    /// The queue it filled was a ranked one (Elo moves, if the game is long enough).
+    pub rated: bool,
+    pub kind: GameKind,
 }
 
 /// What a rematch against the bot needs to remember.
@@ -77,6 +106,7 @@ pub(super) struct SoloSetup {
     pub human_color: Color,
     pub campaign: Option<LevelRef>,
     pub deck: Vec<SkillId>,
+    pub disguise: Option<Disguise>,
 }
 
 impl Hub {
@@ -114,16 +144,145 @@ impl Hub {
             SoloColor::Black => Color::Black,
             SoloColor::Random => Self::random_color(),
         };
-        self.start_solo(player, elo as i32, human, None, Vec::new());
+        self.start_solo(
+            player,
+            elo as i32,
+            human,
+            None,
+            None,
+            None,
+            None,
+            Vec::new(),
+        );
+    }
+
+    /// The next of the five placement games (docs/spec-v5.md): a plain Solo
+    /// game against a bot whose level follows the player's results (a win
+    /// climbs a step, anything else replays it), never shown. Only accounts can be placed; the result of the
+    /// game is settled by [`Hub::settle_placement`].
+    pub fn placement_start(&mut self, player: &str, color: SoloColor) {
+        if self.player_game.contains_key(player)
+            || !matches!(self.lobby_status(player), LobbyStatus::Idle)
+        {
+            return self.fail(player, "already_in_game", "finish your current game first");
+        }
+        let account =
+            matches!(self.store.player_row(player), Ok(Some(row)) if row.username.is_some());
+        if !account {
+            return self.fail(
+                player,
+                "account_required",
+                "placement games need an account",
+            );
+        }
+        let (placed, level) = match (
+            self.store.is_placed(player),
+            self.store.placement_next_level(player),
+        ) {
+            (Ok(placed), Ok(level)) => (placed, level),
+            _ => return self.fail(player, "unavailable", "try again"),
+        };
+        if placed {
+            return self.fail(player, "already_placed", "your rating is already estimated");
+        }
+        let human = match color {
+            SoloColor::White => Color::White,
+            SoloColor::Black => Color::Black,
+            SoloColor::Random => {
+                if rand::random_bool(0.5) {
+                    Color::White
+                } else {
+                    Color::Black
+                }
+            }
+        };
+        self.start_solo(
+            player,
+            level,
+            human,
+            None,
+            None,
+            Some(level),
+            None,
+            Vec::new(),
+        );
+    }
+
+    /// Books a finished placement game (`recorded`: it was played far enough
+    /// to be stored; one abandoned at deck selection can be played again).
+    /// Returns what the player is told with the game over.
+    pub(super) fn settle_placement(
+        &mut self,
+        session: &Session,
+        game_id: &str,
+        outcome: &chessy_engine::Outcome,
+        recorded: bool,
+    ) -> Option<PlacementView> {
+        let solo = session.solo.as_ref()?;
+        let level = solo.placement?;
+        if !recorded {
+            return None;
+        }
+        let human = session.players[solo.bot.opposite().index()].clone();
+        let score = match outcome.winner() {
+            Some(c) if c == solo.bot => 0.0,
+            Some(_) => 1.0,
+            None => 0.5,
+        };
+        match self.store.record_placement(&human, game_id, level, score) {
+            Ok(done) => Some(PlacementView {
+                done: done.done,
+                total: done.total,
+                elo: done.elo.map(|(_, after)| after),
+                before: done.elo.map(|(before, _)| before),
+            }),
+            Err(e) => {
+                tracing::error!("could not record placement game {game_id}: {e}");
+                None
+            }
+        }
+    }
+
+    /// A game against a matchmaking bot, for a player the queue could not pair
+    /// with anyone (see `fill_with_bots`).
+    pub(super) fn start_disguised(
+        &mut self,
+        player: &str,
+        bot: BotAccount,
+        human: Color,
+        time: Option<TimeControl>,
+        rated: bool,
+        kind: GameKind,
+    ) {
+        let disguise = Disguise {
+            account: bot.id,
+            name: bot.username,
+            rated,
+            kind,
+        };
+        self.start_solo(
+            player,
+            bot.elo,
+            human,
+            Some(disguise),
+            time,
+            None,
+            None,
+            Vec::new(),
+        );
     }
 
     /// Opens deck selection against a bot of level `elo` (a campaign level
     /// skips it, playing `deck`); `human` is the player's colour.
+    #[allow(clippy::too_many_arguments)] // one seat setup, called from several places
     pub(super) fn start_solo(
         &mut self,
         player: &str,
         elo: i32,
         human: Color,
+        disguise: Option<Disguise>,
+        time: Option<TimeControl>,
+        placement: Option<i32>,
         campaign: Option<LevelRef>,
         deck: Vec<SkillId>,
     ) {
@@ -131,14 +290,22 @@ impl Hub {
             Color::White => (player.to_string(), String::new()),
             Color::Black => (String::new(), player.to_string()),
         };
+        // Elo only moves against a bot standing in for a ranked opponent, and
+        // not when these two have already played their share of rated games.
+        let (rated, kind) = match &disguise {
+            Some(d) => (d.rated && !self.pair_capped(player, &d.account), d.kind),
+            None => (false, GameKind::Solo),
+        };
         let seat = Solo {
             bot: human.opposite(),
             elo,
+            disguise,
+            placement,
             campaign,
             deck,
             dev_all_stars: false,
         };
-        self.open_session(white, black, false, GameKind::Solo, Some(seat), None);
+        self.open_session(white, black, rated, kind, Some(seat), time);
     }
 
     // ---- the bot's turn --------------------------------------------------
@@ -157,8 +324,16 @@ impl Hub {
             return;
         }
         let ply = game.pos.ply;
-        let min = self.config.bot_delay_min;
-        let span = self.config.bot_delay_max.saturating_sub(min).as_millis() as u64;
+        // A bot that passes for a person takes its time, like one.
+        let (min, max) = if !solo.is_plain() {
+            (
+                self.config.bot_human_delay_min,
+                self.config.bot_human_delay_max,
+            )
+        } else {
+            (self.config.bot_delay_min, self.config.bot_delay_max)
+        };
+        let span = max.saturating_sub(min).as_millis() as u64;
         let extra = if span == 0 {
             0
         } else {
@@ -213,6 +388,7 @@ impl Hub {
             solo: Some(solo),
             draw_offer,
             recording,
+            clock,
             ..
         }) = self.games.get_mut(game_id)
         else {
@@ -221,6 +397,7 @@ impl Hub {
         if game.outcome().is_over() || game.pos.ply != ply || game.side_to_move() != solo.bot {
             return;
         }
+        let bot_color = solo.bot;
         // The AI only returns legal actions; if it ever did not, play any.
         let played = action
             .and_then(|a| game.apply(a).ok().map(|events| (a, events)))
@@ -235,6 +412,30 @@ impl Hub {
         recording.actions.push(action);
         *draw_offer = None;
         let outcome = game.outcome();
+        // A bot that stands in for a person plays on the clock like one (a
+        // skill that keeps the turn leaves the clock running).
+        let mut next_flag = None;
+        if let Some(clock) = clock {
+            if game.side_to_move() != bot_color || outcome.is_over() {
+                clock.press(
+                    bot_color,
+                    Instant::now(),
+                    self.config.clock_increment,
+                    outcome.is_over(),
+                );
+                next_flag = Some((clock.remaining[bot_color.opposite().index()], game.pos.ply));
+            }
+        }
+        if let (Some((delay, ply)), false) = (next_flag, outcome.is_over()) {
+            self.timers.push((
+                delay,
+                Timer::Flag {
+                    game_id: game_id.to_string(),
+                    color: bot_color.opposite(),
+                    ply,
+                },
+            ));
+        }
         self.broadcast_state(game_id, events);
         if outcome.is_over() {
             self.finish_game(game_id, outcome, reason_of(&outcome));
@@ -285,6 +486,7 @@ impl Hub {
     pub(super) fn offer_solo_rematch(&mut self, session: &Session) {
         let Some(solo) = &session.solo else { return };
         let human_color = solo.bot.opposite();
+        let disguise = solo.disguise.clone();
         let human = session.players[human_color.index()].clone();
         let bot_id = session.players[solo.bot.index()].clone();
         self.rematches.insert(
@@ -296,6 +498,7 @@ impl Hub {
                     human_color,
                     campaign: solo.campaign,
                     deck: solo.deck.clone(),
+                    disguise,
                 },
             ),
         );
@@ -320,15 +523,37 @@ impl Hub {
                 let Some(deck) = self.campaign_hand(player, level, chosen) else {
                     return;
                 };
-                self.start_solo(player, at.elo(), setup.human_color, Some(at), deck)
+                self.start_solo(
+                    player,
+                    at.elo(),
+                    setup.human_color,
+                    None,
+                    None,
+                    None,
+                    Some(at),
+                    deck,
+                )
             }
-            None => self.start_solo(
-                player,
-                setup.elo,
-                setup.human_color.opposite(),
-                None,
-                setup.deck,
-            ),
+            None => {
+                // A matchmaking bot has played since: it comes back at its level now.
+                let elo = match &setup.disguise {
+                    Some(d) => match self.store.player_row(&d.account) {
+                        Ok(Some(row)) => row.elo,
+                        _ => setup.elo,
+                    },
+                    None => setup.elo,
+                };
+                self.start_solo(
+                    player,
+                    elo,
+                    setup.human_color.opposite(),
+                    setup.disguise,
+                    None,
+                    None,
+                    None,
+                    setup.deck,
+                )
+            }
         }
     }
 }
@@ -343,7 +568,16 @@ mod tests {
     /// A campaign game where the human is Black, so the bot moves first.
     fn campaign_game(at: LevelRef) -> (Hub, String) {
         let mut hub = Hub::new(Store::open(":memory:").unwrap(), HubConfig::default());
-        hub.start_solo("p", 1200, Color::Black, Some(at), Vec::new());
+        hub.start_solo(
+            "p",
+            1200,
+            Color::Black,
+            None,
+            None,
+            None,
+            Some(at),
+            Vec::new(),
+        );
         let game_id = hub.player_game["p"].clone();
         (hub, game_id)
     }

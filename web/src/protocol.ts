@@ -346,6 +346,23 @@ export interface Me {
   losses: number;
   /** Le compte ne reçoit aucun message de chat (`set_chat_muted`) ; absent = serveur ancien. */
   chat_muted?: boolean;
+  /** Parties d'évaluation (v5) ; absent = serveur ancien (on suppose le joueur déjà évalué). */
+  placement?: PlacementProgress;
+}
+
+/** Avancement des parties d'évaluation : `placed` quand l'Elo est une estimation. */
+export interface PlacementProgress {
+  placed: boolean;
+  done: number;
+  total: number;
+}
+
+/** Fin d'une partie d'évaluation ; `elo` (et `before`) une fois les `total` parties jouées. */
+export interface PlacementView {
+  done: number;
+  total: number;
+  elo?: number | null;
+  before?: number | null;
 }
 
 export interface LeaderboardEntry {
@@ -378,6 +395,8 @@ export interface PublicProfile {
   username: string;
   title: string | null;
   elo: number;
+  /** Faux tant que l'Elo est celui de départ (parties d'évaluation non jouées) ; absent = serveur ancien. */
+  placed?: boolean;
   peak_elo: number;
   rank: number | null;
   games: number;
@@ -457,7 +476,7 @@ export type ServerMsg =
   | ({ type: "deck_select" } & DeckSelectInfo)
   | ({ type: "state" } & StateView)
   | { type: "opponent_status"; connected: boolean }
-  | { type: "game_over"; outcome: Outcome; reward: RewardOffer | null; rated: boolean; elo: EloChange | null; reason: string; campaign?: CampaignResult | null }
+  | { type: "game_over"; outcome: Outcome; reward: RewardOffer | null; rated: boolean; elo: EloChange | null; reason: string; campaign?: CampaignResult | null; placement?: PlacementView }
   | { type: "deck_update"; deck: SkillId[]; gained: SkillId | null; lost: SkillId | null }
   | { type: "reward_outcome"; by: string; kind: RewardOutcomeKind; skill: SkillId | null; refilled: SkillId | null }
   | { type: "boss_forge"; info: BossForgeInfo }
@@ -482,6 +501,7 @@ export type ClientMsg =
   | { type: "campaign_start"; chapter: number; level: number; deck?: SkillId[] }
   | { type: "boss_forge_claim"; chapter: number }
   | { type: "boss_forge_place"; chapter: number; replace?: SkillId | null }
+  | { type: "placement_start"; color?: SoloColor }
   | { type: "create_room"; time?: TimeControl }
   | { type: "join_room"; code: string }
   | { type: "leave_lobby" }

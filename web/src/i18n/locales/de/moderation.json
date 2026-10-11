@@ -1,0 +1,19 @@
+{
+  "reason_harassment": "Belästigung oder Beleidigungen",
+  "reason_spam": "Spam",
+  "reason_cheating": "Betrug",
+  "reason_inappropriate_name": "Unangemessener Benutzername",
+  "reason_other": "Sonstiges",
+  "unblock": "Entsperren",
+  "block": "Blockieren",
+  "report": "Melden",
+  "block_title": "{username} blockieren?",
+  "block_body": "Nachrichten, Freundschaftsanfragen und Herausforderungen von dieser Person erreichen dich nicht mehr, und sie wird aus deinen Freunden entfernt. Du kannst weiterhin gegen sie spielen. {username} wird nicht darüber informiert, und du kannst die Blockierung jederzeit in den Einstellungen aufheben.",
+  "block_confirm": "{username} blockieren",
+  "cancel": "Abbrechen",
+  "report_title": "{username} melden",
+  "report_sub": "Die Meldung wird an die Moderation weitergeleitet. {username} wird nicht darüber informiert.",
+  "reason_aria": "Grund",
+  "attach": "Letzte Nachrichten der Partie anhängen",
+  "send": "Meldung senden"
+}

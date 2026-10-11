@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 import { SPEEDS, speedLabel, type NavAction, type ReplayNav } from "../../replay/nav";
 
 interface Props {
@@ -14,15 +15,16 @@ const Icon = ({ d }: { d: string }) => (
 
 /** Début, précédent, lecture automatique, suivant, fin ; barre de progression ; vitesse. */
 export function Controls({ nav, disabled = false, dispatch }: Props) {
+  const t = useT();
   const atStart = nav.index <= 0;
   const atEnd = nav.index >= nav.max;
   return (
-    <div className="rp-controls card" role="group" aria-label="Contrôles du replay">
+    <div className="rp-controls card" role="group" aria-label={t("replay.nav_aria")}>
       <div className="rp-transport">
-        <button type="button" className="btn sm rp-ibtn" onClick={() => dispatch({ type: "first" })} disabled={disabled || atStart} aria-label="Début de la partie" aria-keyshortcuts="Home" title="Début (Début)">
+        <button type="button" className="btn sm rp-ibtn" onClick={() => dispatch({ type: "first" })} disabled={disabled || atStart} aria-label={t("replay.first_aria")} aria-keyshortcuts="Home" title={t("replay.first_title")}>
           <Icon d="M4 4h2v12H4zM16 4v12L7 10z" />
         </button>
-        <button type="button" className="btn sm rp-ibtn" onClick={() => dispatch({ type: "prev" })} disabled={disabled || atStart} aria-label="Coup précédent" aria-keyshortcuts="ArrowLeft" title="Précédent (←)">
+        <button type="button" className="btn sm rp-ibtn" onClick={() => dispatch({ type: "prev" })} disabled={disabled || atStart} aria-label={t("replay.nav_prev")} aria-keyshortcuts="ArrowLeft" title={t("replay.prev_title")}>
           <Icon d="M13 4v12L4 10z" />
         </button>
         <button
@@ -30,24 +32,24 @@ export function Controls({ nav, disabled = false, dispatch }: Props) {
           className="btn sm pri rp-ibtn rp-play"
           onClick={() => dispatch({ type: "toggle" })}
           disabled={disabled || nav.max === 0}
-          aria-label={nav.playing ? "Mettre en pause" : "Lecture automatique"}
+          aria-label={t(nav.playing ? "replay.pause_aria" : "replay.play_aria")}
           aria-pressed={nav.playing}
           aria-keyshortcuts="Space"
-          title={nav.playing ? "Pause (Espace)" : "Lecture (Espace)"}
+          title={t(nav.playing ? "replay.pause_title" : "replay.play_title")}
         >
           {nav.playing ? <Icon d="M5 4h4v12H5zM11 4h4v12h-4z" /> : <Icon d="M6 3.5v13L16.5 10z" />}
         </button>
-        <button type="button" className="btn sm rp-ibtn" onClick={() => dispatch({ type: "next" })} disabled={disabled || atEnd} aria-label="Coup suivant" aria-keyshortcuts="ArrowRight" title="Suivant (→)">
+        <button type="button" className="btn sm rp-ibtn" onClick={() => dispatch({ type: "next" })} disabled={disabled || atEnd} aria-label={t("replay.nav_next")} aria-keyshortcuts="ArrowRight" title={t("replay.next_title")}>
           <Icon d="M7 4v12l9-6z" />
         </button>
-        <button type="button" className="btn sm rp-ibtn" onClick={() => dispatch({ type: "last" })} disabled={disabled || atEnd} aria-label="Fin de la partie" aria-keyshortcuts="End" title="Fin (Fin)">
+        <button type="button" className="btn sm rp-ibtn" onClick={() => dispatch({ type: "last" })} disabled={disabled || atEnd} aria-label={t("replay.last_aria")} aria-keyshortcuts="End" title={t("replay.last_title")}>
           <Icon d="M14 4h2v12h-2zM4 4l9 6-9 6z" />
         </button>
       </div>
 
       <div className="rp-progress">
         <label className="sr-only" htmlFor="rp-range">
-          Position dans la partie
+          {t("replay.position_label")}
         </label>
         <input
           id="rp-range"
@@ -57,7 +59,7 @@ export function Controls({ nav, disabled = false, dispatch }: Props) {
           value={nav.index}
           disabled={disabled || nav.max === 0}
           onChange={(e) => dispatch({ type: "goto", index: Number(e.target.value) })}
-          aria-valuetext={`Coup ${nav.index} sur ${nav.max}`}
+          aria-valuetext={t("replay.position_value", { index: nav.index, max: nav.max })}
           style={{ ["--rp-pct" as string]: `${nav.max ? (nav.index / nav.max) * 100 : 0}%` }}
         />
         <span className="mono muted rp-count" aria-hidden="true">
@@ -65,7 +67,7 @@ export function Controls({ nav, disabled = false, dispatch }: Props) {
         </span>
       </div>
 
-      <div className="rp-speed" role="group" aria-label="Vitesse de lecture">
+      <div className="rp-speed" role="group" aria-label={t("replay.speed_aria")}>
         {SPEEDS.map((s) => (
           <button key={s} type="button" className={`rp-speed-btn${nav.speed === s ? " on" : ""}`} aria-pressed={nav.speed === s} onClick={() => dispatch({ type: "speed", speed: s })} disabled={disabled}>
             {speedLabel(s)}

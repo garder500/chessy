@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
+import { useLang, t } from "./i18n";
 import { navigate, useRoute } from "./router";
 import { Auth, needsWelcome } from "./screens/Auth";
 import { Collection } from "./screens/Collection";
@@ -29,6 +30,7 @@ const Campaign = lazy(() => import("./screens/Campaign").then((m) => ({ default:
 export function App() {
   const state = useAppState();
   const route = useRoute();
+  useLang(); // re-render de toute l'application au changement de langue
 
   useEffect(() => {
     store.connect();
@@ -56,12 +58,12 @@ export function App() {
     screen = (
       <main className="page-center">
         <h1 className="page-title">Chessy</h1>
-        <p className="muted">Ce compte est utilisé dans un autre onglet. Fermez celui-ci ou rechargez la page.</p>
+        <p className="muted">{t("app.replaced")}</p>
       </main>
     );
   } else if (state.game) {
     screen = (
-      <Suspense fallback={<p className="page-center muted">Chargement de la partie…</p>}>
+      <Suspense fallback={<p className="page-center muted">{t("app.loadingGame")}</p>}>
         <Game view={state.game} />
       </Suspense>
     );
@@ -103,14 +105,14 @@ export function App() {
         break;
       case "watch":
         screen = (
-          <Suspense fallback={<p className="page-center muted">Chargement de la partie…</p>}>
+          <Suspense fallback={<p className="page-center muted">{t("app.loadingGame")}</p>}>
             <Watch gameId={route.param ?? ""} />
           </Suspense>
         );
         break;
       case "replay":
         screen = (
-          <Suspense fallback={<p className="page-center muted">Chargement du replay…</p>}>
+          <Suspense fallback={<p className="page-center muted">{t("app.loadingReplay")}</p>}>
             <Replay gameId={route.param ?? ""} autoAnalyse={route.sub === "analyse"} />
           </Suspense>
         );
@@ -125,7 +127,7 @@ export function App() {
       <SkillSprite />
       {state.connection === "closed" && (
         <div className="conn-banner" role="status">
-          Connexion perdue, nouvelle tentative…
+          {t("app.connectionLost")}
         </div>
       )}
       {!inGame && state.connection !== "replaced" && route.name !== "auth" && <NavBar state={state} route={route.name} />}

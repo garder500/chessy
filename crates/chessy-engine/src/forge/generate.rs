@@ -6,6 +6,7 @@ use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
 
+use super::bricks::{self, Condition, Zone};
 use super::def::{Constraint, Effect, Side, SkillDef, SwapScope};
 use super::measure;
 use super::rarity::{grade, Graded, Rarity, Thresholds};
@@ -171,6 +172,17 @@ pub fn random_def(rng: &mut Rng) -> SkillDef {
     if rng.chance(80) {
         def.free_action = true;
     }
+    // The newer bricks are drawn last, so the draws above are unchanged.
+    let takes = bricks::takes(&def.effect);
+    if takes.kinds && rng.chance(150) {
+        def.selector.kinds = Some(some_kinds(rng, &PIECES));
+    }
+    if takes.zone && rng.chance(200) {
+        def.selector.zone = pick(rng, &Zone::ALL[1..]);
+    }
+    if rng.chance(120) {
+        def.condition = Some(pick(rng, &Condition::ALL));
+    }
     def.canonical()
 }
 
@@ -202,6 +214,10 @@ impl Budget {
         }
     }
 }
+
+/// A skill with a narrowing brick must be usable on at least this share of
+/// the measured positions to be forged.
+pub const MIN_AVAILABILITY: f64 = 0.15;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Forged {
@@ -238,13 +254,26 @@ pub fn forge(rng: &mut Rng, target: Rarity, known: &HashSet<String>, budget: Bud
     let mut best: Option<(Forged, (usize, bool))> = None;
     for _ in 0..budget.attempts.max(1) {
         let mut def = random_def(rng);
-        let graded = grade_def(&def, known, thresholds, budget.positions);
+        let measurement = measure::measure(&def, budget.positions);
+        let graded = grade(
+            &def,
+            &measurement,
+            thresholds,
+            known.contains(&def.signature()),
+        );
         def.unique = graded.rarity.is_unique();
+        // Bricks can combine into a skill that is almost never playable
+        // ("only on light squares, when you have no queen, a rook...").
+        // Those are kept only as a last resort.
+        let dead = def.is_narrowed() && measurement.availability < MIN_AVAILABILITY;
         let candidate = Forged { def, graded };
-        if graded.rarity == target {
+        if graded.rarity == target && !dead {
             return candidate;
         }
-        let key = (distance(graded.rarity, target), graded.redundant);
+        let key = (
+            distance(graded.rarity, target) + if dead { Rarity::ALL.len() } else { 0 },
+            graded.redundant,
+        );
         if best.as_ref().is_none_or(|(_, k)| key < *k) {
             best = Some((candidate, key));
         }

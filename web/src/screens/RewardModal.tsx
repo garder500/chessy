@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useT } from "../i18n";
 import type { RewardChoice, RewardOffer, SkillId } from "../protocol";
 import { skillInfo } from "../skills";
 import { store } from "../store";
@@ -20,6 +21,7 @@ export function buildChoice(offer: RewardOffer, pick: Pick, replace: SkillId | u
 
 /** Récompense de victoire : voler une compétence, en tirer une au hasard, ou passer. */
 export function RewardModal({ offer }: { offer: RewardOffer }) {
+  const t = useT();
   const [pick, setPick] = useState<Pick>(null);
   const [replace, setReplace] = useState<SkillId | undefined>();
   // Une compétence aléatoire est forgée par le serveur, ce qui prend un instant.
@@ -31,40 +33,38 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
   useEffect(() => {
     if (!forging) return;
     // Si le serveur refuse (la récompense reste affichée), on rend la main.
-    const t = setTimeout(() => setForging(false), 15_000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setForging(false), 15_000);
+    return () => clearTimeout(timer);
   }, [forging]);
 
   const choice = buildChoice(offer, pick, replace);
   const needsReplace = offer.deck_full && pick !== null && replace === undefined;
 
   const stolen = pick?.kind === "steal" ? skillInfo(pick.skill).name : null;
-  const cta = forging ? "Forge en cours…" : pick?.kind === "random" ? "Lancer la forge" : stolen ? `Prendre ${stolen}` : "Choisir";
+  const cta = forging ? t("reward.forging_cta") : pick?.kind === "random" ? t("reward.forge_start") : stolen ? t("reward.take", { name: stolen }) : t("reward.choose");
+
+  const deckFull = t("reward.deck_full", { n: "\u0001" }).split("\u0001");
 
   return (
     <div className="rw" role="dialog" aria-modal="true" aria-labelledby="rw-title" tabIndex={-1} ref={dialog}>
       <header className="rw-top">
-        <button type="button" className="rw-back" aria-label="Retour au résultat" disabled={forging} onClick={() => store.closeReward()}>
+        <button type="button" className="rw-back" aria-label={t("reward.back_aria")} disabled={forging} onClick={() => store.closeReward()}>
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="M15 5l-7 7 7 7" />
           </svg>
         </button>
         <h2 id="rw-title" className="rw-title">
-          Votre récompense
+          {t("reward.title")}
         </h2>
       </header>
 
       <div className="rw-body">
-        <h2 className="rw-h1">Votre récompense</h2>
-        <p className="muted rw-sub">
-          {offer.steal_options.length > 0
-            ? "Prenez une compétence à votre adversaire, ou faites-en forger une inédite."
-            : "Pour avoir vaincu le boss, faites forger une compétence inédite."}
-        </p>
+        <h2 className="rw-h1">{t("reward.title")}</h2>
+        <p className="muted rw-sub">{offer.steal_options.length > 0 ? t("reward.sub") : "Pour avoir vaincu le boss, faites forger une compétence inédite."}</p>
 
         <div className="rw-sec rw-sec-pick">
           <p className="rw-label" id="rw-take">
-            Récupérer
+            {t("reward.take_label")}
           </p>
           <div className="rw-opts" role="radiogroup" aria-labelledby="rw-take">
             {offer.steal_options.map((skill) => (
@@ -78,13 +78,13 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
             ))}
           </div>
           {offer.steal_options.length === 0 && (
-            <p className="muted rw-empty">Aucune compétence à récupérer ici : seule la forge reste possible.</p>
+            <p className="muted rw-empty">{t("reward.empty")}</p>
           )}
         </div>
 
         <div className="rw-sec rw-sec-pick">
           <p className="rw-label" id="rw-luck">
-            Ou tenter sa chance
+            {t("reward.luck")}
           </p>
           <div className="rw-opts" role="radiogroup" aria-labelledby="rw-luck">
             <button
@@ -99,8 +99,8 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
                 <SkillArt id="godhelp" size={46} family="create" />
               </span>
               <span className="skc-body">
-                <span className="skc-name">Forger une compétence</span>
-                <span className="skc-desc">Inédite, de commune à légendaire. Votre adversaire en perd une au hasard.</span>
+                <span className="skc-name">{t("reward.forge_name")}</span>
+                <span className="skc-desc">{t("reward.forge_desc")}</span>
               </span>
               <span className="skc-ring" aria-hidden="true" />
             </button>
@@ -110,7 +110,9 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
         {offer.deck_full && (
           <div className="rw-sec">
             <p className="rw-label" id="rw-replace">
-              Votre deck est plein (<span className="mono">{offer.deck.length}/7</span>) : choisissez la compétence à remplacer
+              {deckFull[0]}
+              <span className="mono">{offer.deck.length}/7</span>
+              {deckFull[1]}
             </p>
             <div className="rw-replace" role="radiogroup" aria-labelledby="rw-replace">
               {offer.deck.map((skill) => {
@@ -143,7 +145,7 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
 
       <footer className="rw-foot">
         <p className="muted rw-hint" role="status">
-          {forging ? "Le forgeron travaille…" : needsReplace ? "Sélectionnez la compétence à remplacer pour continuer." : ""}
+          {forging ? t("reward.forging_hint") : needsReplace ? t("reward.replace_hint") : ""}
         </p>
         <button
           type="button"
@@ -158,7 +160,7 @@ export function RewardModal({ offer }: { offer: RewardOffer }) {
           {cta}
         </button>
         <button type="button" className="link" disabled={forging} onClick={() => store.send({ type: "reward_choice", choice: { kind: "skip" } })}>
-          Passer
+          {t("reward.skip")}
         </button>
       </footer>
     </div>

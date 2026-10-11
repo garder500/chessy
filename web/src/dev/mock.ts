@@ -284,6 +284,58 @@ function installFetch() {
       const all = Array.from({ length: 26 }, (_, i) => ({ ...base[i % base.length], game_id: i < base.length ? base[i].game_id : `g-demo-${i + 1}` }));
       return json({ total: all.length, games: all.slice(offset, offset + limit) });
     }
+    if (path === "/api/leaderboard") {
+      await wait(200);
+      const limit = Number(url.searchParams.get("limit") ?? 50);
+      const offset = Number(url.searchParams.get("offset") ?? 0);
+      const all = Array.from({ length: 120 }, (_, i) => ({
+        rank: i + 1,
+        username: i === 2 ? "jeremy" : `joueur${i + 1}`,
+        elo: 1900 - i * 9,
+        games: 40 + i,
+        wins: 25 + (i % 9),
+        draws: i % 5,
+        losses: 10 + (i % 7),
+      }));
+      return json({ total: all.length, entries: all.slice(offset, offset + limit) });
+    }
+    if (/^\/api\/players\/[^/]+$/.test(path)) {
+      await wait(200);
+      const username = decodeURIComponent(path.slice("/api/players/".length));
+      const base = fixtureGames();
+      return json({
+        username,
+        elo: 1284,
+        placed: true,
+        peak_elo: 1340,
+        rank: 3,
+        games: 26,
+        wins: 14,
+        draws: 3,
+        losses: 9,
+        streak: 2,
+        created_at: "2026-01-12T10:00:00Z",
+        history: Array.from({ length: 30 }, (_, i) => ({ elo: 1100 + i * 6 + (i % 4) * 9, at: new Date(Date.UTC(2026, 8, 1 + i)).toISOString() })),
+        recent: Array.from({ length: 10 }, (_, i) => ({
+          game_id: base[i % base.length].game_id,
+          opponent: `adversaire${i + 1}`,
+          result: (["win", "loss", "draw"] as const)[i % 3],
+          color: i % 2 ? "black" : "white",
+          rated: true,
+          elo_delta: 8 - i,
+          reason: "checkmate",
+          at: new Date(Date.UTC(2026, 8, 20 - i)).toISOString(),
+        })),
+      });
+    }
+    if (path === "/api/me/skills") {
+      await wait(200);
+      const ids = ["teleportation", "imune", "tornado", "teleportation", "imune", "tornado"] as const;
+      return json({
+        deck: ["teleportation", "imune", "tornado"],
+        entries: Array.from({ length: 40 }, (_, i) => ({ id: i + 1, skill: ids[i % ids.length], change: i % 4 === 3 ? "lost" : "gained", source: "won", at: new Date(Date.UTC(2026, 8, 28 - i)).toISOString() })),
+      });
+    }
     const m = path.match(/^\/api\/games\/([^/]+)(?:\/(analysis|explore))?$/);
     if (m) {
       const id = decodeURIComponent(m[1]);

@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import { hrefFor } from "../router";
 import type { FriendInfo } from "../protocol";
 import { store, useAppState } from "../store";
@@ -7,6 +8,7 @@ import { presenceLabel } from "./social";
 
 /** Panneau « Défier X » : cadence au choix puis envoi du défi (partie amicale, ni Elo ni compétence en jeu). */
 export function ChallengeSheet({ friend, onClose }: { friend: FriendInfo | null; onClose: () => void }) {
+  const t = useT();
   const { outgoingChallenge, connection } = useAppState();
   const time = useTime();
   const connected = connection === "open";
@@ -16,23 +18,23 @@ export function ChallengeSheet({ friend, onClose }: { friend: FriendInfo | null;
   const blocked = friend?.presence === "offline" || (friend?.presence === "in_game" && !watch);
 
   return (
-    <Sheet open={!!friend} title={`Défier ${friend?.username ?? ""}`} onClose={onClose}>
+    <Sheet open={!!friend} title={t("challenge.sheet_title", { name: friend?.username ?? "" })} onClose={onClose}>
       {friend && (
         <>
           <p className="sheet-sub">
-            {presenceLabel(friend.presence, friend.last_seen)} · {friend.elo} Elo · partie amicale : ni Elo ni compétence en jeu.
+            {presenceLabel(friend.presence, friend.last_seen)} · {t("challenge.sheet_sub", { elo: friend.elo })}
           </p>
-          <div className="segs" role="radiogroup" aria-label="Cadence">
-            {TIMES.map((t) => (
-              <button key={t.id} type="button" role="radio" aria-checked={time === t.id} className={`sg${time === t.id ? " on" : ""}`} onClick={() => setTime(t.id)}>
-                {t.label}
+          <div className="segs" role="radiogroup" aria-label={t("challenge.pace_aria")}>
+            {TIMES.map((tm) => (
+              <button key={tm.id} type="button" role="radio" aria-checked={time === tm.id} className={`sg${time === tm.id ? " on" : ""}`} onClick={() => setTime(tm.id)}>
+                {tm.label}
               </button>
             ))}
           </div>
           <p className="sheet-sub">{timeText(time)}</p>
           {watch ? (
             <a className="btn pri block" href={hrefFor({ name: "watch", param: watch })}>
-              Regarder la partie
+              {t("challenge.watch_game")}
             </a>
           ) : (
             <button
@@ -44,7 +46,7 @@ export function ChallengeSheet({ friend, onClose }: { friend: FriendInfo | null;
                 onClose();
               }}
             >
-              {sent ? "Défi envoyé" : busy ? "Un autre défi est en attente" : blocked ? `${friend.username} est indisponible` : "Envoyer le défi"}
+              {sent ? t("challenge.sent") : busy ? t("challenge.other_pending") : blocked ? t("challenge.unavailable", { name: friend.username }) : t("challenge.send")}
             </button>
           )}
         </>

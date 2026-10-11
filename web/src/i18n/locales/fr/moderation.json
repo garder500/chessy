@@ -1,0 +1,19 @@
+{
+  "reason_harassment": "Harcèlement ou insultes",
+  "reason_spam": "Spam",
+  "reason_cheating": "Triche",
+  "reason_inappropriate_name": "Pseudo inapproprié",
+  "reason_other": "Autre",
+  "unblock": "Débloquer",
+  "block": "Bloquer",
+  "report": "Signaler",
+  "block_title": "Bloquer {username} ?",
+  "block_body": "Ses messages, ses demandes d'ami et ses défis ne vous parviendront plus, et il sera retiré de vos amis. Vous pouvez toujours jouer contre lui. {username} n'en est pas informé, et vous pourrez le débloquer à tout moment dans Réglages.",
+  "block_confirm": "Bloquer {username}",
+  "cancel": "Annuler",
+  "report_title": "Signaler {username}",
+  "report_sub": "Le signalement est transmis à la modération. {username} n'en est pas informé.",
+  "reason_aria": "Motif",
+  "attach": "Joindre les derniers messages de la partie",
+  "send": "Envoyer le signalement"
+}

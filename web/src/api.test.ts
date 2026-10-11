@@ -1,5 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
+import { setLang } from "./i18n";
 import { api, ApiError, apiErrorText } from "./api";
+
+beforeAll(() => setLang("fr"));
 
 function mockFetch(res: { status: number; body?: unknown } | Error) {
   const fn = vi.fn(async () => {

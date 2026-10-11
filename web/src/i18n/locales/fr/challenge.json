@@ -1,0 +1,18 @@
+{
+  "received": "Défi reçu",
+  "challenges_you": "{name} vous défie",
+  "elo_friendly": "Elo · partie amicale",
+  "decline": "Refuser",
+  "accept": "Accepter le défi",
+  "sent_to_pre": "Défi envoyé à ",
+  "sent_to_post": "…",
+  "cancel": "Annuler",
+  "sheet_title": "Défier {name}",
+  "sheet_sub": "{elo} Elo · partie amicale : ni Elo ni compétence en jeu.",
+  "pace_aria": "Cadence",
+  "watch_game": "Regarder la partie",
+  "sent": "Défi envoyé",
+  "other_pending": "Un autre défi est en attente",
+  "unavailable": "{name} est indisponible",
+  "send": "Envoyer le défi"
+}

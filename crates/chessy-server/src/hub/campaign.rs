@@ -47,7 +47,7 @@ impl Hub {
             .start
             .as_ref()
             .map_or_else(Self::random_color, |start| start.human);
-        self.start_solo(player, at.elo(), human, Some(at), deck);
+        self.start_solo(player, at.elo(), human, None, None, None, Some(at), deck);
     }
 
     pub(super) fn is_account(&self, player: &str) -> bool {

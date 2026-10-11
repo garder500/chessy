@@ -305,6 +305,7 @@ impl Hub {
             None
         };
 
+        let loser_before = loser.and_then(|l| self.deck_of(l).ok()).unwrap_or_default();
         self.store
             .apply_deck_change(winner, loser, gain, loser_loses, winner_drops)
             .map_err(|_| "could not apply that reward")?;
@@ -319,10 +320,11 @@ impl Hub {
             },
         );
         if let Some(loser) = loser {
-            let emptied = self.deck_of(loser).is_ok_and(|deck| deck.is_empty());
-            let _ = self.store.refill_if_empty(loser);
             if let Ok(loser_after) = self.deck_of(loser) {
-                let refilled = loser_after.first().copied().filter(|_| emptied);
+                let refilled = loser_after
+                    .iter()
+                    .copied()
+                    .find(|s| !loser_before.contains(s));
                 self.send(
                     loser,
                     ServerMsg::DeckUpdate {

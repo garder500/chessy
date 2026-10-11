@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "./i18n";
 import { SOLO_DEFAULT, SOLO_KEY, SOLO_MAX, SOLO_MIN, SOLO_STEP, SOLO_TIERS, clampElo, readSolo, soloTier, writeSolo } from "./solo";
+
+beforeAll(() => setLang("fr"));
 
 function memory(initial: Record<string, string> = {}) {
   const data = { ...initial };

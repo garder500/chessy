@@ -109,140 +109,14 @@ impl Skill for Composite {
     }
 
     fn targets(&self, pos: &Position, color: Color) -> Vec<SkillTarget> {
-        if self.def.constraints.contains(&Constraint::OnlyInCheck) && !pos.in_check(color) {
+        if self.def.condition.is_some_and(|c| !c.holds(pos, color)) {
             return Vec::new();
         }
-        let enemy = color.opposite();
-        match &self.def.effect {
-            Effect::Freeze { .. } => piece_targets(pos, enemy, not_king),
-            Effect::Shield { .. } | Effect::Cloak { .. } => piece_targets(pos, color, not_king),
-            Effect::Morph { side, into, .. } => {
-                let who = side_color(color, *side);
-                pos.pieces(who)
-                    .filter(|(square, p)| {
-                        p.kind != PieceKind::King
-                            && p.kind != *into
-                            && Position::can_stand(who, *into, *square)
-                    })
-                    .map(|(square, _)| SkillTarget::Spawn {
-                        square,
-                        kind: *into,
-                    })
-                    .collect()
-            }
-            Effect::Promote => piece_targets(pos, color, |_, p| {
-                !matches!(p.kind, PieceKind::King | PieceKind::Queen)
-            }),
-            Effect::Remove { kinds } => {
-                piece_targets(pos, enemy, |_, p| kinds.contains(&p.kind) && not_king(0, p))
-            }
-            Effect::Convert => pos
-                .pieces(enemy)
-                .filter(|(_, p)| p.kind != PieceKind::King)
-                .filter(|&(from, _)| {
-                    pos.attacked_squares(from)
-                        .into_iter()
-                        .all(|s| !matches!(pos.board[s as usize], Some(p) if p.color == color))
-                })
-                .map(|(square, _)| SkillTarget::Piece { square })
-                .collect(),
-            Effect::Teleport => {
-                let mut out = Vec::new();
-                for (from, piece) in pos.pieces(color) {
-                    if piece.kind == PieceKind::King || pos.is_frozen(piece.id) {
-                        continue;
-                    }
-                    for to in 0..64u8 {
-                        if pos.can_place(color, piece.kind, to) {
-                            out.push(SkillTarget::PieceTo { from, to });
-                        }
-                    }
-                }
-                out
-            }
-            Effect::Duplicate => {
-                let mut out = Vec::new();
-                for (from, piece) in pos.pieces(color) {
-                    if piece.kind == PieceKind::King {
-                        continue;
-                    }
-                    for to in neighbors(from) {
-                        if pos.can_place(color, piece.kind, to) {
-                            out.push(SkillTarget::PieceTo { from, to });
-                        }
-                    }
-                }
-                out
-            }
-            Effect::Swap { scope } => {
-                let mut pool: Vec<(Square, Piece)> = match scope {
-                    SwapScope::Own => pos
-                        .pieces(color)
-                        .filter(|(_, p)| !pos.is_frozen(p.id))
-                        .collect(),
-                    SwapScope::Any => Color::BOTH
-                        .into_iter()
-                        .flat_map(|c| pos.pieces(c))
-                        .filter(|(_, p)| p.kind != PieceKind::King)
-                        .collect(),
-                };
-                // A pair is listed with its lower square first.
-                pool.sort_by_key(|&(square, _)| square);
-                let mut out = Vec::new();
-                for (i, &(a, pa)) in pool.iter().enumerate() {
-                    for &(b, pb) in &pool[i + 1..] {
-                        if Position::can_stand(pa.color, pa.kind, b)
-                            && Position::can_stand(pb.color, pb.kind, a)
-                        {
-                            out.push(SkillTarget::Pair { a, b });
-                        }
-                    }
-                }
-                out
-            }
-            Effect::Truce { .. } => {
-                if pos.truce() {
-                    Vec::new()
-                } else {
-                    vec![SkillTarget::None]
-                }
-            }
-            Effect::Fog { .. } => {
-                if pos.fog() {
-                    Vec::new()
-                } else {
-                    vec![SkillTarget::None]
-                }
-            }
-            Effect::Silence { .. } => {
-                if pos.is_silenced(enemy) {
-                    Vec::new()
-                } else {
-                    vec![SkillTarget::None]
-                }
-            }
-            Effect::Ambush { .. } => {
-                if pos.has_domain(color) {
-                    Vec::new()
-                } else {
-                    vec![SkillTarget::None]
-                }
-            }
-            Effect::Mirror => vec![SkillTarget::None],
-            Effect::Spawn { kinds, .. } => Self::spawn_targets(pos, color, kinds),
-            Effect::Revive { kinds } => {
-                let mut out: Vec<SkillTarget> = Vec::new();
-                for &kind in kinds {
-                    let Some(i) = first_grave(pos, color, kind) else {
-                        continue;
-                    };
-                    if let Some(square) = revive_square(pos, color, &pos.graveyard[i]) {
-                        out.push(SkillTarget::Spawn { square, kind });
-                    }
-                }
-                out
-            }
+        let mut targets = self.effect_targets(pos, color);
+        if !self.def.selector.is_default() {
+            targets.retain(|&t| self.def.selector.allows(pos, color, t));
         }
+        targets
     }
 
     fn apply(&self, pos: &mut Position, color: Color, target: SkillTarget, ev: &mut Vec<Event>) {
@@ -381,6 +255,146 @@ impl Skill for Composite {
             }
             // A target of the wrong shape is ignored, as in the built-in skills.
             _ => {}
+        }
+    }
+}
+
+impl Composite {
+    /// Every target the effect itself allows, before the selector narrows them.
+    fn effect_targets(&self, pos: &Position, color: Color) -> Vec<SkillTarget> {
+        if self.def.constraints.contains(&Constraint::OnlyInCheck) && !pos.in_check(color) {
+            return Vec::new();
+        }
+        let enemy = color.opposite();
+        match &self.def.effect {
+            Effect::Freeze { .. } => piece_targets(pos, enemy, not_king),
+            Effect::Shield { .. } | Effect::Cloak { .. } => piece_targets(pos, color, not_king),
+            Effect::Morph { side, into, .. } => {
+                let who = side_color(color, *side);
+                pos.pieces(who)
+                    .filter(|(square, p)| {
+                        p.kind != PieceKind::King
+                            && p.kind != *into
+                            && Position::can_stand(who, *into, *square)
+                    })
+                    .map(|(square, _)| SkillTarget::Spawn {
+                        square,
+                        kind: *into,
+                    })
+                    .collect()
+            }
+            Effect::Promote => piece_targets(pos, color, |_, p| {
+                !matches!(p.kind, PieceKind::King | PieceKind::Queen)
+            }),
+            Effect::Remove { kinds } => {
+                piece_targets(pos, enemy, |_, p| kinds.contains(&p.kind) && not_king(0, p))
+            }
+            Effect::Convert => pos
+                .pieces(enemy)
+                .filter(|(_, p)| p.kind != PieceKind::King)
+                .filter(|&(from, _)| {
+                    pos.attacked_squares(from)
+                        .into_iter()
+                        .all(|s| !matches!(pos.board[s as usize], Some(p) if p.color == color))
+                })
+                .map(|(square, _)| SkillTarget::Piece { square })
+                .collect(),
+            Effect::Teleport => {
+                let mut out = Vec::new();
+                for (from, piece) in pos.pieces(color) {
+                    if piece.kind == PieceKind::King || pos.is_frozen(piece.id) {
+                        continue;
+                    }
+                    for to in 0..64u8 {
+                        if pos.can_place(color, piece.kind, to) {
+                            out.push(SkillTarget::PieceTo { from, to });
+                        }
+                    }
+                }
+                out
+            }
+            Effect::Duplicate => {
+                let mut out = Vec::new();
+                for (from, piece) in pos.pieces(color) {
+                    if piece.kind == PieceKind::King {
+                        continue;
+                    }
+                    for to in neighbors(from) {
+                        if pos.can_place(color, piece.kind, to) {
+                            out.push(SkillTarget::PieceTo { from, to });
+                        }
+                    }
+                }
+                out
+            }
+            Effect::Swap { scope } => {
+                let mut pool: Vec<(Square, Piece)> = match scope {
+                    SwapScope::Own => pos
+                        .pieces(color)
+                        .filter(|(_, p)| !pos.is_frozen(p.id))
+                        .collect(),
+                    SwapScope::Any => Color::BOTH
+                        .into_iter()
+                        .flat_map(|c| pos.pieces(c))
+                        .filter(|(_, p)| p.kind != PieceKind::King)
+                        .collect(),
+                };
+                // A pair is listed with its lower square first.
+                pool.sort_by_key(|&(square, _)| square);
+                let mut out = Vec::new();
+                for (i, &(a, pa)) in pool.iter().enumerate() {
+                    for &(b, pb) in &pool[i + 1..] {
+                        if Position::can_stand(pa.color, pa.kind, b)
+                            && Position::can_stand(pb.color, pb.kind, a)
+                        {
+                            out.push(SkillTarget::Pair { a, b });
+                        }
+                    }
+                }
+                out
+            }
+            Effect::Truce { .. } => {
+                if pos.truce() {
+                    Vec::new()
+                } else {
+                    vec![SkillTarget::None]
+                }
+            }
+            Effect::Fog { .. } => {
+                if pos.fog() {
+                    Vec::new()
+                } else {
+                    vec![SkillTarget::None]
+                }
+            }
+            Effect::Silence { .. } => {
+                if pos.is_silenced(enemy) {
+                    Vec::new()
+                } else {
+                    vec![SkillTarget::None]
+                }
+            }
+            Effect::Ambush { .. } => {
+                if pos.has_domain(color) {
+                    Vec::new()
+                } else {
+                    vec![SkillTarget::None]
+                }
+            }
+            Effect::Mirror => vec![SkillTarget::None],
+            Effect::Spawn { kinds, .. } => Self::spawn_targets(pos, color, kinds),
+            Effect::Revive { kinds } => {
+                let mut out: Vec<SkillTarget> = Vec::new();
+                for &kind in kinds {
+                    let Some(i) = first_grave(pos, color, kind) else {
+                        continue;
+                    };
+                    if let Some(square) = revive_square(pos, color, &pos.graveyard[i]) {
+                        out.push(SkillTarget::Spawn { square, kind });
+                    }
+                }
+                out
+            }
         }
     }
 }

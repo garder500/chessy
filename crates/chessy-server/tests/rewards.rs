@@ -9,7 +9,7 @@ use std::time::Duration;
 use chessy_engine::{Color, SkillId};
 use chessy_server::hub::HubConfig;
 use chessy_server::protocol::{ClientMsg, RewardChoice};
-use chessy_server::store::Store;
+use chessy_server::store::{Store, MIN_DECK_SIZE};
 use chessy_server::App;
 use common::{account, fools_mate, ranked_match, Client, TempDb};
 use serde_json::Value;
@@ -138,7 +138,16 @@ async fn an_expired_reward_spares_the_loser() {
 #[tokio::test]
 async fn stealing_tells_the_loser_what_was_taken() {
     let (app, store) = common::new_app(HubConfig::default());
-    let (winner, mut loser, offer) = ranked_loss(&app, &store);
+    let (winner, mut loser, offer) = ranked_loss_with(
+        &app,
+        &store,
+        &[
+            SkillId::Rollback,
+            SkillId::Clone,
+            SkillId::DestinySwapper,
+            SkillId::Morph,
+        ],
+    );
     let stolen = steal(&winner, &offer);
     let outcome = loser.next("reward_outcome");
     assert_eq!(outcome["kind"], "stolen");
@@ -159,14 +168,14 @@ async fn a_forged_reward_tells_the_loser_what_they_lost() {
 }
 
 #[tokio::test]
-async fn a_loser_left_with_nothing_is_told_about_the_refill() {
+async fn a_loser_left_under_the_minimum_is_told_about_the_refill() {
     let (app, store) = common::new_app(HubConfig::default());
-    let (winner, mut loser, offer) = ranked_loss_with(&app, &store, &[SkillId::Rollback]);
+    let (winner, mut loser, offer) = ranked_loss(&app, &store);
     steal(&winner, &offer);
     let outcome = loser.next("reward_outcome");
     assert_eq!(outcome["kind"], "stolen");
     assert!(!outcome["refilled"].is_null());
-    assert_eq!(store.deck(&loser.id).unwrap().len(), 1);
+    assert_eq!(store.deck(&loser.id).unwrap().len(), MIN_DECK_SIZE);
 }
 
 #[tokio::test]

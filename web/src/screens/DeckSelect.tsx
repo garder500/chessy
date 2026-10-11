@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useT } from "../i18n";
 import type { DeckSelectInfo, SkillId } from "../protocol";
 import { skillInfo } from "../skills";
 import { store } from "../store";
@@ -8,6 +9,7 @@ import { SkillCard } from "./SkillCard";
 import "./deck.css";
 
 export function DeckSelect({ info }: { info: DeckSelectInfo }) {
+  const t = useT();
   const [picked, setPicked] = useState<SkillId[]>([]);
   const [left, setLeft] = useState(info.seconds);
 
@@ -29,23 +31,25 @@ export function DeckSelect({ info }: { info: DeckSelectInfo }) {
 
   const opp = info.opponent;
   const isBot = opp.bot === true;
-  const oppName = opp.username ?? (isBot ? "Sage" : "Invité");
+  const oppName = opp.username ?? (isBot ? "Sage" : t("deck.guest"));
   const share = info.seconds > 0 ? Math.max(0, Math.min(1, left / info.seconds)) : 0;
   const urgent = left <= 10;
 
   const ready = picked.length >= Math.min(info.max_picks, classic.length);
-  const cta = ready ? "Prêt" : picked.length === 0 ? "Jouer sans compétence" : `Jouer avec ${picked.length} compétence${picked.length > 1 ? "s" : ""}`;
+  const cta = ready ? t("deck.cta_ready") : picked.length === 0 ? t("deck.cta_none") : t("deck.cta_with", { count: picked.length });
+  const modeText = isBot ? (opp.elo === null ? t("deck.placement_game") : t("deck.training_game")) : `${opp.elo !== null ? `${opp.elo} · ` : ""}${info.rated ? t("deck.ranked") : t("deck.friendly")}`;
+  const versus = isBot ? oppName : t("deck.versus", { name: oppName });
 
   return (
     <main className="dk-page">
       <header className="dk-top">
-        <button type="button" className="dk-back" aria-label={isBot ? "Annuler" : "Quitter"} onClick={() => store.send({ type: "leave_deck_select" })}>
+        <button type="button" className="dk-back" aria-label={isBot ? t("deck.cancel") : t("deck.leave")} onClick={() => store.send({ type: "leave_deck_select" })}>
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="M15 5l-7 7 7 7" />
           </svg>
         </button>
-        <h1 className="dk-title">Vos compétences</h1>
-        <span className={`chip num dk-timer-chip${urgent ? " urgent" : ""}`} role="timer" aria-label={`Temps restant : ${left} secondes`}>
+        <h1 className="dk-title">{t("deck.title")}</h1>
+        <span className={`chip num dk-timer-chip${urgent ? " urgent" : ""}`} role="timer" aria-label={t("deck.time_left_aria", { count: left })}>
           0:{String(left).padStart(2, "0")}
         </span>
       </header>
@@ -54,19 +58,19 @@ export function DeckSelect({ info }: { info: DeckSelectInfo }) {
       </div>
 
       <div className="dk-body">
-        <div className="dk-opp" aria-label="Adversaire">
+        <div className="dk-opp" aria-label={t("deck.opponent_aria")}>
           <span className="avatar">{initialOf(oppName)}</span>
           <span className="dk-opp-txt">
-            <strong>{isBot ? oppName : `Contre ${oppName}`}</strong>
+            <strong>{versus}</strong>
             <span className="meta dk-opp-meta">
-              {isBot ? "Partie d'entraînement" : `${opp.elo !== null ? `${opp.elo} · ` : ""}${info.rated ? "Classée" : "Amicale"}`} · vous jouez les {info.you === "white" ? "blancs" : "noirs"}
+              {modeText} · {info.you === "white" ? t("deck.you_white") : t("deck.you_black")}
             </span>
           </span>
         </div>
 
         <section aria-labelledby="dk-classic">
           <p id="dk-classic" className="dk-label">
-            Choisissez-en {info.max_picks} dans votre deck <strong data-testid="pick-count">· {picked.length}/{info.max_picks}</strong>
+            {t("deck.pick_label", { count: info.max_picks })} <strong data-testid="pick-count">· {picked.length}/{info.max_picks}</strong>
           </p>
           <div className="dk-grid">
             {classic.map((skill) => {
@@ -88,7 +92,7 @@ export function DeckSelect({ info }: { info: DeckSelectInfo }) {
         {unique.length > 0 && (
           <section aria-labelledby="dk-unique" className="dk-unique">
             <p id="dk-unique" className="dk-label">
-              Compétence unique <span className="muted">· toujours incluse</span>
+              {t("deck.unique_label")} <span className="muted">· {t("deck.unique_always")}</span>
             </p>
             <div className="dk-grid">
               {unique.map((skill) => (
@@ -99,22 +103,22 @@ export function DeckSelect({ info }: { info: DeckSelectInfo }) {
         )}
       </div>
 
-      <aside className="dk-side card" aria-label="Récapitulatif">
+      <aside className="dk-side card" aria-label={t("deck.recap_aria")}>
         <div className="dk-side-opp">
           <span className="avatar">{initialOf(oppName)}</span>
           <span className="dk-opp-txt">
-            <strong>{isBot ? oppName : `Contre ${oppName}`}</strong>
+            <strong>{versus}</strong>
             <span className="meta">
-              {isBot ? "Partie d'entraînement" : `${opp.elo !== null ? `${opp.elo} · ` : ""}${info.rated ? "Classée" : "Amicale"}`} · {info.you === "white" ? "blancs" : "noirs"}
+              {modeText} · {info.you === "white" ? t("deck.side_white") : t("deck.side_black")}
             </span>
           </span>
         </div>
         <div className="dk-side-time">
-          <span className="dk-label">Temps pour choisir</span>
+          <span className="dk-label">{t("deck.time_to_pick")}</span>
           <span className={`num dk-side-clock${urgent ? " urgent" : ""}`}>0:{String(left).padStart(2, "0")}</span>
         </div>
         <p className="dk-label">
-          Votre sélection · {picked.length}/{info.max_picks}
+          {t("deck.your_selection")} · {picked.length}/{info.max_picks}
         </p>
         <ul className="dk-slots">
           {Array.from({ length: info.max_picks }, (_, i) => {
@@ -123,14 +127,14 @@ export function DeckSelect({ info }: { info: DeckSelectInfo }) {
             return (
               <li key={i} className={id ? "full" : ""}>
                 {sk ? <SkillArt id={id} size={26} /> : <span className="hex dk-slot-empty" />}
-                <span>{sk ? sk.name : "Emplacement libre"}</span>
+                <span>{sk ? sk.name : t("deck.empty_slot")}</span>
               </li>
             );
           })}
         </ul>
         {info.submitted ? (
           <p className="dk-wait" role="status">
-            Sélection envoyée. En attente de l'adversaire…
+            {t("deck.submitted")}
           </p>
         ) : (
           <button type="button" className="btn pri block" onClick={() => store.send({ type: "select_deck", skills: picked })}>
@@ -142,7 +146,7 @@ export function DeckSelect({ info }: { info: DeckSelectInfo }) {
       <footer className="dk-foot">
         {info.submitted ? (
           <p className="dk-wait" role="status">
-            Sélection envoyée. En attente de l'adversaire…
+            {t("deck.submitted")}
           </p>
         ) : (
           <button type="button" className="btn pri block" onClick={() => store.send({ type: "select_deck", skills: picked })}>

@@ -1,0 +1,16 @@
+{
+  "eyebrow": "Zuschauer",
+  "title": "Live",
+  "count_one": "{count} Partie läuft",
+  "count_other": "{count} Partien laufen",
+  "loading": "Laufende Partien werden geladen…",
+  "retry": "Erneut versuchen",
+  "refresh_failed": "Aktualisierung nicht möglich: {error} Die Liste unten ist möglicherweise veraltet.",
+  "empty_title": "Im Moment läuft keine Partie.",
+  "empty_sub": "Komm gleich wieder oder starte selbst eine Partie auf der Startseite.",
+  "play": "Spielen",
+  "level": "Stufe {elo}",
+  "vs": "gegen",
+  "watch": "Zuschauen",
+  "watch_aria": "{white} gegen {black} ansehen"
+}

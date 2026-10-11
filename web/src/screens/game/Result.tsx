@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
-import type { CampaignResult, Color, EloChange, Outcome } from "../../protocol";
+import type { CampaignResult, Color, EloChange, Outcome, PlacementView } from "../../protocol";
+import { useT } from "../../i18n";
 import { BossForge } from "../campaign/BossForge";
 import { CampaignRecap } from "./CampaignRecap";
 import { LostSkill } from "./LostSkill";
@@ -21,6 +22,8 @@ interface Props {
   /** Partie contre l'IA : ni Elo ni récompense, revanche immédiate. */
   solo?: boolean;
   elo: EloChange | null;
+  /** Partie d'évaluation : pas de revanche, la suivante se lance d'ici. */
+  placement?: PlacementView | null;
   /** Partie de campagne : étoiles et progression à la place de l'Elo. */
   campaign?: CampaignResult | null;
   rematch: "none" | "offered" | "received";
@@ -32,7 +35,8 @@ interface Props {
 }
 
 /** Fin de partie plein écran : la pièce sous le faisceau, le titre, l'Elo, puis l'étape suivante (récompense, revanche, analyse). */
-export function Result({ outcome, you, rated, solo = false, elo, campaign = null, rematch, reward, gameId, onReward, onHide }: Props) {
+export function Result({ outcome, you, rated, solo = false, elo, placement = null, campaign = null, rematch, reward, gameId, onReward, onHide }: Props) {
+  const t = useT();
   const headline = resultHeadline(outcome, you);
   const result = resultFor(outcome, you);
   const failed = !!campaign && result !== "win";
@@ -47,7 +51,8 @@ export function Result({ outcome, you, rated, solo = false, elo, campaign = null
     first.current?.focus();
   }, []);
 
-  const cadence = campaign ? "Campagne" : solo ? "Entraînement" : `${rated ? "Classée" : "Amicale"} · 10 min`;
+  const placementLeft = placement ? placement.total - placement.done : 0;
+  const cadence = campaign ? "Campagne" : placement ? t("game.cad_placement", { done: placement.done, total: placement.total }) : solo ? t("game.mode_training") : t(rated ? "game.cad_rated" : "game.cad_friendly");
   const leave = () => store.leaveGame();
   const backToCampaign = () => {
     store.leaveGame();
@@ -63,7 +68,7 @@ export function Result({ outcome, you, rated, solo = false, elo, campaign = null
       {result === "win" && !solo && <Confetti />}
       {result !== "loss" && <Beam width={560} height={470} />}
       <header className="rs-top">
-        <button type="button" className="rs-x" aria-label="Fermer et revenir à l'accueil" onClick={leave}>
+        <button type="button" className="rs-x" aria-label={t("game.close_home_aria")} onClick={leave}>
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
@@ -86,6 +91,17 @@ export function Result({ outcome, you, rated, solo = false, elo, campaign = null
         <div className="rs-chips">
           {campaign ? (
             <CampaignRecap campaign={campaign} outcome={outcome} won={!failed} onBriefing={backToCampaign} />
+          ) : placement ? (
+            placement.elo != null ? (
+              <span className="card rs-elo">
+                <CountUp className="num rs-elo-n" to={placement.elo} />
+                <span className="rs-delta">{t("game.elo_estimated")}</span>
+              </span>
+            ) : (
+              <span className="muted rs-none">
+                {t("game.placement_hidden", { done: placement.done, total: placement.total })}
+              </span>
+            )
           ) : !solo && rated && elo && delta !== null ? (
             <span className="card rs-elo">
               <CountUp className="num rs-elo-n" to={elo.you_after} />
@@ -93,41 +109,52 @@ export function Result({ outcome, you, rated, solo = false, elo, campaign = null
             </span>
           ) : (
             <span className="muted rs-none">
-              {solo ? "Partie d'entraînement : ni Elo ni récompense en jeu." : rated ? "Partie classée non comptabilisée : ni Elo ni récompense." : "Partie amicale : ni Elo ni récompense en jeu."}
+              {t(solo ? "game.none_solo" : rated ? "game.none_rated" : "game.none_friendly")}
             </span>
           )}
           {reward && (
             <span className="card rs-reward">
               <span className="hex" style={{ width: 22, height: 25, background: "var(--rar-legendary)" }} aria-hidden="true" />
-              Récompense à choisir
+              {t("game.reward_pending")}
             </span>
           )}
         </div>
-        {result === "loss" && rated && !solo && <p className="muted rs-lost">Battez votre adversaire en classée pour reprendre une compétence perdue.</p>}
+        {result === "loss" && rated && !solo && <p className="muted rs-lost">{t("game.lost_hint")}</p>}
         {result === "loss" && rated && !solo && <LostSkill />}
 
         <div className="rs-act">
           {reward && (
             <button type="button" className="btn pri block" onClick={onReward}>
-              Choisir ma récompense
+              {t("game.choose_reward")}
             </button>
           )}
-          {rematch === "received" ? (
+          {placement ? (
+            <div className="rs-pair">
+              {placementLeft > 0 && (
+                <button type="button" className="btn pri" onClick={() => store.startPlacement()}>
+                  {t("game.next_game")}
+                </button>
+              )}
+              <button type="button" className={`btn${placementLeft > 0 ? "" : " pri"}`} onClick={() => analyse("analyse")}>
+                {t("game.analyse")}
+              </button>
+            </div>
+          ) : rematch === "received" ? (
             <>
-              <p className="rs-msg">L'adversaire propose une revanche.</p>
+              <p className="rs-msg">{t("game.rematch_received")}</p>
               <div className="rs-pair">
                 <button type="button" className="btn pri" onClick={() => store.respondRematch(true)}>
-                  Accepter
+                  {t("game.accept")}
                 </button>
                 <button type="button" className="btn" onClick={() => store.respondRematch(false)}>
-                  Refuser
+                  {t("game.decline")}
                 </button>
               </div>
             </>
           ) : (
             <div className="rs-pair">
               <button type="button" className={`btn${reward ? "" : " pri"}`} disabled={rematch === "offered"} onClick={() => store.requestRematch()}>
-                {rematch === "offered" ? (solo ? "Nouvelle partie…" : "Revanche proposée…") : failed ? "Réessayer" : campaign ? "Rejouer" : "Revanche"}
+                {rematch === "offered" ? (solo ? t("game.rematch_new") : t("game.rematch_offered")) : failed ? "Réessayer" : campaign ? "Rejouer" : t("game.rematch")}
               </button>
               {failed ? (
                 <button type="button" className="btn" onClick={backToCampaign}>
@@ -135,18 +162,18 @@ export function Result({ outcome, you, rated, solo = false, elo, campaign = null
                 </button>
               ) : (
                 <button type="button" className="btn" onClick={() => analyse("analyse")}>
-                  Analyser
+                  {t("game.analyse")}
                 </button>
               )}
             </div>
           )}
           <div className="rs-links">
             <button type="button" className="link" onClick={onHide}>
-              Revoir le plateau
+              {t("game.review_board")}
             </button>
             <span aria-hidden="true">·</span>
             <button type="button" className="link" onClick={() => analyse()}>
-              Revoir la partie
+              {t("game.review_game")}
             </button>
             <span aria-hidden="true" className="rs-home-sep">
               ·
@@ -157,7 +184,7 @@ export function Result({ outcome, you, rated, solo = false, elo, campaign = null
               </button>
             ) : (
               <button type="button" className="link rs-home" onClick={leave}>
-                Retour à l'accueil
+                {t("game.go_home")}
               </button>
             )}
           </div>

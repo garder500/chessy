@@ -388,6 +388,7 @@ impl App {
                 }
                 ClientMsg::ChallengeCancel => hub.challenge_cancel(player),
                 ClientMsg::SoloStart { elo, color } => hub.solo_start(player, elo, color),
+                ClientMsg::PlacementStart { color } => hub.placement_start(player, color),
                 ClientMsg::CampaignStart {
                     chapter,
                     level,

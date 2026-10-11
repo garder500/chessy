@@ -1,0 +1,15 @@
+{
+  "someone": "Ce joueur",
+  "friend_request_received": "{name} vous a envoyé une demande d'ami.",
+  "friend_accepted": "{name} est maintenant votre ami.",
+  "friend_removed": "{name} a été retiré de vos amis.",
+  "challenge_declined": "{name} a refusé votre défi.",
+  "challenge_expired": "Le défi a expiré.",
+  "challenge_cancelled": "{name} a annulé son défi.",
+  "user_not_found": "Joueur introuvable.",
+  "already_friends": "{name} est déjà votre ami.",
+  "friend_offline": "{name} n'est pas en ligne.",
+  "rated_pair_capped": "Vous avez déjà joué 3 parties classées l'un contre l'autre cette heure : celle-ci ne compte pas pour l'Elo.",
+  "friend_busy": "{name} est en pleine partie.",
+  "default": "Notification."
+}

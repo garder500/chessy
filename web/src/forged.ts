@@ -2,23 +2,23 @@
 // (nom, description, famille, rareté, icône, son). Ce module les garde en mémoire, repère les identifiants
 // inconnus dans ce que le client reçoit et va chercher leur définition (`GET /api/skills/forged`).
 import type { Family } from "./catalog";
+import { t } from "./i18n";
 import type { ForgedSkillId } from "./protocol";
 
 export type Rarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
 export const RARITIES: Rarity[] = ["common", "uncommon", "rare", "epic", "legendary"];
 
-export const RARITY_LABEL: Record<Rarity, string> = {
-  common: "Commune",
-  uncommon: "Peu commune",
-  rare: "Rare",
-  epic: "Épique",
-  legendary: "Légendaire",
-};
+/** Libellé de chaque rareté, traduit à chaque lecture (propriétés dynamiques). */
+export const RARITY_LABEL: Record<Rarity, string> = Object.defineProperties(
+  {} as Record<Rarity, string>,
+  Object.fromEntries(RARITIES.map((r) => [r, { enumerable: true, get: () => t(`forge.rarity_${r}`) }])),
+);
 
-/** Ce que le client dessine pour l'icône (voir `ui/ForgedArt.tsx`). */
+/** Ce que le client dessine (voir `ui/forgedIcon.tsx`) : le signe de l'effet ; la rareté et la famille viennent de la définition. */
 export interface IconSpec {
   glyph: string;
+  /** Anciens champs, envoyés par le serveur mais plus dessinés : l'icône n'est qu'un signe. */
   piece?: "pawn" | "knight" | "bishop" | "rook" | "queen";
   badge?: "short" | "long" | "forever";
 }
@@ -31,9 +31,44 @@ export interface SoundSpec {
   length: number;
 }
 
+/** Vue plate de la définition (`SkillDef::bricks()`), lue par l'animation. Absente tant que le serveur ne l'envoie pas. */
+export interface ForgedBricks {
+  action: string;
+  zone?: string;
+  kinds?: string[];
+  plies?: number | null;
+  permanent?: boolean;
+  /** `own`, `enemy`, `any` ou `none` : qui l'effet touche. */
+  side?: string;
+  /** Les types de pièce auxquels le sélecteur limite l'effet (vide : tous ceux que l'effet permet). */
+  selector_kinds?: string[];
+  /** Ce en quoi une métamorphose transforme la pièce. */
+  into?: string;
+  condition?: string | null;
+  constraints?: string[];
+  max_uses?: number;
+  free_action?: boolean;
+}
+
+/** Les deux morceaux d'un nom : lequel des quatre noms de l'effet, et le nom propre inventé. */
+export interface NameParts {
+  noun: number;
+  proper: string;
+}
+
+/** Style de la marque de durée : les mêmes trois états que les badges d'icônes. */
+export function durationStyle(b: Pick<ForgedBricks, "plies" | "permanent">): "none" | "short" | "long" | "forever" {
+  if (b.permanent) return "forever";
+  if (b.plies == null) return "none";
+  return b.plies > 2 ? "long" : "short";
+}
+
 export interface ForgedDef {
   id: ForgedSkillId;
+  /** Nom français du serveur : repli quand `name_parts` ou les briques manquent. */
   name: string;
+  name_parts?: NameParts;
+  /** Description française du serveur : repli quand les briques manquent. */
   description: string;
   family: Family;
   rarity: Rarity;
@@ -42,6 +77,7 @@ export interface ForgedDef {
   max_uses: number;
   icon: IconSpec;
   sound: SoundSpec;
+  bricks?: ForgedBricks;
 }
 
 const FORGED_ID = /forged_\d+/g;

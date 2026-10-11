@@ -1,0 +1,21 @@
+{
+  "code_label": "Código de recuperación",
+  "copy": "Copiar código",
+  "copied": "Código copiado.",
+  "copy_failed": "No se pudo copiar: selecciona el código y cópialo a mano.",
+  "warning": "No volverá a mostrarse nunca. Con él podrás elegir una nueva contraseña si pierdes la anterior; sin él, una cuenta cuya contraseña se ha olvidado está perdida. Guárdalo fuera de este dispositivo (gestor de contraseñas, papel) y no lo compartas.",
+  "saved": "He anotado mi código de recuperación",
+  "forgot_intro": "Introduce el código de recuperación que recibiste al registrarte. Se cerrarán todas tus sesiones y se te entregará un código nuevo.",
+  "new_password": "Nueva contraseña",
+  "verifying": "Verificando…",
+  "reset": "Restablecer contraseña",
+  "back": "Volver al inicio de sesión",
+  "settings_hint": "Sin dirección de correo electrónico, este código es la única forma de recuperar tu cuenta si olvidas tu contraseña. Generar uno nuevo sustituye al anterior.",
+  "generate_btn": "Generar un código de recuperación",
+  "new_code_intro": "Este es tu nuevo código. El anterior ya no funciona.",
+  "done": "Listo",
+  "current_password": "Contraseña actual",
+  "current_password_required": "Introduce tu contraseña actual.",
+  "generating": "Generando…",
+  "generate": "Generar código"
+}

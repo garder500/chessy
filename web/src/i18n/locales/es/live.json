@@ -1,0 +1,16 @@
+{
+  "eyebrow": "Espectador",
+  "title": "En directo",
+  "count_one": "{count} partida en curso",
+  "count_other": "{count} partidas en curso",
+  "loading": "Cargando las partidas en curso…",
+  "retry": "Reintentar",
+  "refresh_failed": "No se puede actualizar: {error} Es posible que la lista de abajo esté desactualizada.",
+  "empty_title": "No hay ninguna partida en curso por ahora.",
+  "empty_sub": "Vuelve dentro de un momento, o empieza tú mismo una partida desde el inicio.",
+  "play": "Jugar",
+  "level": "nivel {elo}",
+  "vs": "contra",
+  "watch": "Ver",
+  "watch_aria": "Ver {white} contra {black}"
+}

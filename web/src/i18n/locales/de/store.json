@@ -1,0 +1,9 @@
+{
+  "blocked": "{name} ist blockiert: Seine Nachrichten erreichen dich nicht mehr.",
+  "reported": "Meldung gesendet. Danke.",
+  "drawDeclined": "Dein Remisangebot wurde abgelehnt.",
+  "rematchDeclined": "Es gibt keine Revanche.",
+  "newSkill": "Neue Fähigkeit: {name}",
+  "opponentLeft": "Dein Gegner ist gegangen: neue Suche läuft…",
+  "gameCancelled": "Die Partie wurde abgebrochen."
+}

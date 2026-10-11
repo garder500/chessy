@@ -1,0 +1,18 @@
+{
+  "back_aria": "Cancelar e voltar",
+  "title": "Busca",
+  "room_code_aria": "Código da sala {code}",
+  "private_room": "Sala privada",
+  "share_code": "Compartilhe este código com seu adversário.",
+  "code_copied": "Código copiado",
+  "copy_code": "Copiar código",
+  "timer_aria_one": "Tempo de espera: {count} segundo",
+  "timer_aria_other": "Tempo de espera: {count} segundos",
+  "finding": "Procurando um adversário",
+  "sub_ranked": "Ranqueada · adversário de força semelhante · {time}",
+  "sub_friendly": "Amistosa · {time}",
+  "elo_widens": "A faixa de Elo vai se ampliando aos poucos durante a espera.",
+  "did_you_know": "Você sabia?",
+  "close_room": "Fechar a sala",
+  "cancel_search": "Cancelar a busca"
+}

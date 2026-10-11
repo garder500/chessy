@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useT } from "../i18n";
 import { CATALOG } from "../catalog";
 import type { LobbyStatus } from "../protocol";
 import { store } from "../store";
@@ -28,6 +29,7 @@ export function formatElapsed(seconds: number): string {
 
 /** Recherche d'un adversaire (file classée ou amicale) ou salle privée en attente : un seul écran, une seule décision (annuler). */
 export function Search({ lobby }: { lobby: Exclude<LobbyStatus, { type: "idle" }> }) {
+  const t = useT();
   const elapsed = useElapsed(true);
   const time = useTime();
   const [copied, setCopied] = useState(false);
@@ -50,12 +52,12 @@ export function Search({ lobby }: { lobby: Exclude<LobbyStatus, { type: "idle" }
     <main className="sr">
       <Beam width={620} height={560} />
       <header className="sr-top">
-        <button type="button" className="sr-back" onClick={leave} aria-label="Annuler et revenir">
+        <button type="button" className="sr-back" onClick={leave} aria-label={t("search.back_aria")}>
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <path d="M15 5l-7 7 7 7" />
           </svg>
         </button>
-        <h1 className="sr-h1">Recherche</h1>
+        <h1 className="sr-h1">{t("search.title")}</h1>
       </header>
 
       <div className="sr-mid" role="status">
@@ -69,29 +71,29 @@ export function Search({ lobby }: { lobby: Exclude<LobbyStatus, { type: "idle" }
         </div>
         {room ? (
           <>
-            <p className="lb-code" data-testid="room-code" aria-label={`Code de salle ${lobby.code.split("").join(" ")}`}>
+            <p className="lb-code" data-testid="room-code" aria-label={t("search.room_code_aria", { code: lobby.code.split("").join(" ") })}>
               {lobby.code}
             </p>
-            <h2 className="sr-title">Salle privée</h2>
-            <p className="sr-sub">Partagez ce code avec votre adversaire.</p>
+            <h2 className="sr-title">{t("search.private_room")}</h2>
+            <p className="sr-sub">{t("search.share_code")}</p>
             <button type="button" className="btn sm" onClick={() => copy(lobby.code)}>
-              {copied ? "Code copié" : "Copier le code"}
+              {copied ? t("search.code_copied") : t("search.copy_code")}
             </button>
           </>
         ) : (
           <>
-            <p className="num sr-timer" role="timer" aria-label={`Temps d'attente : ${elapsed} secondes`}>
+            <p className="num sr-timer" role="timer" aria-label={t("search.timer_aria", { count: elapsed })}>
               {formatElapsed(elapsed)}
             </p>
-            <h2 className="sr-title">Recherche d'un adversaire</h2>
-            <p className="sr-sub">{lobby.ranked ? `Classée · adversaire de force proche · ${timeText(time)}` : `Amicale · ${timeText(time)}`}</p>
-            {lobby.ranked && <p className="sr-sub sr-fine">La plage d'Elo s'élargit peu à peu pendant l'attente.</p>}
+            <h2 className="sr-title">{t("search.finding")}</h2>
+            <p className="sr-sub">{lobby.ranked ? t("search.sub_ranked", { time: timeText(time) }) : t("search.sub_friendly", { time: timeText(time) })}</p>
+            {lobby.ranked && <p className="sr-sub sr-fine">{t("search.elo_widens")}</p>}
           </>
         )}
         <div className="card sr-tip">
           <span className="hex sr-tip-hex" style={{ background: `var(--fam-${tip.family})` }} aria-hidden="true" />
           <span>
-            <strong>Le saviez-vous ?</strong>
+            <strong>{t("search.did_you_know")}</strong>
             <br />
             <span className="muted">
               {tip.name} : {tip.description}
@@ -102,7 +104,7 @@ export function Search({ lobby }: { lobby: Exclude<LobbyStatus, { type: "idle" }
 
       <div className="sr-act">
         <button type="button" className="btn block" onClick={leave}>
-          {room ? "Fermer la salle" : "Annuler la recherche"}
+          {room ? t("search.close_room") : t("search.cancel_search")}
         </button>
       </div>
     </main>

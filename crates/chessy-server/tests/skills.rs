@@ -251,7 +251,19 @@ async fn forged_skills_are_listed_by_the_rest_api_and_survive_a_restart() {
     // Reopening registers the stored definitions again.
     let store = chessy_server::store::Store::open(path).unwrap();
     assert!(chessy_engine::forge::registry::is_registered(id));
-    assert_eq!(store.forged_views(&[id, 9_999_999]).unwrap().len(), 1);
+    let views = store.forged_views(&[id, 9_999_999]).unwrap();
+    assert_eq!(views.len(), 1);
+    // The client animates a forged skill from its bricks.
+    let json = serde_json::to_value(&views[0]).unwrap();
+    assert_eq!(json["bricks"]["action"], views[0].bricks.action);
+    assert!(json["bricks"]["permanent"].is_boolean());
+    // The client says the name and the description in its own language, from their parts.
+    assert!(json["name_parts"]["noun"].is_u64());
+    assert!(json["name_parts"]["proper"]
+        .as_str()
+        .is_some_and(|p| !p.is_empty()));
+    assert!(json["bricks"]["selector_kinds"].is_array());
+    assert!(json["bricks"]["side"].is_string());
     let _ = std::fs::remove_dir_all(&dir);
 }
 

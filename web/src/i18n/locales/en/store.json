@@ -1,0 +1,9 @@
+{
+  "blocked": "{name} is blocked: their messages will no longer reach you.",
+  "reported": "Report sent. Thank you.",
+  "drawDeclined": "Your draw offer was declined.",
+  "rematchDeclined": "There will be no rematch.",
+  "newSkill": "New skill: {name}",
+  "opponentLeft": "Your opponent left: searching again…",
+  "gameCancelled": "The game was cancelled."
+}

@@ -17,6 +17,7 @@ import {
   type PendingPromotion,
   type PendingSpawn,
 } from "../interaction";
+import { useT } from "../i18n";
 import { describeOutcome } from "../outcome";
 import type { SkillId, SpawnKind, Square, StateView } from "../protocol";
 import {
@@ -56,6 +57,7 @@ interface Launch {
 }
 
 export function Game({ view }: { view: StateView }) {
+  const t = useT();
   const { over, chat, rematch, account } = useAppState();
   const [interaction, setInteraction] = useState<Interaction>(IDLE);
   const [promotion, setPromotion] = useState<PendingPromotion | null>(null);
@@ -353,7 +355,7 @@ export function Game({ view }: { view: StateView }) {
   const opp = view.opponent;
   const isBot = opp.bot === true;
   const clockEnabled = view.clock_enabled !== false;
-  const oppName = opp.username ?? (isBot ? "Sage" : "Invité");
+  const oppName = opp.username ?? (isBot ? "Sage" : t("game.opp_guest"));
   const opponentColor = view.you === "white" ? "black" : "white";
   const myUsed = view.my_skills.filter((s) => s.used).map((s) => s.skill);
 
@@ -362,29 +364,29 @@ export function Game({ view }: { view: StateView }) {
   if (over_) {
     hint = describeOutcome(view.outcome, view.you);
   } else if (promotion) {
-    hint = "Choisissez la pièce de promotion.";
+    hint = t("game.hint_promo");
   } else if (activeSkill) {
     const first = interaction.kind === "skill" ? interaction.first : null;
-    hint = `${skillName(activeSkill)} : ${targetHint(targetShape(view, activeSkill), first, spawn !== null)}`;
+    hint = t("game.hint_skill", { skill: skillName(activeSkill), hint: targetHint(targetShape(view, activeSkill), first, spawn !== null) });
     tone = "skill";
   } else if (!view.opponent_connected) {
-    hint = "L'adversaire s'est déconnecté. Il a 60 s pour revenir.";
+    hint = t("game.hint_disconnected");
     tone = "warn";
   } else if (view.in_check && myTurn) {
-    hint = "Échec : protégez votre roi.";
+    hint = t("game.hint_check");
     tone = "check";
   } else if (myTurn && view.events.some((e) => e.type === "skill_used" && e.color === view.you && (e.skill === "mind" || e.skill === "control"))) {
-    hint = "Vous avez gardé la main : jouez un coup (ou une autre compétence).";
+    hint = t("game.hint_kept_turn");
   } else if (view.draw_offer === "them") {
-    hint = "Votre adversaire propose la nulle.";
+    hint = t("game.hint_draw_offer");
   } else {
-    const waiting = isBot ? `${oppName} réfléchit…` : "Tour de l'adversaire…";
+    const waiting = isBot ? t("game.hint_bot_thinking", { name: oppName }) : t("game.hint_opp_turn");
     hint = myTurn
-      ? "À vous de jouer. Sélectionnez une pièce ou une compétence."
+      ? t("game.hint_your_turn")
       : premoves.length > 0 && !premoveFailed
-        ? `${waiting} ${premoves.length} premove${premoves.length > 1 ? "s" : ""} en file.`
+        ? t("game.hint_queued", { waiting, count: premoves.length })
         : theme.premove
-          ? `${waiting} Vous pouvez préparer un coup.`
+          ? t("game.hint_can_premove", { waiting })
           : waiting;
   }
 
@@ -393,23 +395,24 @@ export function Game({ view }: { view: StateView }) {
       <header className="gm-top">
         <Wordmark />
         <div className="gm-top-mid">
-          <span className="tag">{isBot ? "Entraînement" : view.rated ? "Classée" : "Amicale"}</span>
-          <span className="mono muted">Demi-coup {view.ply}</span>
+          <span className="tag">{view.campaign ? "Campagne" : isBot ? t("game.mode_training") : view.rated ? t("game.mode_rated") : t("game.mode_friendly")}</span>
+          <span className="mono muted">{t("game.ply", { ply: view.ply })}</span>
           {ambientEffects(view).map((a) => (
             <span key={a.kind} className={`tag amb amb-${a.kind}`} title={a.label} role="status">
-              {a.label.split(":")[0]} · {a.turns} tour{a.turns > 1 ? "s" : ""}
+              {t("game.amb_turns", { name: a.name, count: a.turns })}
             </span>
           ))}
           {(view.spectators ?? 0) > 0 && (
             <span className="muted" aria-live="polite">
-              {view.spectators} spectateur{view.spectators! > 1 ? "s" : ""}
+              {t("game.spectators", { count: view.spectators! })}
             </span>
           )}
         </div>
         <span className="gm-you muted">
-          Vous jouez les {view.you === "white" ? "blancs" : "noirs"}
+          {t(view.you === "white" ? "game.you_play_white" : "game.you_play_black")}
         </span>
       </header>
+
 
       <main className="gm-grid">
         <aside className="gm-left">
@@ -417,13 +420,12 @@ export function Game({ view }: { view: StateView }) {
           <BenchPanel pieces={view.benched} />
           {view.my_skills.length > 0 && (
             <p className="muted gm-tip">
-              {view.my_skills.length === 1 ? "Touche 1" : `Touches 1 à ${view.my_skills.length}`} pour armer une
-              compétence, Échap pour annuler.
+              {view.my_skills.length === 1 ? t("game.tip_one") : t("game.tip_many", { n: view.my_skills.length })}
             </p>
           )}
         </aside>
 
-        <section className="gm-center" aria-label="Plateau">
+        <section className="gm-center" aria-label={t("game.board_label")}>
           <Plate
             name={oppName}
             elo={opp.elo}
@@ -438,7 +440,7 @@ export function Game({ view }: { view: StateView }) {
             used={view.opponent_skills.used}
             remaining={Math.max(0, view.opponent_skills.total - view.opponent_skills.used.length)}
             disconnected={!view.opponent_connected && !over_}
-            clockLabel="Horloge de l'adversaire"
+            clockLabel={t("game.clock_opp")}
           />
 
           {view.campaign && <ObjectiveBanner campaign={view.campaign} ply={view.ply} />}
@@ -447,17 +449,17 @@ export function Game({ view }: { view: StateView }) {
             <span>{hint}</span>
             {activeSkill && (
               <button type="button" className="btn sm ghost" onClick={() => setInteraction(IDLE)}>
-                Annuler
+                {t("game.cancel")}
               </button>
             )}
             {premoves.length > 0 && !premoveFailed && !over_ && (
               <button type="button" className="btn sm ghost gm-premove-x" onClick={cancelPremove}>
-                {premoves.length > 1 ? "Annuler les premoves" : "Annuler le premove"}
+                {t("game.cancel_premove", { count: premoves.length })}
               </button>
             )}
             {over_ && resultHidden && (
               <button type="button" className="btn sm" onClick={() => setResultHidden(false)}>
-                Voir le résultat
+                {t("game.view_result")}
               </button>
             )}
           </div>
@@ -502,7 +504,7 @@ export function Game({ view }: { view: StateView }) {
           </div>
 
           <Plate
-            name={account && !account.guest && account.username ? account.username : "Vous"}
+            name={account && !account.guest && account.username ? account.username : t("game.you_name")}
             elo={account && !account.guest ? account.elo : null}
             color={view.you}
             board={view.board}
@@ -514,7 +516,7 @@ export function Game({ view }: { view: StateView }) {
             used={myUsed}
             remaining={view.my_skills.length - myUsed.length}
             you
-            clockLabel="Votre horloge"
+            clockLabel={t("game.clock_you")}
           />
         </section>
 
@@ -536,6 +538,7 @@ export function Game({ view }: { view: StateView }) {
           rated={over?.rated ?? view.rated}
           solo={isBot}
           elo={over?.elo ?? null}
+          placement={over?.placement ?? null}
           campaign={over?.campaign ?? null}
           rematch={rematch}
           reward={!!over?.reward}
@@ -559,13 +562,13 @@ export function Game({ view }: { view: StateView }) {
             unread={isBot ? 0 : Math.max(0, chat.filter((l) => !l.mine).length - chat.slice(0, seenChat).filter((l) => !l.mine).length)}
             over={over_}
           />
-          <Sheet open={panel === "moves"} title="Coups" onClose={() => setPanel(null)}>
+          <Sheet open={panel === "moves"} title={t("game.sheet_moves")} onClose={() => setPanel(null)}>
             <Journal log={log} you={view.you} flat />
           </Sheet>
-          <Sheet open={panel === "chat"} title="Messages" onClose={() => setPanel(null)}>
+          <Sheet open={panel === "chat"} title={t("game.sheet_messages")} onClose={() => setPanel(null)}>
             {isBot ? <TrainingNote /> : <Chat lines={chat} flat />}
           </Sheet>
-          <Sheet open={panel === "more" && !over_} title="Options" onClose={() => setPanel(null)}>
+          <Sheet open={panel === "more" && !over_} title={t("game.sheet_options")} onClose={() => setPanel(null)}>
             <Options view={view} onClose={() => setPanel(null)} />
           </Sheet>
         </>

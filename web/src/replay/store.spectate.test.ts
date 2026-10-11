@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setLang } from "../i18n";
 import type { ClientMsg, Me, ServerMsg } from "../protocol";
 import { Store } from "../store";
 import { fixtureRecord, fixtureSpectatorView } from "./fixtures";
@@ -18,6 +19,8 @@ beforeEach(() => {
   (store as unknown as { socket: unknown }).socket = { readyState: 1, send: (m: string) => sent.push(JSON.parse(m) as ClientMsg) };
 });
 afterEach(() => vi.unstubAllGlobals());
+
+beforeAll(() => setLang("fr"));
 
 describe("store : mode spectateur", () => {
   it("envoie spectate puis suit les vues", () => {

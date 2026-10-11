@@ -1,5 +1,6 @@
 // Logique pure de l'écran de jeu (horloges, matériel, journal), sans React ni Phaser.
 
+import { t } from "../i18n";
 import { skillName } from "../skills";
 import { NO_PIECE, type Clock, type Color, type EffectKind, type GameEvent, type HistoryEntry, type Piece, type PieceKind, type Square, type StateView } from "../protocol";
 
@@ -68,14 +69,10 @@ export function capturedPieces(board: (Piece | null)[], color: Color, benched: P
 
 // ---- journal ------------------------------------------------------------------
 
-export const PIECE_FR: Record<PieceKind, string> = {
-  pawn: "Pion",
-  knight: "Cavalier",
-  bishop: "Fou",
-  rook: "Tour",
-  queen: "Dame",
-  king: "Roi",
-};
+/** Nom d'une pièce dans la langue courante ; `lower` : forme de milieu de phrase (l'allemand garde la majuscule). */
+export function pieceName(kind: PieceKind, lower = false): string {
+  return t(`game.${lower ? "piece_lc_" : "piece_"}${kind}`);
+}
 
 export function sqName(square: Square): string {
   return `${"abcdefgh"[square % 8]}${Math.floor(square / 8) + 1}`;
@@ -106,10 +103,12 @@ export function describeAction(view: Pick<StateView, "events" | "board" | "ply" 
   const skillEvent = events.find((e): e is Extract<GameEvent, { type: "skill_used" }> => e.type === "skill_used");
   const parts: string[] = [];
   const spawns = events.filter((e) => e.type === "spawned").length;
+  let spawnNoted = false;
   for (const e of events) {
     // Wall fait surgir plusieurs pions d'un coup : une seule mention.
     if (e.type === "spawned" && spawns > 1) {
-      if (!parts.some((p) => p.startsWith(`${spawns} pièces`))) parts.push(`${spawns} pièces apparaissent`);
+      if (!spawnNoted) parts.push(t("game.log_spawn_many", { count: spawns }));
+      spawnNoted = true;
       continue;
     }
     parts.push(...describeEvent(e, board, skillEvent !== undefined));
@@ -126,89 +125,85 @@ export function describeAction(view: Pick<StateView, "events" | "board" | "ply" 
 }
 
 function describeEvent(e: GameEvent, board: (Piece | null)[], inSkill: boolean): string[] {
+  const lc = (kind: PieceKind) => pieceName(kind, true);
   switch (e.type) {
     case "moved": {
       const kind = board[e.to]?.kind ?? "pawn";
-      return [`${PIECE_FR[kind]} ${sqName(e.from)}–${sqName(e.to)}`];
+      return [t("game.log_move", { piece: pieceName(kind), from: sqName(e.from), to: sqName(e.to) })];
     }
     case "captured":
-      return [`prend ${PIECE_FR[e.piece.kind].toLowerCase()}`];
+      return [t("game.log_capture", { piece: lc(e.piece.kind) })];
     case "promoted":
-      return [`promotion en ${PIECE_FR[e.to].toLowerCase()}`];
+      return [t("game.log_promotion", { piece: lc(e.to) })];
     case "castled":
-      return ["roque"];
+      return [t("game.log_castle")];
     case "teleported":
-      return [`${sqName(e.from)} vers ${sqName(e.to)}`];
+      return [t("game.log_teleport", { from: sqName(e.from), to: sqName(e.to) })];
     case "cloned":
-      return [`copie ${sqName(e.from)} sur ${sqName(e.to)}`];
+      return [t("game.log_clone", { from: sqName(e.from), to: sqName(e.to) })];
     case "swapped":
-      return [`${sqName(e.a)} et ${sqName(e.b)} échangées`];
+      return [t("game.log_swap", { a: sqName(e.a), b: sqName(e.b) })];
     case "removed":
-      return [`${PIECE_FR[e.piece.kind].toLowerCase()} ${sqName(e.square)} retiré`];
+      return [t("game.log_removed", { piece: lc(e.piece.kind), sq: sqName(e.square) })];
     case "rolled_back":
-      return [`retour ${sqName(e.from)} vers ${sqName(e.to)}`];
+      return [t("game.log_rollback", { from: sqName(e.from), to: sqName(e.to) })];
     case "effect_added":
-      return [EFFECT_FR[e.effect] ?? "effet appliqué"];
+      return [effectName(e.effect) ?? t("game.effect_default")];
     case "skill_used":
       return inSkill ? [] : [skillName(e.skill)];
     case "spawned":
-      return [`${pieceLabel(e.piece)} apparaît en ${sqName(e.square)}`];
+      return [t("game.log_spawned", { piece: pieceLabel(e.piece), sq: sqName(e.square) })];
     case "transformed":
-      return [`${sqName(e.square)} devient ${PIECE_FR[e.kind].toLowerCase()}`];
+      return [t("game.log_transformed", { sq: sqName(e.square), piece: lc(e.kind) })];
     case "switched":
-      return [`${PIECE_FR[e.piece.kind].toLowerCase()} ${sqName(e.square)} change de camp`];
+      return [t("game.log_switched", { piece: lc(e.piece.kind), sq: sqName(e.square) })];
     case "rotated":
-      return [`${e.moves.length} pièces tournent`];
+      return [t("game.log_rotated", { count: e.moves.length })];
     case "trap_set":
-      return [`piège posé en ${sqName(e.square)}`];
+      return [t("game.log_trap_set", { sq: sqName(e.square) })];
     case "trap_sprung":
-      return [`piège déclenché en ${sqName(e.square)}`];
+      return [t("game.log_trap_sprung", { sq: sqName(e.square) })];
     case "benched":
-      return [`${PIECE_FR[e.piece.kind].toLowerCase()} ${sqName(e.square)} mis sur le banc`];
+      return [t("game.log_benched", { piece: lc(e.piece.kind), sq: sqName(e.square) })];
     case "unbenched":
-      return [`${PIECE_FR[e.piece.kind].toLowerCase()} revient en ${sqName(e.square)}`];
+      return [t("game.log_unbenched", { piece: lc(e.piece.kind), sq: sqName(e.square) })];
     case "pushed":
-      return [`attaquant repoussé ${sqName(e.from)}–${sqName(e.to)}`];
+      return [t("game.log_pushed", { from: sqName(e.from), to: sqName(e.to) })];
     case "saved":
-      return [`pièce sauvée, retour en ${sqName(e.to)}`];
+      return [t("game.log_saved", { sq: sqName(e.to) })];
     case "best_move":
-      return [`meilleur coup ${sqName(e.from)}–${sqName(e.to)}${e.promo ? ` (${PIECE_FR[e.promo].toLowerCase()})` : ""}`];
+      return [
+        e.promo
+          ? t("game.log_best_move_promo", { from: sqName(e.from), to: sqName(e.to), piece: lc(e.promo) })
+          : t("game.log_best_move", { from: sqName(e.from), to: sqName(e.to) }),
+      ];
     case "cancelled":
-      return [`${skillName(e.skill)} annulée`];
+      return [t("game.log_cancelled", { skill: skillName(e.skill) })];
     case "terrain":
-      return [`${e.squares.length} cases de roc`];
+      return [t("game.log_terrain", { count: e.squares.length })];
     case "global_effect":
-      return [`${EFFECT_FR[e.effect]}`];
+      return [effectName(e.effect) ?? ""];
     case "vanished":
-      return [`${PIECE_FR[e.piece.kind].toLowerCase()} ${sqName(e.square)} disparaît`];
+      return [t("game.log_vanished", { piece: lc(e.piece.kind), sq: sqName(e.square) })];
     case "ambushed":
-      return [`des fous frappent ${PIECE_FR[e.piece.kind].toLowerCase()} ${sqName(e.square)}`];
+      return [t("game.log_ambushed", { piece: lc(e.piece.kind), sq: sqName(e.square) })];
     case "loan_ended":
-      return [`prêt terminé (${PIECE_FR[e.piece.kind].toLowerCase()} ${sqName(e.square)})`];
+      return [t("game.log_loan_ended", { piece: lc(e.piece.kind), sq: sqName(e.square) })];
     default:
       return [];
   }
 }
 
-const EFFECT_FR: Record<EffectKind, string> = {
-  immune: "pièce protégée",
-  frozen: "pièce gelée",
-  invisible: "pièce invisible",
-  forcefield: "champ de force",
-  celestial: "protection céleste",
-  locked: "pion immobilisé",
-  morphed: "pièce métamorphosée",
-  color_loan: "pièce sous contrôle",
-  vanish: "pièce éphémère",
-  truce: "armistice",
-  fog: "brouillard",
-  silenced: "pouvoirs réduits au silence",
-  domain: "expansion de domaine",
-};
+const EFFECT_KINDS: readonly EffectKind[] = ["immune", "frozen", "invisible", "forcefield", "celestial", "locked", "morphed", "color_loan", "vanish", "truce", "fog", "silenced", "domain"];
+
+/** Libellé d'un effet, ou `undefined` pour un type inconnu. */
+function effectName(kind: EffectKind): string | undefined {
+  return EFFECT_KINDS.includes(kind) ? t(`game.effect_${kind}`) : undefined;
+}
 
 function pieceLabel(p: Piece): string {
-  const base = PIECE_FR[p.kind];
-  return p.mirage ? `${base} mirage` : p.wall ? `${base} mur` : p.temp ? `${base} temporaire` : base;
+  const base = pieceName(p.kind);
+  return p.mirage ? t("game.label_mirage", { piece: base }) : p.wall ? t("game.label_wall", { piece: base }) : p.temp ? t("game.label_temp", { piece: base }) : base;
 }
 
 /**
@@ -230,6 +225,8 @@ export function turnsLeft(expiresAt: number, ply: number): number {
 export interface Ambient {
   kind: EffectKind;
   label: string;
+  /** Intitulé court (avant les deux-points du libellé). */
+  name: string;
   /** Tours complets restants. */
   turns: number;
 }
@@ -241,16 +238,18 @@ export function ambientEffects(view: Pick<StateView, "effects" | "ply" | "you">)
     if (e.piece !== NO_PIECE) continue;
     const turns = turnsLeft(e.expires_at, view.ply);
     if (turns === 0) continue;
-    if (e.kind === "truce") out.push({ kind: e.kind, label: "Armistice : plus de captures ni d'échecs", turns });
-    else if (e.kind === "fog") out.push({ kind: e.kind, label: "Brouillard : vue limitée à deux cases", turns });
+    const mine = e.owner === view.you;
+    if (e.kind === "truce") out.push({ kind: e.kind, label: t("game.amb_truce"), name: t("game.amb_truce_name"), turns });
+    else if (e.kind === "fog") out.push({ kind: e.kind, label: t("game.amb_fog"), name: t("game.amb_fog_name"), turns });
     else if (e.kind === "domain") {
       out.push({
         kind: e.kind,
-        label: e.owner === view.you ? "Domaine : des fous frapperont la prochaine pièce qui vous met en échec" : "Domaine adverse : une pièce qui met son roi en échec sera frappée",
+        label: t(mine ? "game.amb_domain_own" : "game.amb_domain_opp"),
+        name: t(mine ? "game.amb_domain_own_name" : "game.amb_domain_opp_name"),
         turns,
       });
     } else if (e.kind === "silenced") {
-      out.push({ kind: e.kind, label: e.owner === view.you ? "Silence : vous ne pouvez plus utiliser de compétence" : "Silence : l'adversaire ne peut plus utiliser de compétence", turns });
+      out.push({ kind: e.kind, label: t(mine ? "game.amb_silenced_own" : "game.amb_silenced_opp"), name: t("game.amb_silenced_name"), turns });
     }
   }
   return out;

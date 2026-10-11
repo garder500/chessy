@@ -10,7 +10,7 @@ fn catalog_families() -> HashMap<String, String> {
             let args = line.trim().strip_prefix("e(\"")?;
             let mut quoted = args.split('"');
             let wire = quoted.next()?;
-            let family = quoted.nth(3)?;
+            let family = quoted.nth(1)?;
             Some((wire.to_string(), family.to_string()))
         })
         .collect()

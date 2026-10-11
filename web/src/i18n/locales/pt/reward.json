@@ -1,0 +1,18 @@
+{
+  "forging_cta": "Forjando…",
+  "forge_start": "Iniciar a forja",
+  "take": "Pegar {name}",
+  "choose": "Escolher",
+  "back_aria": "Voltar ao resultado",
+  "title": "Sua recompensa",
+  "sub": "Tome uma habilidade do seu adversário ou mande forjar uma inédita.",
+  "take_label": "Pegar",
+  "empty": "O seu adversário não tem nada que você já não tenha: só resta o sorteio aleatório.",
+  "luck": "Ou tente a sorte",
+  "forge_name": "Forjar uma habilidade",
+  "forge_desc": "Inédita, de comum a lendária. O seu adversário perde uma ao acaso.",
+  "deck_full": "Seu deck está cheio ({n}): escolha a habilidade a substituir",
+  "forging_hint": "O ferreiro está trabalhando…",
+  "replace_hint": "Selecione a habilidade a substituir para continuar.",
+  "skip": "Pular"
+}

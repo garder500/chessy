@@ -91,3 +91,6 @@
 :root .jp-deck-slot > svg { width: 20px; height: 20px; }
 .jp-deck-empty { width: 32px; height: 36px; margin-right: -2px; background: var(--line-2); opacity: 0.5; }
 @media (max-width: 719px) { .jp-deck { display: flex; } }
+
+.jp-place { display: grid; gap: 8px; padding: 14px 16px; margin-bottom: 14px; }
+.jp-place p { margin: 0; }

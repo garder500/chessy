@@ -1,0 +1,18 @@
+{
+  "forging_cta": "Forge en cours…",
+  "forge_start": "Lancer la forge",
+  "take": "Prendre {name}",
+  "choose": "Choisir",
+  "back_aria": "Retour au résultat",
+  "title": "Votre récompense",
+  "sub": "Prenez une compétence à votre adversaire, ou faites-en forger une inédite.",
+  "take_label": "Récupérer",
+  "empty": "Votre adversaire n'a rien que vous n'ayez déjà : seul le tirage au hasard reste possible.",
+  "luck": "Ou tenter sa chance",
+  "forge_name": "Forger une compétence",
+  "forge_desc": "Inédite, de commune à légendaire. Votre adversaire en perd une au hasard.",
+  "deck_full": "Votre deck est plein ({n}) : choisissez la compétence à remplacer",
+  "forging_hint": "Le forgeron travaille…",
+  "replace_hint": "Sélectionnez la compétence à remplacer pour continuer.",
+  "skip": "Passer"
+}

@@ -2,6 +2,7 @@
 // et renvoie `line` complète à chaque coup. On conserve aussi la réponse de chaque position, pour qu'annuler
 // un coup soit instantané (aucun appel réseau).
 
+import { t } from "../i18n";
 import type { Action, Color, ExploreRequest, ExploreResponse } from "../protocol";
 
 /** Limite du serveur : `line` ≤ 200 actions. */
@@ -98,12 +99,12 @@ export function lineEntries(state: ExploreState): LineEntry[] {
 export function exploreErrorText(code: ExploreError | string): string {
   switch (code) {
     case "illegal_action":
-      return "Ce coup n'est pas possible dans cette position.";
+      return t("replay.explore_illegal");
     case "bad_ply":
-      return "Position de départ introuvable.";
+      return t("replay.explore_bad_ply");
     case "too_long":
-      return "La variation est trop longue (200 actions maximum).";
+      return t("replay.explore_too_long");
     default:
-      return "Réponse inattendue du serveur.";
+      return t("replay.explore_unexpected");
   }
 }

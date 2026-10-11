@@ -1,0 +1,19 @@
+{
+  "not_your_turn": "It's not your turn.",
+  "illegal_action": "Action not possible.",
+  "no_such_room": "This room doesn't exist.",
+  "own_room": "You can't join your own room.",
+  "already_in_game": "You're already in a game.",
+  "invalid_deck": "Invalid skill selection.",
+  "replaced": "This account signed in from another tab.",
+  "session_revoked": "Your session has ended: you're back to guest.",
+  "flooded": "Connection closed: too many messages sent.",
+  "queue_full": "The ranked queue is full, try again in a moment.",
+  "rooms_full": "Too many open rooms, try again in a moment.",
+  "account_required": "An account is required for this action.",
+  "spectate_full": "This game has reached its maximum number of spectators.",
+  "no_such_game": "This game doesn't exist or has ended.",
+  "invalid_target": "Action not possible on your own account.",
+  "blocked": "You blocked this player: unblock them first.",
+  "block_list_full": "Your blocked players list is full."
+}

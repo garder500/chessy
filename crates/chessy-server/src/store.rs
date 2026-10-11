@@ -18,6 +18,9 @@ use crate::moderation::chat_muted;
 use crate::protocol::{Me, PlayerId};
 
 pub const STARTER_DECK_SIZE: usize = 3;
+/// Classic skills a deck keeps: a player who loses a game (and a matchmaking
+/// bot, at startup) is given classic ones back up to it.
+pub const MIN_DECK_SIZE: usize = 3;
 
 #[derive(Debug, Error)]
 pub enum StoreError {
@@ -62,6 +65,14 @@ pub fn classic_skills() -> Vec<SkillId> {
         .collect()
 }
 
+/// A matchmaking bot's account.
+#[derive(Clone, Debug)]
+pub struct BotAccount {
+    pub id: PlayerId,
+    pub username: String,
+    pub elo: i32,
+}
+
 /// A player's account fields, as stored.
 #[derive(Clone, Debug)]
 pub struct PlayerRow {
@@ -97,6 +108,24 @@ pub struct Leaderboard {
     pub entries: Vec<LeaderboardEntry>,
 }
 
+/// Where a player stands in the placement games.
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+pub struct PlacementProgress {
+    /// The rating is an estimate (all five games played).
+    pub placed: bool,
+    pub done: u32,
+    pub total: u32,
+}
+
+/// What recording a placement game led to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PlacementOutcome {
+    pub done: u32,
+    pub total: u32,
+    /// `(before, after)` when this game was the last one.
+    pub elo: Option<(i32, i32)>,
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct HistoryPoint {
     pub elo: i32,
@@ -127,6 +156,8 @@ pub struct RecentGame {
 pub struct PublicProfile {
     pub username: String,
     pub elo: i32,
+    /// False while the rating is still the default one: no placement games yet.
+    pub placed: bool,
     pub peak_elo: i32,
     pub rank: u32,
     pub games: u32,
@@ -418,6 +449,54 @@ const MIGRATIONS: &[&str] = &[
      );
      CREATE INDEX IF NOT EXISTS reports_pair ON reports(reporter, target, created_at);
      CREATE INDEX IF NOT EXISTS reports_reporter ON reports(reporter, created_at);",
+    // Matchmaking bots (see `hub::solo`): ordinary accounts with a rating and a
+    // deck that nobody can log into (no password). A table of their own, so the
+    // step is idempotent.
+    "CREATE TABLE IF NOT EXISTS bot_accounts (
+         player_id TEXT PRIMARY KEY REFERENCES players(id)
+     );",
+    // Placement games (docs/spec-v5.md): five games against hidden-level bots
+    // estimate a first real rating. One row per game played, one row per
+    // player once the estimate has replaced the rating. Matchmaking bots count
+    // as placed (their rating is a level, not an estimate). New tables only.
+    "CREATE TABLE IF NOT EXISTS placement_results (
+         player_id TEXT NOT NULL REFERENCES players(id),
+         level INTEGER NOT NULL,
+         score REAL NOT NULL,
+         game_id TEXT NOT NULL,
+         at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+         PRIMARY KEY (player_id, level)
+     );
+     CREATE TABLE IF NOT EXISTS placements (
+         player_id TEXT PRIMARY KEY REFERENCES players(id),
+         elo INTEGER NOT NULL,
+         games_at INTEGER NOT NULL DEFAULT 0,
+         at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+     );",
+    // Adaptive placement: a lost level is played again, so a level can appear
+    // several times per player. One row per game instead of one per level.
+    "CREATE TABLE placement_results_v2 (
+         player_id TEXT NOT NULL REFERENCES players(id),
+         level INTEGER NOT NULL,
+         score REAL NOT NULL,
+         game_id TEXT NOT NULL,
+         at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+         PRIMARY KEY (player_id, game_id)
+     );
+     INSERT INTO placement_results_v2 (player_id, level, score, game_id, at)
+         SELECT player_id, level, score, game_id, at FROM placement_results ORDER BY rowid;
+     DROP TABLE placement_results;
+     ALTER TABLE placement_results_v2 RENAME TO placement_results;",
+    // Already applied on deployed databases: the index stays so that later
+    // migrations keep their numbers. Nothing reads this table any more.
+    "CREATE TABLE IF NOT EXISTS campaign_levels (
+         player_id TEXT NOT NULL REFERENCES players(id),
+         level INTEGER NOT NULL,
+         stars INTEGER NOT NULL DEFAULT 0,
+         forge_pending INTEGER NOT NULL DEFAULT 0,
+         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+         PRIMARY KEY (player_id, level)
+     );",
     // Game length asked for (`short`/`medium`/`long`); NULL = default clock or old game.
     "ALTER TABLE games ADD COLUMN time_control TEXT;",
     // Campaign: `stars` is a bitmask (1 win, 2 objective, 4 challenge) cumulated
@@ -524,6 +603,11 @@ impl Store {
             conn: Arc::new(Mutex::new(conn)),
         };
         store.load_forged()?;
+        // Decks emptied before the minimum existed (idempotent: a deck at the
+        // minimum is left alone).
+        if let Err(e) = store.top_up_bot_decks() {
+            tracing::error!("could not top up the bot decks: {e}");
+        }
         Ok(store)
     }
 
@@ -826,6 +910,7 @@ impl Store {
         };
         let rank = rank_of(&conn, &row)?;
         let chat_muted = chat_muted(&conn, &row.id)?;
+        let row_id = row.id.clone();
         Ok(Some(Me {
             player_id: row.id,
             guest: row.username.is_none(),
@@ -837,7 +922,94 @@ impl Store {
             draws: row.draws,
             losses: row.losses,
             chat_muted,
+            placement: placement_progress(&conn, &row_id)?,
         }))
+    }
+
+    /// The bot levels `player` has already met in placement games.
+    pub fn placement_levels_played(&self, player: &str) -> StoreResult<Vec<i32>> {
+        let conn = self.db();
+        placement_levels(&conn, player)
+    }
+
+    /// The level of the next placement game of `player`: see
+    /// [`elo::placement_next_level`].
+    pub fn placement_next_level(&self, player: &str) -> StoreResult<i32> {
+        let conn = self.db();
+        let mut stmt = conn
+            .prepare("SELECT score FROM placement_results WHERE player_id = ?1 ORDER BY rowid")?;
+        let scores: Vec<f64> = stmt
+            .query_map(params![player], |r| r.get(0))?
+            .collect::<Result<_, _>>()?;
+        Ok(elo::placement_next_level(&scores))
+    }
+
+    /// Whether the rating of `player` is an estimate from the placement games
+    /// (or a level, for a matchmaking bot) rather than the default one.
+    pub fn is_placed(&self, player: &str) -> StoreResult<bool> {
+        let conn = self.db();
+        is_placed(&conn, player)
+    }
+
+    /// Logs a placement game against a bot of `level`. When it was the last
+    /// of the five, the rating becomes the estimate computed from the five
+    /// results (the peak restarts from it, the old figures were a guess too)
+    /// and the move is returned. Counters (`games`, wins...) stay untouched.
+    /// A level already played, or a player already placed, changes nothing.
+    pub fn record_placement(
+        &self,
+        player: &str,
+        game_id: &str,
+        level: i32,
+        score: f64,
+    ) -> StoreResult<PlacementOutcome> {
+        let mut conn = self.db();
+        let tx = conn.transaction()?;
+        if !is_placed(&tx, player)? {
+            tx.execute(
+                "INSERT OR IGNORE INTO placement_results (player_id, level, score, game_id)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![player, level, score, game_id],
+            )?;
+        }
+        let mut stmt = tx.prepare(
+            "SELECT level, score FROM placement_results WHERE player_id = ?1 ORDER BY rowid",
+        )?;
+        let results: Vec<(i32, f64)> = stmt
+            .query_map(params![player], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<Result<_, _>>()?;
+        drop(stmt);
+        let total = elo::PLACEMENT_LEVELS.len() as u32;
+        let done = results.len() as u32;
+        let mut moved = None;
+        if done >= total && !is_placed(&tx, player)? {
+            let before: i32 = tx.query_row(
+                "SELECT elo FROM players WHERE id = ?1",
+                params![player],
+                |r| r.get(0),
+            )?;
+            let after = elo::placement_estimate(&results);
+            tx.execute(
+                "UPDATE players SET elo = ?2, peak_elo = ?2 WHERE id = ?1",
+                params![player, after],
+            )?;
+            tx.execute(
+                "INSERT INTO rating_history (player_id, game_id, elo) VALUES (?1, ?2, ?3)",
+                params![player, game_id, after],
+            )?;
+            tx.execute(
+                "INSERT INTO placements (player_id, elo, games_at)
+                 SELECT id, ?2, games FROM players WHERE id = ?1",
+                params![player, after],
+            )?;
+            moved = Some((before, after));
+        }
+        tx.commit()?;
+        Ok(PlacementOutcome {
+            done: done.min(total),
+            total,
+            elo: moved,
+        })
     }
 
     pub fn touch_last_seen(&self, player: &str) -> StoreResult<()> {
@@ -944,6 +1116,7 @@ impl Store {
         Ok(Some(PublicProfile {
             username: row.username.clone().unwrap_or_default(),
             elo: row.elo,
+            placed: is_placed(&conn, &row.id)?,
             peak_elo: row.peak_elo,
             rank,
             games: row.games,
@@ -964,6 +1137,69 @@ impl Store {
     pub fn deck(&self, player: &str) -> StoreResult<Vec<SkillId>> {
         let conn = self.db();
         deck_of(&conn, player)
+    }
+
+    /// The matchmaking bots rated within `range` of `elo`.
+    pub fn bot_accounts_near(&self, elo: i32, range: i32) -> StoreResult<Vec<BotAccount>> {
+        let conn = self.db();
+        let mut stmt = conn.prepare(
+            "SELECT p.id, p.username, p.elo FROM bot_accounts b
+             JOIN players p ON p.id = b.player_id
+             WHERE ABS(p.elo - ?1) <= ?2",
+        )?;
+        let rows = stmt.query_map(params![elo, range], |r| {
+            Ok(BotAccount {
+                id: r.get(0)?,
+                username: r.get(1)?,
+                elo: r.get(2)?,
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    pub fn bot_account_count(&self) -> StoreResult<u32> {
+        let conn = self.db();
+        Ok(conn.query_row("SELECT COUNT(*) FROM bot_accounts", [], |r| r.get(0))?)
+    }
+
+    /// Creates a matchmaking bot named `username` (a free name; `None` when it
+    /// is taken) with a starter deck and a rating of `elo`.
+    pub fn create_bot_account(&self, username: &str, elo: i32) -> StoreResult<Option<BotAccount>> {
+        let mut conn = self.db();
+        let tx = conn.transaction()?;
+        let lower = username.to_ascii_lowercase();
+        let taken: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM players WHERE username_lower = ?1)",
+            params![lower],
+            |r| r.get(0),
+        )?;
+        if taken {
+            return Ok(None);
+        }
+        let id = random_hex(8);
+        tx.execute(
+            "INSERT INTO players (id, username, username_lower, elo, peak_elo)
+             VALUES (?1, ?2, ?3, ?4, ?4)",
+            params![id, username, lower, elo],
+        )?;
+        tx.execute(
+            "INSERT INTO bot_accounts (player_id) VALUES (?1)",
+            params![id],
+        )?;
+        let pool = classic_skills();
+        for skill in pool.sample(&mut rand::rng(), STARTER_DECK_SIZE) {
+            tx.execute(
+                "INSERT INTO player_skills (player_id, skill) VALUES (?1, ?2)",
+                params![id, skill_name(*skill)],
+            )?;
+            history::log(&tx, &id, *skill, Change::Gained, Source::Starter, None)?;
+        }
+        tx.commit()?;
+        Ok(Some(BotAccount {
+            id,
+            username: username.to_string(),
+            elo,
+        }))
     }
 
     pub fn unique_owner(&self, skill: SkillId) -> StoreResult<Option<PlayerId>> {
@@ -1145,6 +1381,10 @@ impl Store {
             };
             history::log(&tx, winner, skill, Change::Gained, source, other)?;
         }
+        // Same transaction: a loser is never left under the minimum.
+        if let Some(loser) = loser {
+            refill_tx(&tx, loser, loser_loses)?;
+        }
         tx.commit()?;
         Ok(())
     }
@@ -1179,24 +1419,71 @@ impl Store {
         Ok(())
     }
 
-    /// A player left with no skills gets one random classic skill.
-    pub fn refill_if_empty(&self, player: &str) -> StoreResult<()> {
-        let conn = self.db();
-        if !deck_of(&conn, player)?.is_empty() {
-            return Ok(());
+    /// A player left under [`MIN_DECK_SIZE`] skills is given random classic
+    /// skills they do not own yet, up to the minimum. Returns how many.
+    pub fn refill_to_minimum(&self, player: &str) -> StoreResult<usize> {
+        let mut conn = self.db();
+        if deck_of(&conn, player)?
+            .iter()
+            .filter(|s| is_classic(**s))
+            .count()
+            >= MIN_DECK_SIZE
+        {
+            return Ok(0);
         }
-        let pool = classic_skills();
-        let skill = pool
-            .choose(&mut rand::rng())
-            .copied()
-            .ok_or(StoreError::Invalid("no classic skills"))?;
-        conn.execute(
-            "INSERT INTO player_skills (player_id, skill) VALUES (?1, ?2)",
-            params![player, skill_name(skill)],
-        )?;
-        history::log(&conn, player, skill, Change::Gained, Source::Refill, None)?;
-        Ok(())
+        let tx = conn.transaction()?;
+        let given = refill_tx(&tx, player, None)?;
+        tx.commit()?;
+        Ok(given)
     }
+
+    /// Brings every matchmaking bot under the minimum back up to it. Safe to
+    /// run at every start: a bot that already has enough is not touched.
+    pub fn top_up_bot_decks(&self) -> StoreResult<usize> {
+        let mut conn = self.db();
+        let tx = conn.transaction()?;
+        let ids: Vec<String> = {
+            let mut stmt = tx.prepare("SELECT player_id FROM bot_accounts")?;
+            let rows = stmt.query_map([], |r| r.get(0))?;
+            rows.collect::<Result<_, _>>()?
+        };
+        let mut given = 0;
+        for id in &ids {
+            given += refill_tx(&tx, id, None)?;
+        }
+        tx.commit()?;
+        Ok(given)
+    }
+}
+
+fn is_classic(skill: SkillId) -> bool {
+    skill.kind() == SkillKind::Classic
+}
+
+/// Gives `player` classic skills up to [`MIN_DECK_SIZE`] (uniques and forged
+/// skills do not count: only classics can be picked for a game). `not` is a
+/// skill just taken from them, which must not come straight back.
+fn refill_tx(tx: &rusqlite::Transaction, player: &str, not: Option<SkillId>) -> StoreResult<usize> {
+    let owned = deck_of(tx, player)?;
+    let classics = owned.iter().filter(|s| is_classic(**s)).count();
+    let missing = MIN_DECK_SIZE.saturating_sub(classics);
+    if missing == 0 {
+        return Ok(0);
+    }
+    let pool: Vec<SkillId> = classic_skills()
+        .into_iter()
+        .filter(|s| !owned.contains(s) && Some(*s) != not)
+        .collect();
+    let mut given = 0;
+    for skill in pool.sample(&mut rand::rng(), missing) {
+        tx.execute(
+            "INSERT INTO player_skills (player_id, skill) VALUES (?1, ?2)",
+            params![player, skill_name(*skill)],
+        )?;
+        history::log(tx, player, *skill, Change::Gained, Source::Refill, None)?;
+        given += 1;
+    }
+    Ok(given)
 }
 
 fn deck_of(conn: &Connection, player: &str) -> StoreResult<Vec<SkillId>> {
@@ -1288,6 +1575,32 @@ fn displayed_title(
         .map(|&(_, title)| title)
 }
 
+fn placement_levels(conn: &Connection, player: &str) -> StoreResult<Vec<i32>> {
+    let mut stmt =
+        conn.prepare("SELECT level FROM placement_results WHERE player_id = ?1 ORDER BY rowid")?;
+    let levels = stmt
+        .query_map(params![player], |r| r.get(0))?
+        .collect::<Result<_, _>>()?;
+    Ok(levels)
+}
+
+fn is_placed(conn: &Connection, player: &str) -> StoreResult<bool> {
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM placements WHERE player_id = ?1)
+             OR EXISTS(SELECT 1 FROM bot_accounts WHERE player_id = ?1)",
+        params![player],
+        |r| r.get(0),
+    )?)
+}
+
+fn placement_progress(conn: &Connection, player: &str) -> StoreResult<PlacementProgress> {
+    Ok(PlacementProgress {
+        placed: is_placed(conn, player)?,
+        done: placement_levels(conn, player)?.len() as u32,
+        total: elo::PLACEMENT_LEVELS.len() as u32,
+    })
+}
+
 /// 1-based rank among registered accounts (`elo DESC, wins DESC, username`).
 fn rank_of(conn: &Connection, row: &PlayerRow) -> StoreResult<Option<u32>> {
     let Some(name) = &row.username else {
@@ -1308,7 +1621,10 @@ fn rank_of(conn: &Connection, row: &PlayerRow) -> StoreResult<Option<u32>> {
 fn settle_ratings(tx: &rusqlite::Transaction, rec: &GameRecord) -> StoreResult<EloChange> {
     let load = |id: &str| -> StoreResult<(i32, u32)> {
         Ok(tx.query_row(
-            "SELECT elo, games FROM players WHERE id = ?1",
+            // The provisional (high K) period restarts at the placement.
+            "SELECT elo, games - COALESCE(
+                 (SELECT games_at FROM placements WHERE player_id = players.id), 0)
+             FROM players WHERE id = ?1",
             params![id],
             |r| Ok((r.get(0)?, r.get(1)?)),
         )?)

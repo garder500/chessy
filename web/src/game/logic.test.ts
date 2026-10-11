@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "../i18n";
 import {
   actionKey,
   appendLog,
@@ -14,6 +15,8 @@ import {
   turnsLeft,
 } from "./logic";
 import type { GameEvent, HistoryEntry, Piece, PieceKind, StateView } from "../protocol";
+
+beforeAll(() => setLang("fr"));
 
 let nextId = 0;
 const p = (kind: PieceKind, color: "white" | "black"): Piece => ({ id: nextId++, kind, color });

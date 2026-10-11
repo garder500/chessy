@@ -1,0 +1,18 @@
+{
+  "back_aria": "Abbrechen und zurück",
+  "title": "Suche",
+  "room_code_aria": "Raumcode {code}",
+  "private_room": "Privater Raum",
+  "share_code": "Teile diesen Code mit deinem Gegner.",
+  "code_copied": "Code kopiert",
+  "copy_code": "Code kopieren",
+  "timer_aria_one": "Wartezeit: {count} Sekunde",
+  "timer_aria_other": "Wartezeit: {count} Sekunden",
+  "finding": "Gegner wird gesucht",
+  "sub_ranked": "Gewertet · Gegner ähnlicher Stärke · {time}",
+  "sub_friendly": "Freundschaftlich · {time}",
+  "elo_widens": "Der Elo-Bereich wird während der Wartezeit nach und nach größer.",
+  "did_you_know": "Wusstest du schon?",
+  "close_room": "Raum schließen",
+  "cancel_search": "Suche abbrechen"
+}

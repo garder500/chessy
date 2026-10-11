@@ -1,0 +1,14 @@
+{
+  "rarity_common": "Commune",
+  "rarity_uncommon": "Peu commune",
+  "rarity_rare": "Rare",
+  "rarity_epic": "Épique",
+  "rarity_legendary": "Légendaire",
+  "smith_working": "Le forgeron au travail",
+  "rarity_drawn": "Rareté tirée par le forgeron",
+  "new_skill": "Nouvelle compétence",
+  "unique_world": "Unique au monde",
+  "add_to_deck": "Ajouter à mon deck",
+  "later": "Plus tard",
+  "skip": "Passer"
+}

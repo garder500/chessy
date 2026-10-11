@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
+import { useT } from "../i18n";
 import type { ReportReason } from "../protocol";
 import { store, useAppState } from "../store";
 import { Sheet } from "./Sheet";
 import { sameUser } from "./social";
 import "./moderation.css";
 
-export const REPORT_REASONS: { id: ReportReason; label: string }[] = [
-  { id: "harassment", label: "Harcèlement ou insultes" },
-  { id: "spam", label: "Spam" },
-  { id: "cheating", label: "Triche" },
-  { id: "inappropriate_name", label: "Pseudo inapproprié" },
-  { id: "other", label: "Autre" },
+/** `labelKey` : clé de dictionnaire, traduite au rendu. */
+export const REPORT_REASONS: { id: ReportReason; labelKey: string }[] = [
+  { id: "harassment", labelKey: "moderation.reason_harassment" },
+  { id: "spam", labelKey: "moderation.reason_spam" },
+  { id: "cheating", labelKey: "moderation.reason_cheating" },
+  { id: "inappropriate_name", labelKey: "moderation.reason_inappropriate_name" },
+  { id: "other", labelKey: "moderation.reason_other" },
 ];
 
 interface Props {
@@ -23,6 +25,7 @@ interface Props {
 
 /** Bloquer / débloquer et signaler un joueur (comptes seulement : un invité n'a rien à bloquer). */
 export function ModerationActions({ username, gameId, excerpt }: Props) {
+  const t = useT();
   const { account, blocked, connection } = useAppState();
   const [report, setReport] = useState(false);
   const [confirmBlock, setConfirmBlock] = useState(false);
@@ -38,15 +41,15 @@ export function ModerationActions({ username, gameId, excerpt }: Props) {
     <span className="mod-actions">
       {isBlocked ? (
         <button type="button" className="btn sm ghost" disabled={!online} onClick={() => store.unblockUser(username)}>
-          Débloquer
+          {t("moderation.unblock")}
         </button>
       ) : (
         <button type="button" className="btn sm ghost" disabled={!online} onClick={() => setConfirmBlock(true)}>
-          Bloquer
+          {t("moderation.block")}
         </button>
       )}
       <button type="button" className="btn sm ghost" disabled={!online} onClick={() => setReport(true)}>
-        Signaler
+        {t("moderation.report")}
       </button>
       <BlockSheet open={confirmBlock} username={username} onClose={() => setConfirmBlock(false)} />
       <ReportSheet open={report} username={username} gameId={gameId} excerpt={excerpt} onClose={() => setReport(false)} />
@@ -56,12 +59,10 @@ export function ModerationActions({ username, gameId, excerpt }: Props) {
 
 /** Confirmation avant de bloquer : l'effet est large (amitié, demandes, défis, chat) et le joueur n'en est pas informé. */
 function BlockSheet({ open, username, onClose }: { open: boolean; username: string; onClose: () => void }) {
+  const t = useT();
   return (
-    <Sheet open={open} title={`Bloquer ${username} ?`} onClose={onClose}>
-      <p className="sheet-sub">
-        Ses messages, ses demandes d'ami et ses défis ne vous parviendront plus, et il sera retiré de vos amis. Vous pouvez toujours jouer
-        contre lui. {username} n'en est pas informé, et vous pourrez le débloquer à tout moment dans Réglages.
-      </p>
+    <Sheet open={open} title={t("moderation.block_title", { username })} onClose={onClose}>
+      <p className="sheet-sub">{t("moderation.block_body", { username })}</p>
       <div className="mod-confirm">
         <button
           type="button"
@@ -71,10 +72,10 @@ function BlockSheet({ open, username, onClose }: { open: boolean; username: stri
             onClose();
           }}
         >
-          Bloquer {username}
+          {t("moderation.block_confirm", { username })}
         </button>
         <button type="button" className="btn ghost block" onClick={onClose}>
-          Annuler
+          {t("moderation.cancel")}
         </button>
       </div>
     </Sheet>
@@ -83,22 +84,23 @@ function BlockSheet({ open, username, onClose }: { open: boolean; username: stri
 
 /** Choix du motif puis envoi du signalement ; l'adversaire n'en est jamais informé. */
 function ReportSheet({ open, username, gameId, excerpt, onClose }: Props & { open: boolean; onClose: () => void }) {
+  const t = useT();
   const [reason, setReason] = useState<ReportReason>("harassment");
   const [attach, setAttach] = useState(true);
   return (
-    <Sheet open={open} title={`Signaler ${username}`} onClose={onClose}>
-      <p className="sheet-sub">Le signalement est transmis à la modération. {username} n'en est pas informé.</p>
-      <div className="mod-reasons" role="radiogroup" aria-label="Motif">
+    <Sheet open={open} title={t("moderation.report_title", { username })} onClose={onClose}>
+      <p className="sheet-sub">{t("moderation.report_sub", { username })}</p>
+      <div className="mod-reasons" role="radiogroup" aria-label={t("moderation.reason_aria")}>
         {REPORT_REASONS.map((r) => (
           <button key={r.id} type="button" role="radio" aria-checked={reason === r.id} className={`sg${reason === r.id ? " on" : ""}`} onClick={() => setReason(r.id)}>
-            {r.label}
+            {t(r.labelKey)}
           </button>
         ))}
       </div>
       {excerpt && (
         <label className="mod-attach">
           <input type="checkbox" checked={attach} onChange={(e) => setAttach(e.target.checked)} />
-          <span>Joindre les derniers messages de la partie</span>
+          <span>{t("moderation.attach")}</span>
         </label>
       )}
       <button
@@ -109,7 +111,7 @@ function ReportSheet({ open, username, gameId, excerpt, onClose }: Props & { ope
           onClose();
         }}
       >
-        Envoyer le signalement
+        {t("moderation.send")}
       </button>
     </Sheet>
   );

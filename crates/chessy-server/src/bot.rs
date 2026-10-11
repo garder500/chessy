@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use chessy_engine::ai::{self, Strength, MAX_ELO, MIN_ELO};
 use chessy_engine::search::{self, Limits};
 use chessy_engine::{Action, Color, Game, Position, SkillId, SkillKind};
-use rand::seq::SliceRandom;
+use rand::seq::{IndexedRandom, SliceRandom};
 
 use crate::protocol::{OpponentInfo, PlayerId};
 
@@ -37,14 +37,76 @@ pub fn is_bot_id(id: &str) -> bool {
     id.starts_with(BOT_ID_PREFIX)
 }
 
-/// What the human sees of the bot.
-pub fn info(elo: i32) -> OpponentInfo {
-    OpponentInfo {
-        username: Some(BOT_NAME.to_string()),
-        elo: Some(elo),
-        guest: true,
-        bot: true,
+/// What the human sees of the bot: Sage, or, for a matchmaking bot, an
+/// ordinary player. `elo` is `None` when the level is hidden (placement games).
+pub fn info(elo: Option<i32>, disguise: Option<&str>) -> OpponentInfo {
+    match disguise {
+        Some(name) => OpponentInfo {
+            username: Some(name.to_string()),
+            elo,
+            guest: false,
+            bot: false,
+        },
+        None => OpponentInfo {
+            username: Some(BOT_NAME.to_string()),
+            elo,
+            guest: true,
+            bot: true,
+        },
     }
+}
+
+/// Names a matchmaking bot passes under.
+const HUMAN_NAMES: &[&str] = &[
+    "Lucas_74",
+    "ChessMaster42",
+    "Camille",
+    "xX_Fou_Xx",
+    "Theo_B",
+    "Mathis31",
+    "Lea_Echec",
+    "RoiNoir",
+    "Nico_la_Tour",
+    "Hugo.P",
+    "Manon_R",
+    "KnightRider",
+    "Pion_Solitaire",
+    "Jules_88",
+    "Sarah_C",
+    "TourDeGarde",
+    "Enzo_Gambit",
+    "Chloe.M",
+    "Zeph",
+    "Alex_Mat",
+    "DameBlanche",
+    "Gaspard",
+    "Ines_play",
+    "RockNRook",
+    "Maxime_L",
+    "Elo_Hunter",
+    "Tom_ZugZwang",
+    "Lilou",
+    "Arthur_E4",
+    "PetitCavalier",
+];
+
+/// A believable username for a matchmaking bot.
+pub fn human_name() -> &'static str {
+    HUMAN_NAMES
+        .choose(&mut rand::rng())
+        .copied()
+        .unwrap_or("Joueur")
+}
+
+/// The level of a matchmaking bot for a player rated `elo`: close to it, a
+/// little above or below, like the opponents a real queue produces.
+pub fn match_elo(elo: i32, spread: i32) -> i32 {
+    let offset = if spread > 0 {
+        rand::random_range(-spread..=spread)
+    } else {
+        0
+    };
+    (elo + offset).clamp(MIN_ELO, MAX_ELO)
 }
 
 /// Three distinct classic skills picked at random (never a unique one).

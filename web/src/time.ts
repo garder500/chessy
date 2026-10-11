@@ -1,11 +1,40 @@
 // Durée de partie au choix (Courte, Moyenne, Longue) : mémorisée, envoyée avec la file, la salle ou le défi.
 import { useSyncExternalStore } from "react";
+import { t as tr } from "./i18n";
 import type { TimeControl } from "./protocol";
 
+// `label` et `short` sont des accesseurs : le texte est traduit à la lecture (jamais au chargement du module).
 export const TIMES: { id: TimeControl; label: string; short: string; minutes: number }[] = [
-  { id: "short", label: "Courte", short: "courte", minutes: 5 },
-  { id: "medium", label: "Moyenne", short: "moyenne", minutes: 15 },
-  { id: "long", label: "Longue", short: "longue", minutes: 30 },
+  {
+    id: "short",
+    get label() {
+      return tr("time.short_label");
+    },
+    get short() {
+      return tr("time.short_short");
+    },
+    minutes: 5,
+  },
+  {
+    id: "medium",
+    get label() {
+      return tr("time.medium_label");
+    },
+    get short() {
+      return tr("time.medium_short");
+    },
+    minutes: 15,
+  },
+  {
+    id: "long",
+    get label() {
+      return tr("time.long_label");
+    },
+    get short() {
+      return tr("time.long_short");
+    },
+    minutes: 30,
+  },
 ];
 
 const KEY = "chessy.time";
@@ -44,4 +73,4 @@ export function useTime(): TimeControl {
 
 export const timeInfo = (t: TimeControl) => TIMES.find((x) => x.id === t) ?? TIMES[0];
 /** « Blitz · 5 min » pour la plus courte, « 15 min » pour les autres. */
-export const timeText = (t: TimeControl) => (t === "short" ? "Blitz · 5 min" : `${timeInfo(t).minutes} min`);
+export const timeText = (t: TimeControl) => (t === "short" ? tr("time.blitz") : tr("time.minutes", { minutes: timeInfo(t).minutes }));

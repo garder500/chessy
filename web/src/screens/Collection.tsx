@@ -1,24 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { type CampaignChapterView, type CampaignView, withLiveForge } from "../campaign";
+import { useT } from "../i18n";
 import { FAMILY_LABEL, skillEntry } from "../catalog";
+import { isForgedId, RARITY_LABEL } from "../forged";
 import type { BossForgeInfo, MySkills, SkillHistoryEntry } from "../protocol";
 import { readToken, useAppState } from "../store";
 import { BossForge } from "./campaign/BossForge";
-import { RarityTag } from "../ui/RarityTag";
 import { SkillArt } from "../ui/SkillArt";
+import { FAMILY_FLAT, RARITY_EDGE } from "../ui/forgedIcon";
 import { SkillPreview } from "../ui/skillPreview";
-import { relativeTime } from "../ui/social";
-import { UniqueBadge } from "../ui/UniqueBadge";
 import {
-  CLASSIC_NOTE,
+  classicNote,
+  clockTime,
   describeEntry,
   filterHistory,
   groupByDay,
   HISTORY_FILTERS,
   historyStats,
   RULES,
-  UNIQUE_NOTE,
+  uniqueNote,
   type HistoryFilter,
 } from "./collectionData";
 import "./collection.css";
@@ -60,6 +61,7 @@ function PendingForges({ forges, onOpen }: { forges: BossForgeInfo[]; onOpen: (c
 
 /** Page `#/collection` : l'historique des compétences obtenues, forgées ou perdues. */
 export function Collection() {
+  const t = useT();
   // `forged` change quand la définition d'une compétence forgée arrive : relance le rendu des fiches.
   const { deck } = useAppState();
   const pendingForges = usePendingForges();
@@ -115,52 +117,52 @@ export function Collection() {
   return (
     <main className="co-page">
       <header className="co-head">
-        <p className="eyebrow">Historique</p>
-        <h1 className="co-title">Collection</h1>
+        <p className="eyebrow">{t("collection.eyebrow")}</p>
+        <h1 className="co-title">{t("collection.title")}</h1>
         <p className="co-lead muted">
-          Les compétences que vous avez obtenues ou forgées, et ce qu'il est advenu d'elles. Votre deck en contient 7 au maximum.
+          {t("collection.lead")}
         </p>
       </header>
 
-      <section className="co-stats" aria-label="Résumé">
-        <Stat label="Forgées" value={stats.forged} hint={legendary > 0 ? `dont ${legendary} légendaire${legendary > 1 ? "s" : ""}` : undefined} />
-        <Stat label="Obtenues" value={stats.obtained} />
-        <Stat label="Perdues" value={stats.lost} />
-        <Stat label="Dans votre deck" value={owned.size} hint="sur 7" />
+      <section className="co-stats" aria-label={t("collection.summary_aria")}>
+        <Stat label={t("collection.stat_forged")} value={stats.forged} hint={legendary > 0 ? t("collection.stat_legendary", { count: legendary }) : undefined} />
+        <Stat label={t("collection.stat_obtained")} value={stats.obtained} />
+        <Stat label={t("collection.stat_lost")} value={stats.lost} />
+        <Stat label={t("collection.stat_in_deck")} value={owned.size} hint={t("collection.stat_of_seven")} />
       </section>
 
       <PendingForges forges={pendingForges} onOpen={setForgeChapter} />
       {forgeChapter !== null && <BossForge chapter={forgeChapter} initial={pendingForges.find((f) => f.chapter === forgeChapter)} onClose={closeForge} />}
 
-      <div className="seg co-filter" role="group" aria-label="Filtrer l'historique">
+      <div className="seg co-filter" role="group" aria-label={t("collection.filter_aria")}>
         {HISTORY_FILTERS.map((f) => (
           <button key={f.id} type="button" aria-pressed={filter === f.id} className={filter === f.id ? "on" : ""} onClick={() => setFilter(f.id)}>
-            {f.label}
+            {t(f.label)}
           </button>
         ))}
       </div>
 
-      {status === "loading" && <p className="co-empty muted">Chargement de l'historique…</p>}
+      {status === "loading" && <p className="co-empty muted">{t("collection.loading")}</p>}
       {status === "error" && (
         <p className="co-empty card" role="alert">
-          Impossible de charger l'historique.{" "}
+          {t("collection.error")}{" "}
           <button type="button" className="btn sm ghost" onClick={() => void load()}>
-            Réessayer
+            {t("collection.retry")}
           </button>
         </p>
       )}
       {status === "ready" && days.length === 0 && (
         <p className="co-empty card">
           {entries.length === 0
-            ? "Aucune compétence pour l'instant."
-            : "Rien dans cette catégorie. Gagnez une partie classée pour forger ou prendre une compétence."}
+            ? t("collection.empty")
+            : t("collection.empty_filter")}
         </p>
       )}
 
       {days.map((day) => (
-        <section key={day.label} className="hi-day" aria-label={day.label}>
-          <h2 className="hi-day-title">{day.label}</h2>
-          <ul className="hi-list">
+        <section key={day.label} className="hl-day" aria-label={day.label}>
+          <h2 className="hl-day-title">{day.label}</h2>
+          <ul className="hl-list">
             {day.entries.map((e) => (
               <Row key={e.id} entry={e} current={current.has(e.id)} open={open === e.id} onToggle={() => setOpen(open === e.id ? null : e.id)} />
             ))}
@@ -182,36 +184,37 @@ function Stat({ label, value, hint }: { label: string; value: number; hint?: str
 }
 
 function Row({ entry, current, open, onToggle }: { entry: SkillHistoryEntry; current: boolean; open: boolean; onToggle: () => void }) {
+  const t = useT();
   const info = skillEntry(entry.skill);
   const lost = entry.change === "lost";
-  const classes = ["hi-row", lost ? "lost" : "", info.unique ? "foil" : ""].filter(Boolean).join(" ");
+  const rar = tileRarity(entry.skill);
+  const forged = isForgedId(entry.skill);
+  // Une forge ordinaire va de soi : on ne raconte l'origine que si elle apprend quelque chose.
+  const note = !lost && entry.source === "forged" ? null : describeEntry(entry);
+  const kind = [FAMILY_LABEL[info.family], info.rarity ? RARITY_LABEL[info.rarity] : null].filter(Boolean).join(" · ");
   return (
-    <li className={classes} style={{ ["--fam" as string]: `var(--fam-${info.family})` }}>
-      <button type="button" className="hi-head" aria-expanded={open} onClick={onToggle}>
-        <span className="hi-art" data-rar={tileRarity(entry.skill)}>
-          <SkillArt id={entry.skill} size={46} />
-          {info.unique && <UniqueBadge />}
+    <li className={`hl-row${lost ? " lost" : ""}`}>
+      <button type="button" className="hl-head" aria-expanded={open} onClick={onToggle}>
+        <span className={`hl-badge${forged ? "" : " flat"}`} style={{ ["--fam" as string]: FAMILY_FLAT[info.family], ["--edge" as string]: RARITY_EDGE[rar] }}>
+          <SkillArt id={entry.skill} size={forged ? 48 : 30} />
         </span>
-        <span className="hi-body">
-          <span className="hi-name">{info.name}</span>
-          <span className="hi-what">
-            <span className={`hi-change ${lost ? "out" : "in"}`}>{lost ? "Perdue" : "Obtenue"}</span> · {describeEntry(entry)}
+        <span className="hl-body">
+          <span className="hl-name">
+            {info.name}
+            {current && <span className="hl-deck" role="img" aria-label={t("collection.stat_in_deck")} title={t("collection.stat_in_deck")} />}
           </span>
-          <span className="hi-meta">
-            <span className="eyebrow">{FAMILY_LABEL[info.family]}</span>
-            {info.rarity ? <RarityTag rarity={info.rarity} /> : info.unique && <span className="tag foil-tag">unique</span>}
-            {current && <span className="tag co-deck">Dans votre deck</span>}
-          </span>
+          <span className="hl-kind">{info.unique ? t("skills.unique_tag") : kind}</span>
+          {note && <span className={`hl-note${lost ? " out" : ""}`}>{note}</span>}
         </span>
-        <time className="hi-when mono muted" dateTime={entry.at}>
-          {relativeTime(entry.at)}
+        <time className="hl-when" dateTime={entry.at}>
+          {clockTime(entry.at)}
         </time>
       </button>
       {open && (
-        <div className="hi-detail">
-          <p className="hi-rules">{(RULES as Record<string, string>)[entry.skill] ?? info.description}</p>
+        <div className="hl-detail">
+          <p className="hl-rules">{(RULES as Record<string, string>)[entry.skill] ?? info.description}</p>
           <SkillPreview id={entry.skill} caption />
-          <p className="muted hi-note">{info.unique ? UNIQUE_NOTE : CLASSIC_NOTE}</p>
+          <p className="muted hl-foot">{info.unique ? uniqueNote() : classicNote()}</p>
         </div>
       )}
     </li>

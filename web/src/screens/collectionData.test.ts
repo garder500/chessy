@@ -1,7 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { setLang } from "../i18n";
 import { CATALOG } from "../catalog";
 import type { SkillHistoryEntry } from "../protocol";
 import { dayLabel, describeEntry, filterHistory, groupByDay, historyStats, RULES } from "./collectionData";
+
+beforeAll(() => setLang("fr"));
 
 const entry = (id: number, over: Partial<SkillHistoryEntry> = {}): SkillHistoryEntry => ({
   id,
@@ -45,7 +48,7 @@ describe("historique des compétences", () => {
     expect(describeEntry(all[3])).toContain("Remplacée");
     expect(describeEntry(all[4])).toBe("Deck de départ");
     expect(describeEntry(entry(9, { source: "earlier" }))).toContain("Déjà");
-    expect(describeEntry(entry(9, { source: "refill" }))).toContain("vide");
+    expect(describeEntry(entry(9, { source: "refill" }))).toContain("Offerte");
     expect(describeEntry(entry(9, { source: "won" }))).toContain("Gagnée");
   });
 

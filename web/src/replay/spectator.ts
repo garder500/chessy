@@ -1,5 +1,6 @@
 // État du mode spectateur et son réducteur (docs/spec-v4.md §3). Pur : le store ne fait que l'appliquer.
 
+import { t } from "../i18n";
 import { appendLog, describeAction, type LogLine } from "../game/logic";
 import type { ServerMsg, SpectatorView } from "../protocol";
 import { normalizeSpectatorView, spectatorToView } from "./frames";
@@ -78,16 +79,16 @@ export function reduceSpectator(s: SpectatingState | null, msg: ServerMsg): Spec
 export function spectateErrorText(code: string | null): string {
   switch (code) {
     case "spectate_full":
-      return "Cette partie a atteint son maximum de 50 spectateurs.";
+      return t("replay.err_full");
     case "no_such_game":
-      return "Cette partie n'existe pas ou est déjà terminée.";
+      return t("replay.err_missing");
     case "already_in_game":
-      return "Vous êtes déjà dans une partie : terminez-la avant d'en regarder une autre.";
+      return t("replay.err_in_game");
     default:
-      return "Impossible de regarder cette partie.";
+      return t("replay.err_default");
   }
 }
 
 export function endedText(reason: string | null): string {
-  return reason === "cancelled" || !reason ? "La partie a été annulée." : `La partie a été annulée (${reason}).`;
+  return reason === "cancelled" || !reason ? t("replay.ended_cancelled") : t("replay.ended_reason", { reason });
 }

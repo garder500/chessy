@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Me, ServerMsg, StateView } from "./protocol";
-import { noticeText, Store } from "./store";
+import { accountAfterGame, noticeText, Store } from "./store";
+import { setLang } from "./i18n";
 
+beforeEach(() => setLang("fr"));
 const me: Me = { player_id: "p", username: "jeremy", guest: false, elo: 1284, rank: 3, games: 4, wins: 2, draws: 1, losses: 1 };
 
 const welcome: ServerMsg = { type: "welcome", player_id: "p", token: "t", deck: ["freeze"], pending_reward: null, account: me };
@@ -245,5 +247,19 @@ describe("store messages", () => {
     expect(store.getState().rematch).toBe("offered");
     store.receive({ type: "rematch_declined" });
     expect(store.getState().rematch).toBe("none");
+  });
+});
+
+describe("accountAfterGame", () => {
+  const me = { player_id: "p", username: "a", guest: false, elo: 1200, rank: 1, games: 0, wins: 0, draws: 0, losses: 0 };
+  const over = { type: "game_over" as const, outcome: { type: "draw" as const, reason: "agreement" as const }, reward: null, rated: false, elo: null, reason: "" };
+
+  it("suit l'avancement de l'évaluation, puis adopte l'Elo estimé", () => {
+    const mid = accountAfterGame(me, { ...over, placement: { done: 2, total: 5 } } as never);
+    expect(mid.placement).toEqual({ placed: false, done: 2, total: 5 });
+    expect(mid.elo).toBe(1200);
+    const end = accountAfterGame(mid, { ...over, placement: { done: 5, total: 5, elo: 940, before: 1200 } } as never);
+    expect(end.placement).toEqual({ placed: true, done: 5, total: 5 });
+    expect(end.elo).toBe(940);
   });
 });

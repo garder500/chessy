@@ -1,18 +1,28 @@
 // Paliers de classement : < 1200 Novice, 1200–1399 Initié, 1400–1599 Adepte,
 // 1600–1799 Expert, ≥ 1800 Maître.
 
+import { t } from "../i18n";
+
 export interface Tier {
   name: string;
   /** Elo minimal du palier. */
   min: number;
 }
 
+/** Palier dont le nom est traduit à chaque lecture (la langue peut changer). */
+const tier = (id: string, min: number): Tier => ({
+  min,
+  get name() {
+    return t(`tier.${id}`);
+  },
+});
+
 export const TIERS: readonly Tier[] = [
-  { name: "Novice", min: Number.NEGATIVE_INFINITY },
-  { name: "Initié", min: 1200 },
-  { name: "Adepte", min: 1400 },
-  { name: "Expert", min: 1600 },
-  { name: "Maître", min: 1800 },
+  tier("novice", Number.NEGATIVE_INFINITY),
+  tier("initiate", 1200),
+  tier("adept", 1400),
+  tier("expert", 1600),
+  tier("master", 1800),
 ];
 
 export function tierIndex(elo: number): number {

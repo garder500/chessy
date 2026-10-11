@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { api, ApiError, gameErrorText } from "../api";
+import { useT } from "../i18n";
 import type { Action, Color, GameRecord } from "../protocol";
 import { arrowSquares } from "../replay/arrow";
 import {
@@ -40,6 +41,7 @@ type Load = { status: "loading" } | { status: "ready"; record: GameRecord } | { 
 
 /** Page `#/replay/<id>` : charge la partie puis affiche le lecteur. */
 export function Replay({ gameId, autoAnalyse = false }: { gameId: string; autoAnalyse?: boolean }) {
+  const t = useT();
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
 
@@ -50,7 +52,7 @@ export function Replay({ gameId, autoAnalyse = false }: { gameId: string; autoAn
       .game(gameId, readToken(), ctl.signal)
       .then((record) => {
         if (ctl.signal.aborted) return;
-        if (!isReplayable(record)) setLoad({ status: "error", message: "Replay indisponible pour cette partie.", retry: false });
+        if (!isReplayable(record)) setLoad({ status: "error", message: t("replay.unavailable"), retry: false });
         else setLoad({ status: "ready", record });
       })
       .catch((e: unknown) => {
@@ -67,7 +69,7 @@ export function Replay({ gameId, autoAnalyse = false }: { gameId: string; autoAn
       <main className="rp">
         <div className="rp-state card" role="status" aria-live="polite">
           <span className="rp-spinner" aria-hidden="true" />
-          <p>Chargement de la partie…</p>
+          <p>{t("replay.loading")}</p>
         </div>
       </main>
     );
@@ -77,15 +79,15 @@ export function Replay({ gameId, autoAnalyse = false }: { gameId: string; autoAn
       <main className="rp">
         <div className="rp-state card" role="alert">
           <h1 className="rp-state-title">{load.message}</h1>
-          <p className="muted">Vous pouvez retrouver vos parties terminées dans « Mes parties ».</p>
+          <p className="muted">{t("replay.error_hint")}</p>
           <div className="gm-row rp-state-actions">
             {load.retry && (
               <button type="button" className="btn pri" onClick={() => setAttempt((n) => n + 1)}>
-                Réessayer
+                {t("replay.retry")}
               </button>
             )}
             <a className={`btn${load.retry ? "" : " pri"}`} href="#/games">
-              Mes parties
+              {t("replay.my_games")}
             </a>
           </div>
         </div>
@@ -102,17 +104,19 @@ interface ExploreRun {
 }
 
 function EngineBar({ cp, orientation }: { cp: number; orientation: Color }) {
+  const t = useT();
   // Part des blancs : sigmoïde douce, du point de vue de l'orientation (les blancs en bas si on les regarde d'en bas).
   const share = 1 / (1 + Math.exp(-cp / 350));
   const whiteBottom = orientation === "white";
   return (
-    <div className="gm-eval rp-engine" role="img" aria-label={`Évaluation du moteur : ${cp >= 0 ? "avantage blanc" : "avantage noir"}`}>
+    <div className="gm-eval rp-engine" role="img" aria-label={t(cp >= 0 ? "replay.engine_white" : "replay.engine_black")}>
       <i style={whiteBottom ? { height: `${Math.round(share * 100)}%` } : { height: `${Math.round(share * 100)}%`, top: 0, bottom: "auto" }} />
     </div>
   );
 }
 
 function ReplayPlayer({ record, autoAnalyse }: { record: GameRecord; autoAnalyse: boolean }) {
+  const t = useT();
   const { account } = useAppState();
   const username = account && !account.guest ? account.username : null;
   const mine = colorOf(record, username);
@@ -324,22 +328,22 @@ function ReplayPlayer({ record, autoAnalyse }: { record: GameRecord; autoAnalyse
 
   let hint: string;
   let tone = "";
-  if (exploreStarting) hint = "Chargement de la position…";
+  if (exploreStarting) hint = t("replay.explore_loading");
   else if (exploring) {
     hint = explore.pending
-      ? "Le moteur réfléchit…"
+      ? t("replay.thinking")
       : interact.activeSkill
-        ? "Choisissez la cible de la compétence."
-        : `Exploration : c'est aux ${COLOR_FR[frame.to_move]} de jouer.`;
+        ? t("replay.pick_target")
+        : t("replay.explore_to_move", { color: COLOR_FR[frame.to_move] });
     tone = "skill";
   } else if (atEnd && over) hint = resultLine(frame.outcome, record.result.reason);
   else if (frame.in_check) {
-    hint = `Échec : roi ${frame.to_move === "white" ? "blanc" : "noir"} menacé.`;
+    hint = t(frame.to_move === "white" ? "replay.check_white" : "replay.check_black");
     tone = "check";
-  } else hint = nav.index === 0 ? "Position initiale." : `Après le coup ${nav.index} sur ${max} : aux ${COLOR_FR[frame.to_move]} de jouer.`;
+  } else hint = nav.index === 0 ? t("replay.hint_initial") : t("replay.hint_after", { index: nav.index, max, color: COLOR_FR[frame.to_move] });
 
   const top = opposite(orientation);
-  const title = `${seatName(record.white)} contre ${seatName(record.black)}`;
+  const title = t("replay.vs_title", { white: seatName(record.white), black: seatName(record.black) });
   const skillsDisabled = !exploring || explore.pending;
 
   if (compact) {
@@ -347,18 +351,18 @@ function ReplayPlayer({ record, autoAnalyse }: { record: GameRecord; autoAnalyse
     return (
       <main className="rp rp-compact">
         <header className="rc-top">
-          <a className="rc-ic" href="#/games" aria-label="Retour à mes parties">
+          <a className="rc-ic" href="#/games" aria-label={t("replay.back_aria")}>
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M15 5l-7 7 7 7" />
             </svg>
           </a>
-          <h1 className="rc-title">{mine ? `Contre ${vs}` : vs}</h1>
-          <button type="button" className="rc-ic" aria-label="Retourner le plateau" aria-pressed={orientation === "black"} onClick={() => setOrientation((o) => opposite(o))}>
+          <h1 className="rc-title">{mine ? t("replay.vs_opponent", { name: vs }) : vs}</h1>
+          <button type="button" className="rc-ic" aria-label={t("replay.flip")} aria-pressed={orientation === "black"} onClick={() => setOrientation((o) => opposite(o))}>
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
               <path d="M7 4v14l-3-3M17 20V6l3 3" />
             </svg>
           </button>
-          <button type="button" className="rc-ic" aria-label="Plus d'options" onClick={() => setMore(true)}>
+          <button type="button" className="rc-ic" aria-label={t("replay.more_options")} onClick={() => setMore(true)}>
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
               <circle cx="5" cy="12" r="2" />
               <circle cx="12" cy="12" r="2" />
@@ -391,22 +395,22 @@ function ReplayPlayer({ record, autoAnalyse }: { record: GameRecord; autoAnalyse
           )}
         </div>
         <BottomControls nav={nav} disabled={exploring || exploreStarting} dispatch={dispatch} />
-        <Sheet open={more} title="Plus" onClose={() => setMore(false)}>
+        <Sheet open={more} title={t("replay.sheet_title")} onClose={() => setMore(false)}>
           <div className="rc-more">
             {exploring ? (
               <button type="button" className="btn block" onClick={() => { exitExplore(); setMore(false); }}>
-                Retour à la partie
+                {t("replay.back_to_game")}
               </button>
             ) : (
               <button type="button" className="btn block" disabled={exploreStarting} onClick={() => { startExplore(); setMore(false); }}>
-                {exploreStarting ? "Chargement…" : "Explorer à partir d'ici"}
+                {exploreStarting ? t("replay.loading_short") : t("replay.explore_here")}
               </button>
             )}
             {bestHere && !exploring && (
               <label className="rp-check">
                 <input type="checkbox" checked={showBest} onChange={(e) => setShowBest(e.target.checked)} />
                 <span>
-                  Flèche du meilleur coup : <strong className="mono">{bestHere.notation}</strong>
+                  {t("replay.arrow_label")} <strong className="mono">{bestHere.notation}</strong>
                 </span>
               </label>
             )}
@@ -421,7 +425,7 @@ function ReplayPlayer({ record, autoAnalyse }: { record: GameRecord; autoAnalyse
               }}
             />
             <a className="link" href="#/games">
-              Mes parties
+              {t("replay.my_games")}
             </a>
           </div>
         </Sheet>
@@ -433,43 +437,43 @@ function ReplayPlayer({ record, autoAnalyse }: { record: GameRecord; autoAnalyse
     <main className="rp">
       <header className="rp-head">
         <div className="rp-head-main">
-          <p className="eyebrow">Replay</p>
+          <p className="eyebrow">{t("replay.eyebrow")}</p>
           <h1 className="rp-title">{title}</h1>
           <p className="rp-meta">
             <span className="tag">{kindLabel(record.kind, record.rated)}</span>
-            <span className="muted">{record.plies} coup{record.plies > 1 ? "s" : ""}</span>
+            <span className="muted">{t("replay.ply", { count: record.plies })}</span>
             {record.time_control && <span className="muted">{timeText(record.time_control)}</span>}
             {record.at && <span className="muted">{relativeTime(record.at)}</span>}
             <span>{resultLine(record.result.outcome, record.result.reason)}</span>
           </p>
         </div>
         <div className="rp-head-actions">
-          <button type="button" className="btn sm" onClick={() => setOrientation((o) => opposite(o))} aria-pressed={orientation === "black"} aria-keyshortcuts="F" title="Retourner le plateau (F)">
-            Retourner le plateau
+          <button type="button" className="btn sm" onClick={() => setOrientation((o) => opposite(o))} aria-pressed={orientation === "black"} aria-keyshortcuts="F" title={t("replay.flip_title")}>
+            {t("replay.flip")}
           </button>
           {exploring ? (
             <button type="button" className="btn sm" onClick={exitExplore}>
-              Retour à la partie
+              {t("replay.back_to_game")}
             </button>
           ) : (
             <button type="button" className="btn sm" onClick={startExplore} disabled={exploreStarting}>
-              {exploreStarting ? "Chargement…" : "Explorer à partir d'ici"}
+              {exploreStarting ? t("replay.loading_short") : t("replay.explore_here")}
             </button>
           )}
           <a className="btn sm ghost" href="#/games">
-            Mes parties
+            {t("replay.my_games")}
           </a>
         </div>
       </header>
 
       <div className="rp-grid">
-        <section className="rp-center" aria-label="Plateau">
+        <section className="rp-center" aria-label={t("replay.board_aria")}>
           <Plate {...plateProps(top)} />
           <div className={`gm-hint ${tone}`} role="status" aria-live="polite">
             <span>{hint}</span>
             {exploring && (
               <button type="button" className="btn sm ghost" onClick={exitExplore}>
-                Retour à la partie
+                {t("replay.back_to_game")}
               </button>
             )}
           </div>
@@ -525,7 +529,7 @@ function ReplayPlayer({ record, autoAnalyse }: { record: GameRecord; autoAnalyse
           />
           <MoveList moves={record.moves} index={exploring ? explore.state.ply : nav.index} analysis={analysisData} onSelect={seek} />
           <p className="muted rp-keys">
-            Raccourcis : ← → pour avancer ou reculer, Début / Fin, Espace pour lancer la lecture, F pour retourner le plateau.
+            {t("replay.shortcuts")}
           </p>
         </aside>
       </div>

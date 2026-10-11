@@ -1,17 +1,39 @@
 // Logique pure des listes : « Mes parties » (pagination, filtre) et « En direct » (tri, étiquettes).
 
 import type { Color, GameSummary, LiveGame, Outcome, Seat } from "../protocol";
+import { t } from "../i18n";
 import { kindLabel, opposite, seatName } from "./frames";
 
 // ---- Mes parties -------------------------------------------------------------
 
 export type GamesFilter = "all" | "ranked" | "friendly" | "solo";
 
+// `label` est un accesseur : traduit à la lecture, jamais au chargement du module.
 export const GAMES_FILTERS: { id: GamesFilter; label: string }[] = [
-  { id: "all", label: "Toutes" },
-  { id: "ranked", label: "Classées" },
-  { id: "friendly", label: "Amicales" },
-  { id: "solo", label: "Solo" },
+  {
+    id: "all",
+    get label() {
+      return t("replay.filter_all");
+    },
+  },
+  {
+    id: "ranked",
+    get label() {
+      return t("replay.filter_ranked");
+    },
+  },
+  {
+    id: "friendly",
+    get label() {
+      return t("replay.filter_friendly");
+    },
+  },
+  {
+    id: "solo",
+    get label() {
+      return t("replay.filter_solo");
+    },
+  },
 ];
 
 export const GAMES_PAGE = 20;
@@ -62,22 +84,22 @@ export function opponentSeat(game: Pick<GameSummary, "white" | "black" | "color"
 /** Libellé de l'adversaire : pseudo, « IA (niveau 1400) » ou « Invité ». */
 export function opponentLabel(game: Pick<GameSummary, "white" | "black" | "color">): string {
   const seat = opponentSeat(game);
-  if (seat.bot) return seat.elo !== null ? `IA (niveau ${seat.elo})` : "IA";
+  if (seat.bot) return seat.elo !== null ? t("replay.bot_level", { elo: seat.elo }) : t("replay.seat_bot");
   return seatName(seat);
 }
 
 /** Message d'une liste vide selon le filtre actif. */
 export function emptyGamesText(filter: GamesFilter, loaded: number): string {
-  if (loaded === 0) return "Vous n'avez pas encore terminé de partie.";
+  if (loaded === 0) return t("replay.empty_none");
   switch (filter) {
     case "ranked":
-      return "Aucune partie classée parmi les parties chargées.";
+      return t("replay.empty_ranked");
     case "friendly":
-      return "Aucune partie amicale parmi les parties chargées.";
+      return t("replay.empty_friendly");
     case "solo":
-      return "Aucune partie solo parmi les parties chargées.";
+      return t("replay.empty_solo");
     default:
-      return "Aucune partie.";
+      return t("replay.empty_default");
   }
 }
 
@@ -107,43 +129,44 @@ export function sortLive(games: LiveGame[]): LiveGame[] {
 export const liveTag = (game: Pick<LiveGame, "kind" | "rated">): string => kindLabel(game.kind, game.rated);
 
 export function plyText(ply: number): string {
-  return ply === 0 ? "Pas encore de coup" : `${ply} coup${ply > 1 ? "s" : ""}`;
+  return ply === 0 ? t("replay.ply_none") : t("replay.ply", { count: ply });
 }
 
 export function spectatorsText(n: number): string {
-  if (n <= 0) return "Aucun spectateur";
-  return `${n} spectateur${n > 1 ? "s" : ""}`;
+  if (n <= 0) return t("replay.spectators_none");
+  return t("replay.spectators", { count: n });
 }
 
 /** « Retransmission différée de 30 s », ou `null` en direct strict. */
 export function delayText(delayMs: number): string | null {
   if (!(delayMs > 0)) return null;
   const s = Math.round(delayMs / 1000);
-  return s >= 120 ? `Retransmission différée de ${Math.round(s / 60)} min` : `Retransmission différée de ${s} s`;
+  return s >= 120 ? t("replay.delay_min", { n: Math.round(s / 60) }) : t("replay.delay_s", { n: s });
 }
 
 /** Qui gagne : texte de résultat neutre pour un spectateur. */
 export function winnerText(winner: Color | null): string {
-  if (winner === null) return "Partie nulle";
-  return winner === "white" ? "Victoire des blancs" : "Victoire des noirs";
+  if (winner === null) return t("replay.winner_draw");
+  return t(winner === "white" ? "replay.winner_white" : "replay.winner_black");
 }
 
 const NEUTRAL_REASON: Record<string, string> = {
-  checkmate: "Échec et mat",
-  resignation: "Abandon",
-  timeout: "Temps écoulé",
-  agreed_draw: "Nulle par accord",
-  draw_agreed: "Nulle par accord",
-  stalemate: "Pat",
-  fifty_moves: "Règle des 50 coups",
-  repetition: "Répétition de position",
-  insufficient_material: "Matériel insuffisant",
-  disconnect: "Déconnexion",
+  checkmate: "replay.neutral_checkmate",
+  resignation: "replay.neutral_resignation",
+  timeout: "replay.neutral_timeout",
+  agreed_draw: "replay.neutral_draw_agreed",
+  draw_agreed: "replay.neutral_draw_agreed",
+  stalemate: "replay.neutral_stalemate",
+  fifty_moves: "replay.neutral_fifty_moves",
+  repetition: "replay.neutral_repetition",
+  insufficient_material: "replay.neutral_insufficient_material",
+  disconnect: "replay.neutral_disconnect",
 };
 
 /** Motif de fin sans point de vue (« Abandon », « Échec et mat »). */
 export function neutralReason(reason: string): string {
-  return NEUTRAL_REASON[reason] ?? reason;
+  const key = NEUTRAL_REASON[reason];
+  return key ? t(key) : reason;
 }
 
 /** Vainqueur d'une issue : un camp, `null` pour une nulle, `undefined` si la partie continue. */

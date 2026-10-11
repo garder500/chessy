@@ -1,0 +1,21 @@
+{
+  "username_taken": "Este nome de usuário já está em uso.",
+  "bad_credentials": "Nome de usuário ou senha incorretos.",
+  "weak_password": "Senha fraca demais: de 8 a 128 caracteres.",
+  "invalid_username": "Nome de usuário inválido: de 3 a 16 caracteres, letras, números ou _.",
+  "unauthorized": "Sua sessão expirou. Entre novamente.",
+  "not_found": "Não encontrado.",
+  "network": "Não foi possível conectar ao servidor. Verifique sua conexão.",
+  "rate_limited": "Muitas tentativas. Tente novamente em instantes.",
+  "too_many_attempts": "Muitas tentativas de login falharam. Tente novamente em alguns minutos.",
+  "bad_recovery": "Nome de usuário ou código de recuperação incorretos.",
+  "server_error": "O servidor encontrou um problema. Tente novamente mais tarde.",
+  "generic": "Ocorreu um erro. Tente novamente.",
+  "no_replay": "Replay indisponível para esta partida.",
+  "game_not_found": "Partida não encontrada.",
+  "game_forbidden": "Esta partida não está acessível com a sua conta.",
+  "illegal_action": "Ação impossível nesta posição.",
+  "bad_ply": "Posição não encontrada nesta partida.",
+  "analysis_failed": "A análise falhou. Tente novamente com uma profundidade menor.",
+  "bad_request": "Requisição inválida."
+}

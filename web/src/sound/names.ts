@@ -1,4 +1,5 @@
 // Noms de sons et classification (aucune dépendance Web Audio : utilisable dans les tests et côté UI).
+import { t } from "../i18n";
 import type { BuiltinSkillId, SkillId } from "../protocol";
 
 export type SfxName =
@@ -50,3 +51,8 @@ export const isUiSfx = (name: SfxName) => UI_SET.has(name);
 /** Sons peu importants, abandonnés en premier quand toutes les voix sont prises. */
 const LOW_SET = new Set<SfxName>(["ui_click", "low_time", "chat", "notice"]);
 export const isLowPriority = (name: SfxName) => LOW_SET.has(name);
+
+/** Nom lisible d'un effet sonore (clé `sfxnames.<nom>`) ; les sons de compétence prennent le nom de la compétence. */
+export function sfxLabel(name: SfxName): string {
+  return t(`sfxnames.${name}`);
+}

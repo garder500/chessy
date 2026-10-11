@@ -1,6 +1,8 @@
 import { useId, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useT } from "../../i18n";
 import type { Analysis } from "../../protocol";
 import { buildCurve, curveMarks, evalSeries, indexFromX, xForIndex } from "../../replay/evalCurve";
+import { colorCap } from "../../replay/frames";
 import { formatEval, LABEL_COLOR, LABEL_TEXT } from "../../replay/labels";
 
 const W = 480;
@@ -15,6 +17,7 @@ interface Props {
 
 /** Courbe d'évaluation cliquable (blancs en haut), avec repères pour les erreurs et les gaffes. */
 export function EvalChart({ analysis, plies, index, onSeek }: Props) {
+  const t = useT();
   const clipId = useId().replace(/:/g, "");
   const box = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -35,10 +38,10 @@ export function EvalChart({ analysis, plies, index, onSeek }: Props) {
     <section className="gm-panel card rp-chart" aria-labelledby="rp-chart-h">
       <div className="gm-panel-head">
         <h2 id="rp-chart-h" className="gm-h">
-          Évaluation
+          {t("replay.eval_heading")}
         </h2>
         <span className="mono muted" aria-live="polite">
-          Coup {shown} : {formatEval(series[shown] ?? 0)}
+          {t("replay.chart_shown", { n: shown, eval: formatEval(series[shown] ?? 0) })}
         </span>
       </div>
       <div
@@ -46,11 +49,11 @@ export function EvalChart({ analysis, plies, index, onSeek }: Props) {
         className="rp-chart-box"
         role="slider"
         tabIndex={0}
-        aria-label="Courbe d'évaluation : cliquez pour aller à un coup"
+        aria-label={t("replay.chart_aria")}
         aria-valuemin={0}
         aria-valuemax={plies}
         aria-valuenow={index}
-        aria-valuetext={`Coup ${index}, évaluation ${formatEval(series[index] ?? 0)} (point de vue des blancs)`}
+        aria-valuetext={t("replay.chart_valuetext", { index, eval: formatEval(series[index] ?? 0) })}
         onPointerDown={(e) => {
           const i = indexAt(e);
           if (i !== null) onSeek(i);
@@ -73,17 +76,17 @@ export function EvalChart({ analysis, plies, index, onSeek }: Props) {
           <path d={curve.line} className="rp-line" vectorEffect="non-scaling-stroke" />
           {marks.map((m) => (
             <circle key={m.index} cx={m.x} cy={m.y} r="4.5" fill={LABEL_COLOR[m.label]} className="rp-mark" vectorEffect="non-scaling-stroke">
-              <title>{`Coup ${m.index} : ${LABEL_TEXT[m.label]}`}</title>
+              <title>{t("replay.mark_title", { n: m.index, label: LABEL_TEXT[m.label] })}</title>
             </circle>
           ))}
           {hover !== null && <line x1={xForIndex(hover, plies, W)} y1="0" x2={xForIndex(hover, plies, W)} y2={H} className="rp-hover" vectorEffect="non-scaling-stroke" />}
           <line x1={cursor} y1="0" x2={cursor} y2={H} className="rp-cursor" vectorEffect="non-scaling-stroke" />
         </svg>
         <span className="rp-side-label top" aria-hidden="true">
-          Blancs
+          {colorCap("white")}
         </span>
         <span className="rp-side-label bottom" aria-hidden="true">
-          Noirs
+          {colorCap("black")}
         </span>
       </div>
     </section>

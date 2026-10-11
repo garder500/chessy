@@ -1,5 +1,6 @@
 // Logique pure du mode Solo (jouer contre l'IA) : niveaux d'Elo, paliers, réglage mémorisé.
 
+import { t } from "./i18n";
 import type { SoloColor } from "./protocol";
 
 export const SOLO_MIN = 400;
@@ -22,20 +23,31 @@ export interface SoloTier {
   blurb: string;
 }
 
+/** Palier dont le nom et la description sont traduits à chaque lecture (la langue peut changer). */
+const tier = (id: string, min: number): SoloTier => ({
+  min,
+  get name() {
+    return t(`solo.tier_${id}_name`);
+  },
+  get blurb() {
+    return t(`solo.tier_${id}_blurb`);
+  },
+});
+
 export const SOLO_TIERS: readonly SoloTier[] = [
-  { name: "Débutant", min: SOLO_MIN, blurb: "Voit un coup à l'avance et se trompe souvent : idéal pour découvrir les compétences." },
-  { name: "Amateur", min: 800, blurb: "Anticipe deux coups et laisse parfois une pièce en prise." },
-  { name: "Club", min: 1200, blurb: "Joue solidement, rarement de grosses erreurs, utilise ses compétences à bon escient." },
-  { name: "Expert", min: 1600, blurb: "Calcule quatre coups et punit presque toutes les imprécisions." },
-  { name: "Maître", min: 2000, blurb: "Réfléchit plus longtemps, joue avec précision et exploite chaque compétence." },
-  { name: "Grand Maître", min: 2400, blurb: "Le plus fort : calcul profond, évaluation complète, quasiment aucune erreur." },
+  tier("beginner", SOLO_MIN),
+  tier("amateur", 800),
+  tier("club", 1200),
+  tier("expert", 1600),
+  tier("master", 2000),
+  tier("grandmaster", 2400),
 ];
 
 /** Palier nommé d'un niveau (< 800 Débutant, < 1200 Amateur, < 1600 Club, < 2000 Expert, < 2400 Maître, sinon Grand Maître). */
 export function soloTier(elo: number): SoloTier {
-  let tier = SOLO_TIERS[0];
-  for (const t of SOLO_TIERS) if (elo >= t.min) tier = t;
-  return tier;
+  let found = SOLO_TIERS[0];
+  for (const tr of SOLO_TIERS) if (elo >= tr.min) found = tr;
+  return found;
 }
 
 /** Ramène une valeur dans [400, 2800] sur la grille de 50. Non numérique : niveau par défaut. */

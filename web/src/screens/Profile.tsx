@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { t, useT } from "../i18n";
 import { hrefFor, navigate } from "../router";
 import { api, apiErrorText, type EarnedTitle } from "../api";
 import { readToken, store, useAppState } from "../store";
@@ -21,16 +22,17 @@ interface Props {
 
 function streakText(streak: number): string {
   if (streak === 0) return "—";
-  return streak > 0 ? `${streak} V` : `${Math.abs(streak)} D`;
+  return streak > 0 ? t("profile.streak_w", { n: streak }) : t("profile.streak_l", { n: Math.abs(streak) });
 }
 
 function streakHint(streak: number): string | undefined {
   if (streak === 0) return undefined;
   const n = Math.abs(streak);
-  return streak > 0 ? `${n} victoire${n > 1 ? "s" : ""} de suite` : `${n} défaite${n > 1 ? "s" : ""} de suite`;
+  return streak > 0 ? t("profile.streak_wins", { count: n }) : t("profile.streak_losses", { count: n });
 }
 
 export function Profile({ username }: Props) {
+  const t = useT();
   const { state, reload } = useProfile(username);
   const { account } = useAppState();
   const isMe = !!account && !account.guest && sameUser(account.username, username);
@@ -47,10 +49,10 @@ export function Profile({ username }: Props) {
     return (
       <main className="pf-page">
         <div className="card pf-state">
-          <h1>Joueur introuvable</h1>
-          <p className="muted">Aucun joueur ne s'appelle « {username} ».</p>
+          <h1>{t("profile.notfound_title")}</h1>
+          <p className="muted">{t("profile.notfound_text", { name: username })}</p>
           <a className="btn" href={hrefFor({ name: "ranking" })}>
-            Voir le classement
+            {t("profile.see_ranking")}
           </a>
         </div>
       </main>
@@ -60,10 +62,10 @@ export function Profile({ username }: Props) {
     return (
       <main className="pf-page">
         <div className="card pf-state" role="alert">
-          <h1>Profil indisponible</h1>
+          <h1>{t("profile.unavailable")}</h1>
           <p className="muted">{state.message}</p>
           <button type="button" className="btn" onClick={reload}>
-            Réessayer
+            {t("profile.retry")}
           </button>
         </div>
         {isMe && <ProfileSettings />}
@@ -78,7 +80,7 @@ export function Profile({ username }: Props) {
   return (
     <main className="pf-page">
       <a className="pf-back" href={hrefFor({ name: "ranking" })}>
-        ← Classement
+        {t("profile.back_ranking")}
       </a>
       <header className="pf-head card">
         <span className="avatar solid pf-avatar">{initialOf(p.username)}</span>
@@ -86,8 +88,8 @@ export function Profile({ username }: Props) {
           <h1 className="pf-name">{p.username}</h1>
           {p.title && <p className="pf-title">{p.title}</p>}
           <p className="pf-meta">
-            <span className="tag">{tierOf(p.elo).name}</span>
-            {p.rank && <span className="mono">Rang #{p.rank}</span>}
+            {p.placed === false ? <span className="tag">{t("profile.unplaced")}</span> : <span className="tag">{tierOf(p.elo).name}</span>}
+            {p.rank && <span className="mono">{t("profile.rank", { rank: p.rank })}</span>}
             <span className="muted">{memberSince(p.created_at)}</span>
           </p>
         </div>
@@ -97,27 +99,27 @@ export function Profile({ username }: Props) {
 
       {mine && <TitlePicker username={p.username} activeTitle={p.title} onChanged={reload} />}
 
-      <section className="pf-stats" aria-label="Statistiques">
+      <section className="pf-stats" aria-label={t("profile.stats_aria")}>
         <StatTile label="Elo" value={p.elo} hint={tierOf(p.elo).name} />
         <StatTile
-          label="Record V · N · D"
+          label={t("profile.stat_record")}
           value={`${p.wins} · ${p.draws} · ${p.losses}`}
-          hint={rate === null ? "Aucune partie classée" : `${rate} % de victoires sur ${p.games}`}
+          hint={rate === null ? t("profile.no_ranked_games") : t("profile.win_rate_hint", { rate, games: p.games })}
         />
-        <StatTile label="Pic d'Elo" value={p.peak_elo} />
-        <StatTile label="Série" value={streakText(p.streak)} hint={streakHint(p.streak)} />
+        <StatTile label={t("profile.stat_peak")} value={p.peak_elo} />
+        <StatTile label={t("profile.stat_streak")} value={streakText(p.streak)} hint={streakHint(p.streak)} />
       </section>
 
       <div className="pf-cols">
         <section className="card pf-card" aria-labelledby="pf-chart-h">
           <h2 id="pf-chart-h" className="pf-h">
-            Évolution de l'Elo
+            {t("profile.elo_history")}
           </h2>
           <EloChart history={p.history} />
         </section>
         <section className="card pf-card" aria-labelledby="pf-recent-h">
           <h2 id="pf-recent-h" className="pf-h">
-            Dernières parties
+            {t("profile.recent_games")}
           </h2>
           <RecentGames games={p.recent.slice(0, 10)} />
         </section>
@@ -187,6 +189,7 @@ function TitlePicker({ username, activeTitle, onChanged }: { username: string; a
 
 /** Réglages du compte, dans le profil : apparence, sons et jeu, puis mes parties et déconnexion. */
 function ProfileSettings() {
+  const t = useT();
   // `#/settings` ouvre le profil directement sur cette section.
   useEffect(() => {
     if (location.hash.startsWith("#/settings")) document.getElementById("reglages")?.scrollIntoView();
@@ -194,13 +197,13 @@ function ProfileSettings() {
   return (
     <section id="reglages" className="pf-settings" aria-labelledby="pf-set-h">
       <h2 id="pf-set-h" className="pf-h pf-set-h">
-        Réglages
+        {t("profile.settings")}
       </h2>
       <SettingsBody />
       <RecoveryCodeSettings />
       <div className="card pf-card pf-q-foot">
         <a className="btn block" href={hrefFor({ name: "games" })}>
-          Mes parties
+          {t("profile.my_games")}
         </a>
         <button
           type="button"
@@ -210,7 +213,7 @@ function ProfileSettings() {
             navigate({ name: "home" });
           }}
         >
-          Se déconnecter
+          {t("profile.logout")}
         </button>
         <button
           type="button"
@@ -220,7 +223,7 @@ function ProfileSettings() {
             navigate({ name: "home" });
           }}
         >
-          Se déconnecter partout
+          {t("profile.logout_all")}
         </button>
       </div>
     </section>
@@ -229,6 +232,7 @@ function ProfileSettings() {
 
 /** Bouton d'action selon la relation du visiteur avec ce joueur. */
 function Relation({ username }: { username: string }) {
+  const t = useT();
   const { account, friends, outgoingChallenge, connection } = useAppState();
   const [requested, setRequested] = useState(false);
   const [sheet, setSheet] = useState(false);
@@ -239,7 +243,7 @@ function Relation({ username }: { username: string }) {
     return (
       <div className="pf-actions">
         <a className="btn" href={hrefFor({ name: "auth" })}>
-          Créer un compte pour l'ajouter
+          {t("profile.guest_add")}
         </a>
       </div>
     );
@@ -247,7 +251,7 @@ function Relation({ username }: { username: string }) {
   if (sameUser(account.username, username)) {
     return (
       <div className="pf-actions">
-        <span className="tag">C'est vous</span>
+        <span className="tag">{t("profile.is_you")}</span>
       </div>
     );
   }
@@ -257,22 +261,22 @@ function Relation({ username }: { username: string }) {
     const pending = sameUser(outgoingChallenge, username);
     const can = online && friend.presence === "online" && !outgoingChallenge;
     const reason =
-      friend.presence === "in_game" ? "En partie" : friend.presence === "offline" ? "Hors ligne" : "";
+      friend.presence === "in_game" ? t("profile.in_game") : friend.presence === "offline" ? t("profile.offline") : "";
     return (
       <div className="pf-actions">
         {pending ? (
           <>
             <button type="button" className="btn pri" disabled>
-              Défi envoyé
+              {t("profile.challenge_sent")}
             </button>
             <button type="button" className="btn ghost" onClick={() => store.cancelChallenge()}>
-              Annuler
+              {t("profile.cancel")}
             </button>
           </>
         ) : (
           <>
             <button type="button" className="btn pri" disabled={!can} onClick={() => setSheet(true)}>
-              Défier
+              {t("profile.challenge")}
             </button>
             <ChallengeSheet friend={sheet ? friend : null} onClose={() => setSheet(false)} />
           </>
@@ -291,7 +295,7 @@ function Relation({ username }: { username: string }) {
           disabled={!online}
           onClick={() => store.send({ type: "friend_respond", username, accept: true })}
         >
-          Accepter la demande
+          {t("profile.accept_request")}
         </button>
         <button
           type="button"
@@ -299,7 +303,7 @@ function Relation({ username }: { username: string }) {
           disabled={!online}
           onClick={() => store.send({ type: "friend_respond", username, accept: false })}
         >
-          Refuser
+          {t("profile.decline")}
         </button>
       </div>
     );
@@ -309,7 +313,7 @@ function Relation({ username }: { username: string }) {
     return (
       <div className="pf-actions" aria-live="polite">
         <button type="button" className="btn" disabled>
-          Demande envoyée
+          {t("profile.request_sent")}
         </button>
       </div>
     );
@@ -326,7 +330,7 @@ function Relation({ username }: { username: string }) {
           setRequested(true);
         }}
       >
-        Ajouter en ami
+        {t("profile.add_friend")}
       </button>
     </div>
   );

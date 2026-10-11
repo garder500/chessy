@@ -1,6 +1,7 @@
 import { lazy, Suspense, useId, useState } from "react";
 import type { FormEvent } from "react";
 import { api, ApiError } from "../api";
+import { useT } from "../i18n";
 import { navigate } from "../router";
 import { Beam } from "../ui/Beam";
 import { HeroPiece } from "../ui/HeroPiece";
@@ -13,7 +14,7 @@ import {
   hasErrors,
   mapAuthError,
   passwordStrength,
-  STRENGTH_LABEL,
+  strengthLabel,
   validateForm,
 } from "./authLogic";
 import type { AuthMode, FormErrors, ServerField } from "./authLogic";
@@ -43,12 +44,13 @@ export function needsWelcome(): boolean {
 }
 
 const ARGUMENTS = [
-  { text: "Parties de 3 à 10 minutes", color: "var(--accent)" },
-  { text: "Trois compétences par partie", color: "var(--rar-rare)" },
-  { text: "Gagnez en classée, forgez la vôtre", color: "var(--rar-legendary)" },
+  { key: "auth.arg_duration", color: "var(--accent)" },
+  { key: "auth.arg_skills", color: "var(--rar-rare)" },
+  { key: "auth.arg_ranked", color: "var(--rar-legendary)" },
 ];
 
 export function Auth() {
+  const t = useT();
   const uid = useId();
   const { account } = useAppState();
   const [sheet, setSheet] = useState<AuthMode | null>(null);
@@ -83,7 +85,7 @@ export function Auth() {
   const passwordErr = visible("password") ?? (serverError?.field === "password" ? serverError.message : null);
   const confirmErr = register ? visible("confirm") : null;
 
-  const touch = (f: keyof Touched) => setTouched((t) => (t[f] ? t : { ...t, [f]: true }));
+  const touch = (f: keyof Touched) => setTouched((prev) => (prev[f] ? prev : { ...prev, [f]: true }));
   const clearServer = () => setServerError(null);
 
   function switchMode(next: AuthMode) {
@@ -146,7 +148,13 @@ export function Auth() {
     setServerError(null);
     setRecovering(false);
   };
-  const title = issued ? "Votre code de récupération" : recovering && !register ? "Mot de passe oublié" : register ? "Créer un compte" : "Se connecter";
+  const title = issued
+    ? t("auth.title_recovery_code")
+    : recovering && !register
+      ? t("auth.title_forgot")
+      : register
+        ? t("auth.title_register")
+        : t("auth.title_login");
 
   return (
     <main className="wl">
@@ -158,22 +166,22 @@ export function Auth() {
         <h1 id={id("title")} className="wl-title">
           Chessy
         </h1>
-        <p className="wl-lead">Les échecs, avec des compétences.</p>
+        <p className="wl-lead">{t("auth.lead")}</p>
         <ul className="wl-args">
           {ARGUMENTS.map((a) => (
-            <li key={a.text}>
+            <li key={a.key}>
               <span className="hex wl-hex" style={{ background: a.color }} aria-hidden="true" />
-              {a.text}
+              {t(a.key)}
             </li>
           ))}
         </ul>
       </div>
       <div className="wl-act">
         <button type="button" className="btn pri block" onClick={() => switchMode("register")}>
-          Créer un compte
+          {t("auth.title_register")}
         </button>
         <button type="button" className="btn block" onClick={() => switchMode("login")}>
-          Se connecter
+          {t("auth.title_login")}
         </button>
         <button
           type="button"
@@ -183,7 +191,7 @@ export function Auth() {
             navigate({ name: "home" });
           }}
         >
-          Jouer en invité
+          {t("auth.guest")}
         </button>
       </div>
 
@@ -194,10 +202,10 @@ export function Auth() {
             code={issued.code}
             intro={
               issued.why === "register"
-                ? "Votre compte est créé. Voici votre code de récupération : c'est le seul moyen de retrouver le compte si vous oubliez votre mot de passe."
-                : "Votre mot de passe est changé et vos autres sessions sont fermées. Voici votre nouveau code de récupération ; l'ancien ne fonctionne plus."
+                ? t("auth.intro_register")
+                : t("auth.intro_recover")
             }
-            doneLabel="Continuer"
+            doneLabel={t("auth.continue")}
             onDone={() => enter(issued.token)}
           />
         )}
@@ -211,7 +219,7 @@ export function Auth() {
         <form className="au-form" onSubmit={onSubmit} noValidate hidden={!!issued || (recovering && !register)}>
           <div className="au-field">
             <label className="field-label" htmlFor={id("username")}>
-              Pseudo
+              {t("auth.username")}
             </label>
             <input
               id={id("username")}
@@ -234,14 +242,14 @@ export function Auth() {
               {usernameErr ? (
                 <p className="field-msg">{usernameErr}</p>
               ) : register ? (
-                <p className="au-hint">3 à 16 caractères : lettres, chiffres ou _.</p>
+                <p className="au-hint">{t("auth.username_hint")}</p>
               ) : null}
             </div>
           </div>
 
           <div className="au-field">
             <label className="field-label" htmlFor={id("password")}>
-              Mot de passe
+              {t("auth.password")}
             </label>
             <div className="au-pw">
               <input
@@ -265,9 +273,9 @@ export function Auth() {
                 className="au-eye"
                 onClick={() => setShowPw((s) => !s)}
                 aria-pressed={showPw}
-                aria-label={showPw ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                aria-label={showPw ? t("auth.hide_pw_label") : t("auth.show_pw_label")}
               >
-                {showPw ? "Masquer" : "Afficher"}
+                {showPw ? t("auth.hide") : t("auth.show")}
               </button>
             </div>
             <div id={id("password-msg")} aria-live="polite">
@@ -275,17 +283,17 @@ export function Auth() {
             </div>
             {!register && (
               <button type="button" className="link au-forgot" onClick={() => setRecovering(true)} disabled={loading}>
-                Mot de passe oublié ?
+                {t("auth.forgot")}
               </button>
             )}
             {register && (
               <div className="au-meter" data-level={strength}>
-                <div className="au-meter-bars" role="img" aria-label={`Robustesse : ${STRENGTH_LABEL[strength] || "vide"}`}>
+                <div className="au-meter-bars" role="img" aria-label={t("auth.strength_aria", { label: strengthLabel(strength) || t("auth.strength_empty") })}>
                   {[1, 2, 3, 4].map((n) => (
                     <span key={n} className={n <= strength ? "on" : ""} />
                   ))}
                 </div>
-                <span className="au-meter-label">{STRENGTH_LABEL[strength] || "8 caractères minimum"}</span>
+                <span className="au-meter-label">{strengthLabel(strength) || t("auth.strength_min")}</span>
               </div>
             )}
           </div>
@@ -293,7 +301,7 @@ export function Auth() {
           {register && (
             <div className="au-field">
               <label className="field-label" htmlFor={id("confirm")}>
-                Confirmation
+                {t("auth.confirmation")}
               </label>
               <input
                 id={id("confirm")}
@@ -323,12 +331,12 @@ export function Auth() {
           </div>
 
           <button type="submit" className="btn pri block" disabled={loading} aria-busy={loading}>
-            {loading ? (register ? "Création du compte…" : "Connexion…") : title}
+            {loading ? (register ? t("auth.creating") : t("auth.logging_in")) : title}
           </button>
           <p className="au-switch">
-            {register ? "Déjà un compte ?" : "Pas encore de compte ?"}{" "}
+            {register ? t("auth.have_account") : t("auth.no_account")}{" "}
             <button type="button" className="link" onClick={() => switchMode(register ? "login" : "register")} disabled={loading}>
-              {register ? "Se connecter" : "Créer un compte"}
+              {register ? t("auth.title_login") : t("auth.title_register")}
             </button>
           </p>
         </form>

@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import type { FormEvent } from "react";
 import { api, ApiError } from "../api";
+import { useT } from "../i18n";
 import type { RecoverResponse } from "../api";
 import { readToken } from "../store";
 import { Sheet } from "../ui/Sheet";
@@ -50,6 +51,7 @@ interface BoxProps {
 
 /** Montre le code une seule fois : copie, puis confirmation explicite qu'il est noté. */
 export function RecoveryCodeBox({ code, intro, doneLabel, onDone }: BoxProps) {
+  const t = useT();
   const uid = useId();
   const [saved, setSaved] = useState(false);
   const [copy, setCopy] = useState<"idle" | "done" | "failed">("idle");
@@ -61,25 +63,22 @@ export function RecoveryCodeBox({ code, intro, doneLabel, onDone }: BoxProps) {
   return (
     <div className="au-form rc-box">
       <p className="rc-intro">{intro}</p>
-      <p className="rc-code mono" aria-label="Code de récupération">
+      <p className="rc-code mono" aria-label={t("recovery.code_label")}>
         {code}
       </p>
       <div className="rc-copy">
         <button type="button" className="btn sm" onClick={onCopy} autoFocus>
-          Copier le code
+          {t("recovery.copy")}
         </button>
         <span className="rc-copy-msg" aria-live="polite">
-          {copy === "done" && "Code copié."}
-          {copy === "failed" && "Copie impossible : sélectionnez le code et copiez-le à la main."}
+          {copy === "done" && t("recovery.copied")}
+          {copy === "failed" && t("recovery.copy_failed")}
         </span>
       </div>
-      <p className="au-hint">
-        Il ne sera plus jamais affiché. Avec lui, vous pourrez choisir un nouveau mot de passe si vous perdez l'ancien ; sans lui, un compte dont le mot de passe est
-        oublié est perdu. Gardez-le hors de cet appareil (gestionnaire de mots de passe, papier) et ne le partagez pas.
-      </p>
+      <p className="au-hint">{t("recovery.warning")}</p>
       <label className="rc-saved" htmlFor={`${uid}-saved`}>
         <input id={`${uid}-saved`} type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} />
-        <span>J'ai noté mon code de récupération</span>
+        <span>{t("recovery.saved")}</span>
       </label>
       <button type="button" className="btn pri block" disabled={!saved} onClick={onDone}>
         {doneLabel}
@@ -96,6 +95,7 @@ interface ForgotProps {
 
 /** « Mot de passe oublié ? » : pseudo, code de récupération et nouveau mot de passe. */
 export function ForgotPasswordForm({ onRecovered, onBack }: ForgotProps) {
+  const t = useT();
   const uid = useId();
   const [username, setUsername] = useState("");
   const [code, setCode] = useState("");
@@ -133,10 +133,10 @@ export function ForgotPasswordForm({ onRecovered, onBack }: ForgotProps) {
 
   return (
     <form className="au-form" onSubmit={onSubmit} noValidate>
-      <p className="au-hint">Saisissez le code de récupération donné à l'inscription. Toutes vos sessions seront fermées et un nouveau code vous sera remis.</p>
+      <p className="au-hint">{t("recovery.forgot_intro")}</p>
       <div className="au-field">
         <label className="field-label" htmlFor={id("username")}>
-          Pseudo
+          {t("auth.username")}
         </label>
         <input
           id={id("username")}
@@ -155,7 +155,7 @@ export function ForgotPasswordForm({ onRecovered, onBack }: ForgotProps) {
       </div>
       <div className="au-field">
         <label className="field-label" htmlFor={id("code")}>
-          Code de récupération
+          {t("recovery.code_label")}
         </label>
         <input
           id={id("code")}
@@ -174,7 +174,7 @@ export function ForgotPasswordForm({ onRecovered, onBack }: ForgotProps) {
       </div>
       <div className="au-field">
         <label className="field-label" htmlFor={id("password")}>
-          Nouveau mot de passe
+          {t("recovery.new_password")}
         </label>
         <div className="au-pw">
           <input
@@ -193,16 +193,16 @@ export function ForgotPasswordForm({ onRecovered, onBack }: ForgotProps) {
             className="au-eye"
             onClick={() => setShowPw((s) => !s)}
             aria-pressed={showPw}
-            aria-label={showPw ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+            aria-label={showPw ? t("auth.hide_pw_label") : t("auth.show_pw_label")}
           >
-            {showPw ? "Masquer" : "Afficher"}
+            {showPw ? t("auth.hide") : t("auth.show")}
           </button>
         </div>
         {passwordErr && <p className="field-msg">{passwordErr}</p>}
       </div>
       <div className="au-field">
         <label className="field-label" htmlFor={id("confirm")}>
-          Confirmation
+          {t("auth.confirmation")}
         </label>
         <input
           id={id("confirm")}
@@ -225,11 +225,11 @@ export function ForgotPasswordForm({ onRecovered, onBack }: ForgotProps) {
         )}
       </div>
       <button type="submit" className="btn pri block" disabled={loading} aria-busy={loading}>
-        {loading ? "Vérification…" : "Réinitialiser le mot de passe"}
+        {loading ? t("recovery.verifying") : t("recovery.reset")}
       </button>
       <p className="au-switch">
         <button type="button" className="link" onClick={onBack} disabled={loading}>
-          Retour à la connexion
+          {t("recovery.back")}
         </button>
       </p>
     </form>
@@ -238,6 +238,7 @@ export function ForgotPasswordForm({ onRecovered, onBack }: ForgotProps) {
 
 /** Réglages du profil : (re)générer le code de récupération, après avoir confirmé le mot de passe. */
 export function RecoveryCodeSettings() {
+  const t = useT();
   const uid = useId();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
@@ -258,7 +259,7 @@ export function RecoveryCodeSettings() {
     const token = readToken();
     if (loading || !token) return;
     if (!password) {
-      setError("Saisissez votre mot de passe actuel.");
+      setError(t("recovery.current_password_required"));
       return;
     }
     setLoading(true);
@@ -275,27 +276,25 @@ export function RecoveryCodeSettings() {
 
   return (
     <section className="card st-card" aria-labelledby={`${uid}-rc-h`}>
-      <h2 id={`${uid}-rc-h`} className="st-h">Code de récupération</h2>
-      <p className="muted st-hint rc-settings-p">
-        Sans adresse e-mail, ce code est le seul moyen de retrouver votre compte si vous oubliez votre mot de passe. En générer un nouveau remplace l'ancien.
-      </p>
+      <h2 id={`${uid}-rc-h`} className="st-h">{t("recovery.code_label")}</h2>
+      <p className="muted st-hint rc-settings-p">{t("recovery.settings_hint")}</p>
       <button type="button" className="btn block" onClick={() => setOpen(true)}>
-        Générer un code de récupération
+        {t("recovery.generate_btn")}
       </button>
       {/* Une fois le code généré, l'ancien ne marche plus : le panneau ne se ferme qu'avec « Terminé ». */}
-      <Sheet open={open} title="Code de récupération" onClose={code ? () => undefined : close}>
+      <Sheet open={open} title={t("recovery.code_label")} onClose={code ? () => undefined : close}>
         {code ? (
           <RecoveryCodeBox
             code={code}
-            intro="Voici votre nouveau code. L'ancien ne fonctionne plus."
-            doneLabel="Terminé"
+            intro={t("recovery.new_code_intro")}
+            doneLabel={t("recovery.done")}
             onDone={close}
           />
         ) : (
           <form className="au-form" onSubmit={onSubmit} noValidate>
             <div className="au-field">
               <label className="field-label" htmlFor={`${uid}-password`}>
-                Mot de passe actuel
+                {t("recovery.current_password")}
               </label>
               <input
                 id={`${uid}-password`}
@@ -314,7 +313,7 @@ export function RecoveryCodeSettings() {
               <div aria-live="polite">{error && <p className="field-msg">{error}</p>}</div>
             </div>
             <button type="submit" className="btn pri block" disabled={loading} aria-busy={loading}>
-              {loading ? "Génération…" : "Générer le code"}
+              {loading ? t("recovery.generating") : t("recovery.generate")}
             </button>
           </form>
         )}

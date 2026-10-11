@@ -34,7 +34,7 @@ impl Change {
 pub enum Source {
     /// The deck a new player starts with.
     Starter,
-    /// A player left with no skill is given one.
+    /// A player left under the minimum deck size is given skills back.
     Refill,
     /// Made by the forge after a win.
     Forged,

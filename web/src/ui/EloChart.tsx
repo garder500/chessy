@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import type { PublicProfile } from "../protocol";
 import { buildChart } from "./eloChartPath";
 import "./elochart.css";
@@ -12,16 +13,17 @@ interface Props {
 
 /** Courbe d'évolution de l'Elo (polyline SVG, sans dépendance). */
 export function EloChart({ history, label }: Props) {
+  const t = useT();
   const geo = buildChart(
     history.map((h) => h.elo),
     BOX,
   );
-  if (!geo) return <p className="elo-empty muted">Pas encore de parties classées.</p>;
+  if (!geo) return <p className="elo-empty muted">{t("games.elo_empty")}</p>;
 
   const last = geo.points[geo.points.length - 1];
   const first = geo.points[0];
   const aria =
-    label ?? `Évolution de l'Elo sur ${history.length} points : de ${first.elo} à ${last.elo}, minimum ${geo.min}, maximum ${geo.max}.`;
+    label ?? t("games.elo_aria", { count: history.length, first: first.elo, last: last.elo, min: geo.min, max: geo.max });
   const baseY = BOX.height - BOX.padY;
   const topY = BOX.padY;
   const midY = (baseY + topY) / 2;
@@ -36,9 +38,9 @@ export function EloChart({ history, label }: Props) {
         <circle className="elo-dot" cx={last.x} cy={last.y} r={4.5} />
       </svg>
       <figcaption className="elo-legend mono">
-        <span>Min {geo.min}</span>
-        <span>Actuel {last.elo}</span>
-        <span>Max {geo.max}</span>
+        <span>{t("games.elo_min", { value: geo.min })}</span>
+        <span>{t("games.elo_current", { value: last.elo })}</span>
+        <span>{t("games.elo_max", { value: geo.max })}</span>
       </figcaption>
     </figure>
   );

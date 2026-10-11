@@ -14,15 +14,27 @@ import type {
   SpectatorView,
   StateView,
 } from "../protocol";
+import { t } from "../i18n";
 import { resultFor } from "../outcome";
 
 export const opposite = (c: Color): Color => (c === "white" ? "black" : "white");
 
-export const COLOR_FR: Record<Color, string> = { white: "blancs", black: "noirs" };
+/** Nom du camp dans la langue courante (« blancs » / « noirs » en français), lu à l'usage. */
+export const COLOR_FR: Record<Color, string> = {
+  get white() {
+    return t("replay.color_white");
+  },
+  get black() {
+    return t("replay.color_black");
+  },
+};
+
+/** Nom du camp en début de libellé (« Blancs » / « Noirs »). */
+export const colorCap = (c: Color): string => t(c === "white" ? "replay.white_cap" : "replay.black_cap");
 
 /** Nom affichable d'un joueur : pseudo, « IA » pour un bot, « Invité » sinon. */
 export function seatName(seat: Seat): string {
-  return seat.username ?? (seat.bot ? "IA" : "Invité");
+  return seat.username ?? (seat.bot ? t("replay.seat_bot") : t("replay.seat_guest"));
 }
 
 export function opponentInfo(seat: Seat): OpponentInfo {
@@ -186,6 +198,6 @@ export function normalizeSpectatorView(view: SpectatorView): SpectatorView {
 
 /** Étiquette de type de partie : « Solo » prime, puis classée / amicale selon `rated`. */
 export function kindLabel(kind: GameKind, rated: boolean): string {
-  if (kind === "solo") return "Solo";
-  return rated ? "Classée" : "Amicale";
+  if (kind === "solo") return t("replay.kind_solo");
+  return t(rated ? "replay.kind_ranked" : "replay.kind_friendly");
 }
